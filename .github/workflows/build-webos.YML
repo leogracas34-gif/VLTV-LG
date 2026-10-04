@@ -1,0 +1,36 @@
+name: Build webOS IPK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webos/**'
+      - '.github/workflows/build-webos.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar as ferramentas da LG (ares-cli)
+        run: npm install -g @webos-tools/cli
+
+      - name: Gerar o .ipk
+        run: |
+          mkdir -p saida
+          ares-package webos --outdir saida
+          ls -la saida
+
+      - name: Guardar o .ipk
+        uses: actions/upload-artifact@v4
+        with:
+          name: vltv-webos-ipk
+          path: saida/*.ipk

@@ -1,0 +1,502 @@
+/* VLTV Play - webOS (etapa 2)
+   Layout em 1920x1080. A TV escala sozinha para 4K.
+   Margem de 60px em volta evita corte em TVs com overscan. */
+
+:root {
+  --fundo: #0b0c14;
+  --painel: #161929;
+  --painel-2: #1d2136;
+  --borda: #2a2f48;
+  --texto: #f2f4fb;
+  --suave: #9097b3;
+  --destaque: #7b5cff;
+  --destaque-claro: #a591ff;
+  --erro: #ff6b7a;
+  --ok: #5be3a4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 32px;
+}
+
+#app {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  padding: 60px;
+}
+
+.tela {
+  position: absolute;
+  top: 60px;
+  left: 60px;
+  right: 60px;
+  bottom: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Telas que ocupam a área toda (Home e TV ao vivo) */
+.tela-topo {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.escondida { display: none !important; }
+
+.logo {
+  font-size: 84px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  margin-bottom: 40px;
+}
+.logo span { color: var(--destaque-claro); }
+
+h1 {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+/* ── Login ───────────────────────────────────────────── */
+
+.campo {
+  width: 900px;
+  margin-bottom: 28px;
+}
+
+label {
+  display: block;
+  font-size: 30px;
+  color: var(--suave);
+  margin-bottom: 10px;
+}
+
+input {
+  width: 100%;
+  height: 92px;
+  padding: 0 28px;
+  font-size: 38px;
+  color: var(--texto);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--destaque-claro);
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.35);
+}
+
+.botao {
+  width: 900px;
+  height: 96px;
+  margin-top: 12px;
+  font-size: 38px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--destaque);
+  border: 3px solid transparent;
+  border-radius: 14px;
+  outline: none;
+}
+
+.botao:focus {
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
+}
+
+.botao[disabled] { opacity: 0.55; }
+
+.status {
+  min-height: 90px;
+  width: 900px;
+  margin-top: 28px;
+  font-size: 30px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--suave);
+}
+.status.erro { color: var(--erro); }
+.status.ok { color: var(--ok); }
+
+.msg-suave {
+  max-width: 1100px;
+  font-size: 32px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--suave);
+}
+
+/* ── Home ────────────────────────────────────────────── */
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 120px;
+}
+
+.logo-pequeno {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+.logo-pequeno span { color: var(--destaque-claro); }
+
+.conta { text-align: right; font-size: 32px; }
+.conta-suave { margin-top: 6px; font-size: 26px; color: var(--suave); }
+
+.tiles {
+  display: flex;
+  gap: 40px;
+  margin-top: 200px;
+}
+
+.tile {
+  width: 405px;
+  height: 330px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  text-align: left;
+  color: var(--texto);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 22px;
+  outline: none;
+  transition: transform 0.15s ease;
+}
+
+.tile-titulo { font-size: 46px; font-weight: 700; }
+.tile-sub { margin-top: 12px; font-size: 28px; color: var(--suave); }
+
+.tile:focus {
+  background: var(--painel-2);
+  border-color: #fff;
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.tile[disabled] { opacity: 0.4; }
+
+.rodape {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font-size: 24px;
+  color: var(--suave);
+}
+
+/* ── TV ao vivo ──────────────────────────────────────── */
+
+.live {
+  display: flex;
+  gap: 30px;
+  width: 1800px;
+  height: 960px;
+}
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  height: 960px;
+  padding: 24px 20px;
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 18px;
+}
+#painel-cats { width: 480px; }
+#painel-canais { width: 620px; }
+.painel.ativo { border-color: var(--destaque-claro); }
+
+.painel h2 {
+  height: 56px;
+  padding: 0 12px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--suave);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lista {
+  flex: 1;
+  list-style: none;
+  overflow: hidden;
+}
+
+.lista li {
+  display: flex;
+  align-items: center;
+  height: 84px;
+  margin-bottom: 6px;
+  padding: 0 16px;
+  font-size: 30px;
+  border: 3px solid transparent;
+  border-left: 8px solid transparent;
+  border-radius: 12px;
+}
+
+.lista li span.nome {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lista li img {
+  width: 64px;
+  height: 48px;
+  margin-right: 18px;
+  object-fit: contain;
+}
+
+.lista li.msg {
+  height: auto;
+  padding: 24px 16px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.lista li.tocando { border-left-color: var(--ok); }
+
+.lista li.sel {
+  background: var(--painel-2);
+  border-top-color: var(--borda);
+  border-right-color: var(--borda);
+  border-bottom-color: var(--borda);
+}
+
+.painel.ativo .lista li.sel {
+  background: var(--destaque);
+  border-color: #fff;
+}
+
+.coluna-player { width: 640px; }
+
+.player {
+  position: relative;
+  width: 640px;
+  height: 360px;
+  background: #000;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.player video {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.player.cheio {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 50;
+  border-radius: 0;
+}
+
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin-top: -40px;
+  text-align: center;
+  font-size: 30px;
+  text-shadow: 0 2px 8px #000;
+}
+.overlay.erro { color: var(--erro); }
+.player.cheio .overlay { font-size: 44px; }
+
+.info-cheio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 60px 80px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+}
+.info-cheio .info-nome { font-size: 52px; }
+.info-cheio .info-linha { font-size: 34px; }
+
+.info { padding: 24px 8px; }
+.info-nome { font-size: 38px; font-weight: 700; margin-bottom: 14px; }
+.info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
+.info-suave { color: var(--suave); }
+
+/* ── Catálogo (Filmes e Séries) ──────────────────────── */
+
+.painel-cat { width: 420px; }
+.painel-grade { width: 1350px; }
+
+.grade {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 20px;
+  list-style: none;
+  padding: 6px 10px;
+  overflow: hidden;
+}
+
+.grade li.msg {
+  width: 100%;
+  padding: 24px 6px;
+  font-size: 30px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.celula {
+  width: 240px;
+  border: 4px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.capa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 320px;
+  font-size: 80px;
+  color: var(--suave);
+  background: var(--painel-2);
+  overflow: hidden;
+}
+
+.capa img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.celula-nome {
+  height: 78px;
+  padding: 8px 8px 0;
+  font-size: 26px;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.celula.sel {
+  background: var(--painel-2);
+  border-color: var(--borda);
+}
+
+.painel.ativo .celula.sel {
+  background: var(--destaque);
+  border-color: #fff;
+}
+
+/* ── Detalhes da série ───────────────────────────────── */
+
+.ep-info { width: 480px; }
+
+.ep-capa {
+  display: block;
+  width: 480px;
+  height: 420px;
+  object-fit: cover;
+  background: var(--painel);
+  border-radius: 14px;
+}
+
+.ep-titulo {
+  margin-top: 24px;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ep-sinopse {
+  margin-top: 16px;
+  font-size: 26px;
+  line-height: 1.4;
+  color: var(--suave);
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.painel-temp { width: 360px; }
+.painel-eps { width: 900px; }
+
+/* ── Player de filmes e episódios ────────────────────── */
+
+#tela-player {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  background: #000;
+  z-index: 60;
+}
+
+#player-video {
+  width: 1920px;
+  height: 1080px;
+  background: #000;
+}
+
+.controles {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 80px 100px 70px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+}
+
+.ctrl-titulo {
+  margin-bottom: 24px;
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.barra {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.barra-cheia {
+  width: 0%;
+  height: 100%;
+  background: var(--destaque-claro);
+}
+
+.tempos {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 28px;
+  color: var(--suave);
+}

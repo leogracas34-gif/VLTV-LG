@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+  <title>VLTV Play</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Tela de carregamento inicial -->
+    <section id="tela-carregando" class="tela">
+      <div class="logo">VLTV <span>PLAY</span></div>
+      <p id="carregando-msg" class="msg-suave">Iniciando...</p>
+    </section>
+
+    <!-- Tela de aparelho não compatível -->
+    <section id="tela-incompativel" class="tela escondida">
+      <div class="logo">VLTV <span>PLAY</span></div>
+      <h1>Aparelho não compatível</h1>
+      <p id="incompativel-msg" class="msg-suave"></p>
+    </section>
+
+    <!-- Tela de login -->
+    <section id="tela-login" class="tela escondida">
+      <div class="logo">VLTV <span>PLAY</span></div>
+      <h1>Entrar</h1>
+
+      <div class="campo">
+        <label for="campo-usuario">Usuário</label>
+        <input id="campo-usuario" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <div class="campo">
+        <label for="campo-senha">Senha</label>
+        <input id="campo-senha" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <button id="btn-entrar" type="button" class="botao">Entrar</button>
+
+      <p id="login-status" class="status" role="status"></p>
+    </section>
+
+    <!-- Tela inicial (Home) -->
+    <section id="tela-home" class="tela tela-topo escondida">
+      <header class="topo">
+        <div class="logo-pequeno">VLTV <span>PLAY</span></div>
+        <div class="conta">
+          <div id="home-usuario">-</div>
+          <div id="home-vencimento" class="conta-suave">-</div>
+        </div>
+      </header>
+
+      <nav class="tiles">
+        <button id="tile-live" type="button" class="tile">
+          <span class="tile-titulo">TV ao vivo</span>
+          <span class="tile-sub">Canais e programação</span>
+        </button>
+        <button id="tile-filmes" type="button" class="tile">
+          <span class="tile-titulo">Filmes</span>
+          <span class="tile-sub">Catálogo de filmes</span>
+        </button>
+        <button id="tile-series" type="button" class="tile">
+          <span class="tile-titulo">Séries</span>
+          <span class="tile-sub">Temporadas e episódios</span>
+        </button>
+        <button id="tile-sair" type="button" class="tile">
+          <span class="tile-titulo">Sair da conta</span>
+          <span class="tile-sub">Trocar de usuário</span>
+        </button>
+      </nav>
+
+      <footer id="home-aparelho" class="rodape"></footer>
+    </section>
+
+    <!-- TV ao vivo -->
+    <section id="tela-live" class="tela tela-topo escondida">
+      <div class="live">
+
+        <div id="painel-cats" class="painel ativo">
+          <h2>Categorias</h2>
+          <ul id="live-cats" class="lista"></ul>
+        </div>
+
+        <div id="painel-canais" class="painel">
+          <h2 id="live-canais-titulo">Canais</h2>
+          <ul id="live-canais" class="lista"></ul>
+        </div>
+
+        <div class="coluna-player">
+          <div id="live-player" class="player">
+            <video id="live-video" autoplay playsinline></video>
+            <div id="live-overlay" class="overlay escondida"></div>
+            <div id="live-info-cheio" class="info-cheio escondida"></div>
+          </div>
+          <div class="info">
+            <div id="live-nome" class="info-nome"></div>
+            <div id="live-agora" class="info-linha"></div>
+            <div id="live-depois" class="info-linha info-suave"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Catálogo de Filmes e Séries -->
+    <section id="tela-catalogo" class="tela tela-topo escondida">
+      <div class="live">
+
+        <div id="cat-painel-cats" class="painel ativo painel-cat">
+          <h2 id="cat-titulo-cats">Categorias</h2>
+          <ul id="cat-cats" class="lista"></ul>
+        </div>
+
+        <div id="cat-painel-grade" class="painel painel-grade">
+          <h2 id="cat-grade-titulo"></h2>
+          <ul id="cat-grade" class="grade"></ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Detalhes da série: temporadas e episódios -->
+    <section id="tela-episodios" class="tela tela-topo escondida">
+      <div class="live">
+
+        <div class="ep-info">
+          <img id="ep-capa" class="ep-capa" alt="">
+          <div id="ep-titulo" class="ep-titulo"></div>
+          <div id="ep-sinopse" class="ep-sinopse"></div>
+        </div>
+
+        <div id="ep-painel-temp" class="painel ativo painel-temp">
+          <h2>Temporadas</h2>
+          <ul id="ep-temporadas" class="lista"></ul>
+        </div>
+
+        <div id="ep-painel-eps" class="painel painel-eps">
+          <h2 id="ep-eps-titulo">Episódios</h2>
+          <ul id="ep-lista" class="lista"></ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Player de filmes e episódios -->
+    <section id="tela-player" class="tela escondida">
+      <video id="player-video" autoplay playsinline></video>
+      <div id="player-overlay" class="overlay escondida"></div>
+      <div id="player-controles" class="controles escondida">
+        <div id="player-titulo" class="ctrl-titulo"></div>
+        <div class="barra"><div id="player-progresso" class="barra-cheia"></div></div>
+        <div class="tempos">
+          <span id="player-tempo">0:00</span>
+          <span id="player-estado"></span>
+          <span id="player-duracao"></span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/platform.js"></script>
+  <script src="js/dns.js"></script>
+  <script src="js/xtream.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/catalogo.js"></script>
+  <script src="js/episodios.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

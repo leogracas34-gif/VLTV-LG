@@ -4,8 +4,10 @@
 (function () {
   'use strict';
 
-  var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40 };
+  var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40, PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428 };
 
+  var COL_EPS = 4;              // episódios por linha (grade)
+  var LINHAS_PAGINA_EPS = 2;    // CH+/CH- pulam esta quantidade de linhas
   var COL_SUG = 6;              // capas por linha nas sugestões
   var MAX_SUG = 12;             // quantas sugestões mostrar
   var MARGEM_ABAS_PX = 110;     // onde as abas ficam na tela depois de rolar a página
@@ -178,7 +180,17 @@
   }
 
   // ── Fundo ─────────────────────────────────────────────────────────
+  // O fundo é escolhido UMA vez ao abrir o título (imagem que já veio na lista do painel, ou a capa
+  // desfocada) e não troca mais: assim a tela não pisca. A logo do TMDB só substitui o nome.
+  var timerFundo = null;
+
+  function mostrarFundo() {
+    clearTimeout(timerFundo);
+    elFundo.style.opacity = '';
+  }
+
   function definirFundo(url, ehCapa) {
+    clearTimeout(timerFundo);
     elFundo.className = 'det-fundo' + (ehCapa ? ' desfocado' : '');
     if (!url) {
       elFundo.removeAttribute('src');
@@ -186,7 +198,11 @@
       return;
     }
     elFundo.style.visibility = 'visible';
+    elFundo.style.opacity = '0';          // entra suave quando terminar de carregar
+    elFundo.onload = mostrarFundo;
     elFundo.src = url;
+    if (elFundo.complete && elFundo.naturalWidth > 0) { mostrarFundo(); }
+    timerFundo = setTimeout(mostrarFundo, 2500);   // se demorar muito, mostra mesmo assim
   }
 
   // Se a imagem de fundo falhar, usa a capa desfocada (ou fica só o preto).
@@ -195,6 +211,7 @@
       usandoCapa = true;
       definirFundo(item.capa, true);
     } else {
+      mostrarFundo();
       elFundo.style.visibility = 'hidden';
     }
   };
@@ -404,12 +421,17 @@
       }
     }
 
+    var selo = document.createElement('div');
+    selo.className = 'ep-num';
+    selo.textContent = String(numero);
+    thumb.appendChild(selo);
+
     var txt = document.createElement('div');
     txt.className = 'ep-txt';
 
     var tit = document.createElement('div');
     tit.className = 'ep-tit';
-    tit.textContent = numero + '. ' + tituloEpisodio(ep, numero);
+    tit.textContent = tituloEpisodio(ep, numero);
     txt.appendChild(tit);
 
     if (linhaDur) {
@@ -417,12 +439,6 @@
       dur.className = 'ep-dur';
       dur.textContent = linhaDur;
       txt.appendChild(dur);
-    }
-    if (inf.plot) {
-      var sin = document.createElement('div');
-      sin.className = 'ep-sin';
-      sin.textContent = inf.plot;
-      txt.appendChild(sin);
     }
 
     li.appendChild(thumb);
@@ -718,10 +734,23 @@
 
   function teclaEpisodios(k) {
     var n = itensEps.length;
-    if (k === TECLA.CIMA) {
-      if (epIdx > 0) { epIdx--; } else { zona = (temporadas.length > 1 || falha) ? 'temp' : 'abas'; }
+    if (k === TECLA.ESQ) { if (epIdx % COL_EPS > 0) { epIdx--; } }
+    else if (k === TECLA.DIR) { if (epIdx < n - 1 && epIdx % COL_EPS < COL_EPS - 1) { epIdx++; } }
+    else if (k === TECLA.CIMA) {
+      if (epIdx >= COL_EPS) { epIdx -= COL_EPS; }
+      else { zona = (temporadas.length > 1 || falha) ? 'temp' : 'abas'; }
     }
-    else if (k === TECLA.BAIXO) { if (epIdx < n - 1) { epIdx++; } }
+    else if (k === TECLA.BAIXO) {
+      if (epIdx + COL_EPS < n) { epIdx += COL_EPS; }
+      else if (Math.floor(epIdx / COL_EPS) < Math.floor((n - 1) / COL_EPS)) { epIdx = n - 1; }
+    }
+    // CH+/CH- (ou PG): pula algumas linhas de uma vez, para séries com muitos episódios.
+    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) {
+      epIdx = Math.min(n - 1, epIdx + COL_EPS * LINHAS_PAGINA_EPS);
+    }
+    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) {
+      epIdx = Math.max(0, epIdx - COL_EPS * LINHAS_PAGINA_EPS);
+    }
     else if (k === TECLA.ENTER) { tocarEpisodio(); }
   }
 
@@ -819,9 +848,6 @@
     // Chave da série nos créditos aprendidos: id do 1º episódio da série inteira (igual ao Android).
     plano.forEach(function (p) { p.serie = plano[0].id; });
 
-    var fundo = primeiro(info.backdrop_path);
-    if (fundo && fundo !== item.fundo) { usandoCapa = false; definirFundo(fundo, false); }
-
     renderTopo();
     renderDetalhes();
     atualizarProgresso();
@@ -841,8 +867,6 @@
 
   function montarFilme(dados) {
     info = dados || {};
-    var fundo = primeiro(info.backdrop_path);
-    if (fundo && fundo !== item.fundo) { usandoCapa = false; definirFundo(fundo, false); }
     renderTopo();
     renderDetalhes();
     atualizarProgresso();

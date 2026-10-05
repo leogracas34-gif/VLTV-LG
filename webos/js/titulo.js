@@ -5,23 +5,43 @@
 (function () {
   'use strict';
 
-  // Palavras soltas que são "sujeira" (comparadas em maiúsculas, sem pontuação nas pontas).
+  // Mesma lista do TituloCleaner do app Android (mais alguns termos de arquivos de filme).
+  // São removidas em qualquer lugar do nome, mesmo coladas por ponto, hífen ou barra:
+  // "Filme.1080p.Dublado" e "Filme-HD" também ficam limpos.
   var TAGS = [
-    'FHD', 'HD', 'SD', '4K', '8K', 'UHD', 'HDR', '720P', '1080P', '2160P',
-    'H264', 'H265', 'X264', 'X265', 'HEVC', 'BLURAY', 'REMUX', 'REPACK',
-    'WEBDL', 'WEBRIP', 'WEB', 'BRRIP', 'DVDRIP', 'AVI', 'MKV', 'MP4',
-    'HDTV', 'HDCAM', 'CAM', 'TS', 'TC', 'R5', 'SCREENER', 'DUAL', 'AUDIO', 'AAC', 'LATINO',
-    'LEG', 'LEGENDADO', 'SUBTITLED', 'DUB', 'DUBLADO', 'DUBBED',
-    'NACIONAL', 'BR', 'SP', 'ITA', 'ESP', 'PTBR',
-    'CINEMA', 'LANÇAMENTO', 'LANCAMENTO', 'EXCLUSIVO', 'COMPLETO', 'COMPLETE',
+    'FULL HD', 'FULL-HD', 'FULLHD', 'FHD', 'HD', '4K', '8K', 'UHD', 'HDR', 'HDR10', 'DV',
+    '720P', '1080P', '2160P', '480P',
+    'H264', 'H265', 'H.264', 'H.265', 'X264', 'X265', 'HEVC', 'AVC',
+    'BLURAY', 'BLU-RAY', 'BDRIP', 'REMUX', 'REPACK', 'UNCUT',
+    'WEB-DL', 'WEBDL', 'WEBRIP', 'BRRIP', 'DVDRIP', 'DVDSCR', 'AVI', 'MKV', 'MP4',
+    'HDTV', 'HDCAM', 'HDRIP', 'SCREENER',
+    'DUAL', 'DUAL AUDIO', 'DUAL-AUDIO', '5.1', '2.0', 'AAC', 'AC3', 'LATINO', 'MULTI',
+    'LEG', 'LEGENDADO', 'LEGENDADA', 'SUBTITLED', 'SUBS',
+    'DUB', 'DUBLADO', 'DUBLADA', 'DUBBED',
+    'NACIONAL', 'PT-BR', 'PTBR',
+    'CINEMA', 'LANÇAMENTO', 'LANCAMENTO', 'EXCLUSIVO', 'COMPLETE',
     'TEMPORADA', 'SEASON'
   ];
 
-  var MAPA_TAGS = {};
-  TAGS.forEach(function (t) { MAPA_TAGS[t] = true; });
+  // Palavras que também são palavras de verdade ("Web of Lies"): só saem se NÃO forem a primeira do nome.
+  var TAGS_FRACAS = ['WEB', 'TS', 'TC', 'DV', 'SUB', 'SUBS', 'AUDIO', 'MULTI', 'ESP', 'ITA', 'SP', 'BR', 'AVC', 'CAM', 'COMPLETE', 'COMPLETO', 'EXTENDED', 'UNCUT', 'PROPER', 'SD', 'R5'];
 
-  // Sujeira com mais de uma palavra ou com pontuação: trocada por espaço antes de separar as palavras.
-  var REGEX_COMPOSTAS = /(^|\s)(FULL[\s-]?HD|DUAL[\s-]?AUDIO|BLU[\s-]?RAY|WEB[\s-]?DL|PT[\s-]?BR|H\.26[45]|5\.1|2\.0)(?=$|\s)/gi;
+  var LETRAS = 'A-Za-z0-9ÇçÀ-ÿ';
+
+  function escapar(t) { return t.replace(/[.*+?^${}()|[\]\\\-]/g, '\\$&'); }
+
+  // Palavra inteira (sem lookbehind: webOS 4 usa Chrome 53). O separador da frente é devolvido ao texto.
+  var REGEX_TAGS = new RegExp(
+    '(^|[^' + LETRAS + '])(' +
+    TAGS.slice().sort(function (x, y) { return y.length - x.length; }).map(escapar).join('|') +
+    ')(?=$|[^' + LETRAS + '])', 'gi');
+
+  var REGEX_TAGS_FRACAS = new RegExp(
+    '([^' + LETRAS + '])(' + TAGS_FRACAS.map(escapar).join('|') + ')(?=$|[^' + LETRAS + '])', 'gi');
+
+  // Resoluções coladas ("1080p", "HD1080", "1920x1080").
+  var REGEX_RESOLUCAO = new RegExp('(^|[^' + LETRAS + '])(\\d{3,4}p|hd\\d{3,4}|\\d{3,4}x\\d{3,4})(?=$|[^' + LETRAS + '])', 'gi');
+
   var REGEX_TEMPORADA = /^(S\d{1,2}(E\d{1,3})?|E\d{1,3}|EP\d{1,3})$/i;
   var REGEX_ANO = /^(19|20)\d{2}$/;
 
@@ -45,16 +65,37 @@
       return ' ';
     });
 
-    texto = texto.replace(/[|_]/g, ' ').replace(REGEX_COMPOSTAS, '$1 ');
+    texto = texto.replace(/[|_]/g, ' ');
+    // Nome de arquivo ("Filme.Nome.1080p.Dublado"): os pontos fazem o papel de espaço.
+    if (!/\s/.test(texto) && (texto.match(/\./g) || []).length >= 2) { texto = texto.replace(/\./g, ' '); }
+
+    // Mesma ideia com hífen ("Filme-Nome-HD"). Nomes normais com um hífen só ("Spider-Man") não mudam.
+    if (!/\s/.test(texto) && (texto.match(/-/g) || []).length >= 2) { texto = texto.replace(/-/g, ' '); }
+
+    // Prefixo de idioma do painel: "BR: Duna", "SP - Duna".
+    texto = texto.replace(/^\s*(BR|SP|PT|PTBR|LEG|DUB)\s*[:\-–]\s+/i, '');
+
+    var antes = texto;
+    for (var vez = 0; vez < 3; vez++) {
+      texto = texto.replace(REGEX_TAGS, '$1 ').replace(REGEX_TAGS_FRACAS, '$1 ').replace(REGEX_RESOLUCAO, '$1 ');
+    }
+    var tirouTag = texto !== antes;
+    texto = texto.replace(/\s[.:,;]+(?=\s|$)/g, ' ');
+
     var palavras = texto.split(/\s+/).filter(function (p) { return p.length > 0; });
 
     var mantidas = [];
     palavras.forEach(function (p) {
       var limpa = semPontas(p);
-      var maiuscula = limpa.toUpperCase();
-      if (MAPA_TAGS[maiuscula] || REGEX_TEMPORADA.test(limpa)) { return; }
+      if (REGEX_TEMPORADA.test(limpa)) { return; }
       mantidas.push(p);
     });
+
+    // "Filme - L" / "Filme | D" (marca de legendado/dublado): sai. Sem separador, só se já havia outra tag.
+    if (mantidas.length > 1 && /^[LD]$/i.test(semPontas(mantidas[mantidas.length - 1]))) {
+      var anterior = mantidas[mantidas.length - 2];
+      if (semPontas(anterior) === '' || tirouTag) { mantidas.pop(); }
+    }
 
     // Separadores soltos nas pontas ("Título - HD" deixa um "-" sobrando) saem junto.
     function aparar() {

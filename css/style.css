@@ -1,0 +1,1105 @@
+/* VLTV Play - webOS (etapa 2)
+   Layout em 1920x1080. A TV escala sozinha para 4K.
+   Margem de 60px em volta evita corte em TVs com overscan. */
+
+:root {
+  --fundo: #0b0c14;
+  --painel: #161929;
+  --painel-2: #1d2136;
+  --borda: #2a2f48;
+  --texto: #f2f4fb;
+  --suave: #9097b3;
+  --destaque: #7b5cff;
+  --destaque-claro: #a591ff;
+  --erro: #ff6b7a;
+  --ok: #5be3a4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 32px;
+}
+
+#app {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  padding: 60px;
+}
+
+.tela {
+  position: absolute;
+  top: 60px;
+  left: 60px;
+  right: 60px;
+  bottom: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Telas que ocupam a área toda (Home e TV ao vivo) */
+.tela-topo {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.escondida { display: none !important; }
+
+.logo {
+  font-size: 84px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  margin-bottom: 40px;
+}
+.logo span { color: var(--destaque-claro); }
+
+h1 {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+/* ── Login ───────────────────────────────────────────── */
+
+.campo {
+  width: 900px;
+  margin-bottom: 28px;
+}
+
+label {
+  display: block;
+  font-size: 30px;
+  color: var(--suave);
+  margin-bottom: 10px;
+}
+
+input {
+  width: 100%;
+  height: 92px;
+  padding: 0 28px;
+  font-size: 38px;
+  color: var(--texto);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--destaque-claro);
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.35);
+}
+
+.botao {
+  width: 900px;
+  height: 96px;
+  margin-top: 12px;
+  font-size: 38px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--destaque);
+  border: 3px solid transparent;
+  border-radius: 14px;
+  outline: none;
+}
+
+.botao:focus {
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
+}
+
+.botao[disabled] { opacity: 0.55; }
+
+.status {
+  min-height: 90px;
+  width: 900px;
+  margin-top: 28px;
+  font-size: 30px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--suave);
+}
+.status.erro { color: var(--erro); }
+.status.ok { color: var(--ok); }
+
+.msg-suave {
+  max-width: 1100px;
+  font-size: 32px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--suave);
+}
+
+/* ── Home ────────────────────────────────────────────── */
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 120px;
+}
+
+.logo-pequeno {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+.logo-pequeno span { color: var(--destaque-claro); }
+
+.conta { text-align: right; font-size: 32px; }
+.conta-suave { margin-top: 6px; font-size: 26px; color: var(--suave); }
+
+.tiles {
+  display: flex;
+  margin-top: 200px;
+}
+.tiles > * + * { margin-left: 40px; }
+
+.tile {
+  width: 560px;
+  height: 330px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  text-align: left;
+  color: var(--texto);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 22px;
+  outline: none;
+  transition: transform 0.15s ease;
+}
+
+.tile-titulo { font-size: 46px; font-weight: 700; }
+.tile-sub { margin-top: 12px; font-size: 28px; color: var(--suave); }
+
+.tile:focus {
+  background: var(--painel-2);
+  border-color: #fff;
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.tile[disabled] { opacity: 0.4; }
+
+.rodape {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font-size: 24px;
+  color: var(--suave);
+}
+
+/* ── TV ao vivo ──────────────────────────────────────── */
+
+.live > * + * { margin-left: 30px; }
+.live {
+  display: flex;
+  width: 1800px;
+  height: 960px;
+}
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  height: 960px;
+  padding: 24px 20px;
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 18px;
+}
+#painel-cats { width: 420px; }
+#painel-canais { width: 440px; }
+.painel.ativo { border-color: var(--destaque-claro); }
+
+.painel h2 {
+  height: 56px;
+  padding: 0 12px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--suave);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lista {
+  flex: 1;
+  list-style: none;
+  overflow: hidden;
+}
+
+.lista li {
+  display: flex;
+  align-items: center;
+  height: 84px;
+  margin-bottom: 6px;
+  padding: 0 16px;
+  font-size: 27px;
+  border: 3px solid transparent;
+  border-left: 8px solid transparent;
+  border-radius: 12px;
+}
+
+.lista li span.nome {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lista li img {
+  width: 64px;
+  height: 48px;
+  margin-right: 18px;
+  object-fit: contain;
+}
+
+.lista li.msg {
+  height: auto;
+  padding: 24px 16px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.lista li.tocando { border-left-color: var(--ok); }
+
+.lista li.sel {
+  background: var(--painel-2);
+  border-top-color: var(--borda);
+  border-right-color: var(--borda);
+  border-bottom-color: var(--borda);
+}
+
+.painel.ativo .lista li.sel {
+  background: var(--destaque);
+  border-color: #fff;
+}
+
+.coluna-player { width: 880px; }
+
+.player {
+  position: relative;
+  width: 880px;
+  height: 495px;
+  background: #000;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.player video {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.player.cheio {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 50;
+  border-radius: 0;
+}
+
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin-top: -40px;
+  text-align: center;
+  font-size: 30px;
+  text-shadow: 0 2px 8px #000;
+}
+.overlay.erro { color: var(--erro); }
+.player.cheio .overlay { font-size: 44px; }
+
+.info-cheio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 60px 80px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+}
+.info-cheio .info-nome { font-size: 52px; }
+.info-cheio .info-linha { font-size: 34px; }
+
+.info { padding: 16px 8px; }
+.info-nome { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+.info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
+.info-agora { color: var(--destaque-claro); font-weight: 700; }
+.info-desc {
+  font-size: 24px;
+  line-height: 1.35;
+  color: var(--suave);
+  margin-bottom: 10px;
+  max-height: 66px;
+  overflow: hidden;
+}
+.info-proximos { font-size: 26px; line-height: 1.5; color: var(--texto); }
+.info-proximos div {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.info-proximos .hora-prog { color: var(--suave); margin-right: 14px; }
+.info-suave { color: var(--suave); }
+
+/* ── Catálogo (Filmes e Séries) ──────────────────────── */
+
+.painel-cat { width: 380px; }
+.painel-grade { width: 1390px; }
+
+.grade {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  list-style: none;
+  padding: 6px 10px;
+  margin-right: -14px;
+  overflow: hidden;
+}
+
+.grade li.msg {
+  width: 100%;
+  padding: 24px 6px;
+  font-size: 30px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.celula {
+  margin: 0 14px 12px 0;
+  width: 208px;
+  border: 4px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.capa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 296px;
+  font-size: 72px;
+  color: var(--suave);
+  background: var(--painel-2);
+  overflow: hidden;
+}
+
+.capa img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.celula-nome {
+  height: 68px;
+  padding: 8px 6px 0;
+  font-size: 24px;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.celula.sel {
+  background: var(--painel-2);
+  border-color: var(--borda);
+}
+
+.painel.ativo .celula.sel,
+.celula.foco {
+  background: var(--destaque);
+  border-color: #fff;
+}
+
+/* Categoria aberta na grade (continua marcada enquanto se navega pelas outras) */
+.lista li.aplicada { border-left-color: var(--destaque-claro); }
+.lista li.aplicada span.nome { font-weight: 700; }
+
+/* ── Player de filmes e episódios ────────────────────── */
+
+#tela-player {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  background: #000;
+  z-index: 60;
+}
+
+#player-video {
+  width: 1920px;
+  height: 1080px;
+  background: #000;
+}
+
+.controles {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 80px 100px 70px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+}
+
+.ctrl-titulo {
+  margin-bottom: 24px;
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.barra {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.barra-cheia {
+  width: 0%;
+  height: 100%;
+  background: var(--destaque-claro);
+}
+
+.tempos {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 28px;
+  color: var(--suave);
+}
+
+/* ── Login com abas (Usuário, Parceiro, Xtream, M3U) ─── */
+
+#tela-login .logo {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+#tela-login .campo { margin-bottom: 18px; }
+#tela-login input { height: 80px; }
+#tela-login .status { min-height: 70px; margin-top: 16px; }
+
+input::placeholder { color: #565c78; }
+
+.abas > * + * { margin-left: 16px; }
+.abas {
+  display: flex;
+  width: 900px;
+  margin-bottom: 24px;
+}
+
+.aba {
+  flex: 1;
+  height: 80px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--suave);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+
+.aba.ativa {
+  color: #fff;
+  border-color: var(--destaque-claro);
+}
+
+.aba:focus {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
+}
+
+/* ── Home: topo, relógio, engrenagem e rodapé ────────── */
+
+.topo-direita { display: flex; align-items: flex-start; }
+.topo-direita .conta { margin-right: 24px; }
+.hora { font-size: 24px; color: var(--suave); margin-bottom: 6px; }
+
+.btn-engrenagem {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--suave);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 50%;
+  outline: none;
+}
+.btn-engrenagem:focus {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.5);
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  right: 0;
+}
+.btn-discreto {
+  padding: 8px 28px;
+  font-size: 24px;
+  color: var(--suave);
+  background: transparent;
+  border: 2px solid var(--borda);
+  border-radius: 12px;
+  outline: none;
+}
+.btn-discreto:focus {
+  color: #fff;
+  background: var(--painel-2);
+  border-color: #fff;
+}
+
+/* ── Configurações ───────────────────────────────────── */
+
+.painel-cfg-menu { width: 520px; }
+.painel-cfg-conteudo { width: 1250px; }
+.cfg-conteudo { flex: 1; padding: 20px 16px; overflow: hidden; }
+.cfg-linha {
+  display: flex;
+  justify-content: space-between;
+  padding: 22px 12px;
+  font-size: 32px;
+  border-bottom: 2px solid var(--borda);
+}
+.cfg-rotulo { color: var(--suave); }
+.cfg-valor { font-weight: 700; text-align: right; }
+.cfg-valor.ok { color: var(--ok); }
+.cfg-valor.erro { color: var(--erro); }
+.cfg-texto { font-size: 30px; line-height: 1.5; color: var(--suave); padding: 12px; }
+
+/* ── Detalhes de filmes e séries ─────────────────────── */
+
+#tela-detalhes {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  background: #000;
+  overflow: hidden;
+}
+
+.det-fundo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  object-fit: cover;
+  opacity: 0.9;
+}
+.det-fundo.desfocado {
+  -webkit-filter: blur(22px) brightness(0.7);
+  filter: blur(22px) brightness(0.7);
+  transform: scale(1.15);
+}
+
+/* Degradê do fundo: imagem em cima, preto embaixo (como no celular) */
+.det-grad {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.55) 30%, rgba(0, 0, 0, 0.88) 60%, #000 85%);
+}
+
+/* Escurece mais quando a página sobe para mostrar abas e listas */
+.det-grad-rolado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  background: rgba(0, 0, 0, 0.93);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.det-grad-rolado.ativo { opacity: 1; }
+
+.det-janela {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+}
+
+.det-pagina {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  transition: transform 0.3s ease;
+}
+
+.det-coluna {
+  width: 1320px;
+  margin: 0 auto;
+  padding: 130px 0 60px;
+  text-align: center;
+}
+
+.det-titulo {
+  max-height: 150px;
+  font-size: 68px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.8);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.det-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 18px;
+  font-size: 30px;
+  color: #ccc;
+}
+.det-meta > * + * { margin-left: 22px; }
+
+.det-nota {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  color: #ffd700;
+}
+.det-nota svg {
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  fill: #ffd700;
+}
+
+.det-tag {
+  padding: 2px 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+.det-genero {
+  margin-top: 12px;
+  font-size: 28px;
+  color: #ccc;
+}
+
+.det-progresso {
+  display: flex;
+  align-items: center;
+  width: 760px;
+  margin: 18px auto 0;
+}
+.det-barra {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.det-barra-cheia {
+  width: 0%;
+  height: 100%;
+  background: var(--destaque-claro);
+}
+.det-restam {
+  margin-left: 20px;
+  font-size: 24px;
+  color: #ccc;
+  white-space: nowrap;
+}
+
+/* Botão principal branco, como no celular */
+.det-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 560px;
+  height: 92px;
+  margin: 22px auto 0;
+  font-size: 36px;
+  font-weight: 800;
+  color: #000;
+  background: #fff;
+  border: 4px solid transparent;
+  border-radius: 46px;
+}
+.det-play svg {
+  width: 34px;
+  height: 34px;
+  margin-right: 16px;
+  fill: #000;
+}
+.det-play.desab { opacity: 0.5; }
+.det-play.foco {
+  border-color: var(--destaque-claro);
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.55);
+  transform: scale(1.04);
+}
+
+.det-acoes {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+.det-acoes > * + * { margin-left: 28px; }
+
+.det-acao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 116px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+  border: 3px solid transparent;
+  border-radius: 18px;
+}
+.det-acao svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 8px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.det-acao.foco {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.45);
+}
+#det-fav.ativo svg {
+  fill: #ffd700;
+  stroke: #ffd700;
+}
+
+.det-sinopse {
+  width: 1100px;
+  margin: 14px auto 0;
+  font-size: 28px;
+  line-height: 1.4;
+  color: #fff;
+  text-shadow: 0 2px 8px #000;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Abas */
+.det-abas {
+  display: flex;
+  justify-content: center;
+  margin-top: 34px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+.det-aba {
+  margin-bottom: -2px;
+  padding: 16px 40px 14px;
+  font-size: 30px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  border-bottom: 5px solid transparent;
+}
+.det-aba.sel {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+.det-aba.foco {
+  color: #fff;
+  background: var(--destaque);
+  border-radius: 12px 12px 0 0;
+  border-bottom-color: #fff;
+}
+
+.det-conteudo {
+  padding-top: 20px;
+  text-align: left;
+}
+
+/* Temporada (botão que abre a lista de temporadas) */
+.det-temp {
+  display: inline-flex;
+  align-items: center;
+  height: 68px;
+  margin: 0 0 14px 4px;
+  padding: 0 34px;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 3px solid transparent;
+  border-radius: 14px;
+}
+.det-temp:after {
+  content: '';
+  margin-left: 18px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid #fff;
+}
+.det-temp.foco {
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.45);
+}
+
+/* Episódios */
+.det-eps-janela {
+  position: relative;
+  height: 720px;
+  overflow: hidden;
+}
+.det-eps {
+  position: relative;
+  list-style: none;
+  transition: transform 0.2s ease;
+}
+.det-eps li.msg {
+  padding: 24px 8px;
+  font-size: 30px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.ep {
+  display: flex;
+  height: 160px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 3px solid transparent;
+  border-radius: 14px;
+}
+.ep.foco {
+  background: rgba(123, 92, 255, 0.35);
+  border-color: #fff;
+}
+
+.ep-thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 256px;
+  height: 144px;
+  font-size: 48px;
+  color: var(--suave);
+  background: var(--painel-2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ep-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ep-prog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.65);
+}
+.ep-prog-cheia {
+  height: 100%;
+  background: var(--destaque-claro);
+}
+.ep.fim .ep-prog-cheia { background: var(--ok); }
+
+.ep-txt {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  padding-left: 28px;
+}
+.ep-tit {
+  font-size: 32px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-dur {
+  margin-top: 4px;
+  font-size: 24px;
+  color: var(--destaque-claro);
+}
+.ep-sin {
+  margin-top: 6px;
+  font-size: 24px;
+  line-height: 1.3;
+  color: #c3c7d9;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Sugestões */
+.det-sug-janela {
+  position: relative;
+  height: 780px;
+  overflow: hidden;
+}
+.det-sug {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  list-style: none;
+  padding: 6px 0 0 4px;
+  transition: transform 0.2s ease;
+}
+.det-sug .celula { margin-right: 10px; }
+.det-sug li.msg {
+  width: 100%;
+  padding: 24px 8px;
+  font-size: 30px;
+  color: var(--suave);
+}
+
+/* Aba Detalhes */
+.det-info {
+  width: 1100px;
+  margin: 0 auto;
+  padding-top: 10px;
+}
+.det-info-titulo {
+  margin-bottom: 14px;
+  font-size: 40px;
+  font-weight: 800;
+}
+.det-info-sin {
+  margin-bottom: 22px;
+  font-size: 28px;
+  line-height: 1.45;
+  color: #c3c7d9;
+  display: -webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.det-linha {
+  margin-bottom: 14px;
+  font-size: 27px;
+  line-height: 1.4;
+}
+.det-rot {
+  margin-right: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.det-val { color: #c3c7d9; }
+
+/* Esmaece o que sobra no topo quando a página sobe */
+.det-fade-topo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 150px;
+  background: linear-gradient(to bottom, #000 40%, rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 2;
+}
+.det-fade-topo.ativo { opacity: 1; }
+
+/* Janela de escolha da temporada */
+.det-popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 5;
+}
+.det-popup-caixa {
+  width: 620px;
+  padding: 28px 24px;
+  background: var(--painel);
+  border: 3px solid var(--destaque-claro);
+  border-radius: 20px;
+}
+.det-popup-caixa h3 {
+  margin: 0 0 14px 12px;
+  font-size: 32px;
+  color: var(--suave);
+}
+.det-popup-janela {
+  position: relative;
+  max-height: 640px;
+  overflow: hidden;
+}
+.det-popup-lista {
+  position: relative;
+  list-style: none;
+  transition: transform 0.15s ease;
+}
+.det-popup-lista li {
+  display: flex;
+  align-items: center;
+  height: 76px;
+  margin-bottom: 4px;
+  padding: 0 24px;
+  font-size: 32px;
+  border: 3px solid transparent;
+  border-radius: 12px;
+}
+.det-popup-lista li.atual { color: var(--ok); }
+.det-popup-lista li.sel {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+}

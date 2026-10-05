@@ -688,8 +688,23 @@ input::placeholder { color: #565c78; }
 .det-coluna {
   width: 1320px;
   margin: 0 auto;
-  padding: 130px 0 60px;
+  padding: 90px 0 60px;
   text-align: center;
+}
+
+/* Caixa de altura fixa: trocar o nome pela logo não mexe no resto da tela */
+.det-titulo-caixa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+}
+.det-logo {
+  max-width: 820px;
+  max-height: 140px;
+  object-fit: contain;
+  -webkit-filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.75));
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.75));
 }
 
 .det-titulo {

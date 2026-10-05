@@ -52,6 +52,14 @@ VLTV.config = {
   VPS_URL: 'http://51.222.26.119:3344',
   VPS_APP_KEY: 'L468983c@',
 
+  // TMDB (logos no lugar do nome na tela de detalhes). A chave NÃO fica no código: o GitHub Actions
+  // troca o texto abaixo pelo Secret TMDB_API_KEY na hora de gerar o .ipk (veja build-webos.yml).
+  // Sem o Secret, tudo funciona normalmente, só que sem logos (aparece o nome limpo).
+  TMDB_API_KEY: '__TMDB_API_KEY__',
+  // Imagens do TMDB servidas pela sua VPS (mesmo endereço do app Android).
+  TMDB_IMAGENS_URL: 'https://cdn.vltvplay.tech',
+  TMDB_TAMANHO_LOGO: 'w500',
+
   // Lista M3U: tamanho máximo aceito (a TV tem pouca memória).
   M3U_MAX_BYTES: 60000000,
 

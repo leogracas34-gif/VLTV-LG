@@ -19,6 +19,7 @@
   var elFadeTopo = $('det-fade-topo');
   var elPagina = $('det-pagina');
   var elTitulo = $('det-titulo');
+  var elLogo = $('det-logo');
   var elNotaBloco = $('det-nota-bloco');
   var elNota = $('det-nota');
   var elAno = $('det-ano');
@@ -56,6 +57,7 @@
   var alvo = null;          // o que o botão principal toca: { indice, continuar, pos, dur, rotulo }
   var falha = false;
   var idCarga = 0;
+  var idLogo = 0;
   var usandoCapa = false;
 
   var abas = [];            // [{ id: 'eps' | 'sug' | 'det', el }]
@@ -91,16 +93,8 @@
     return typeof v === 'string' ? v : '';
   }
 
-  // "Reacher 2022 (2022)" vira "Reacher".
-  function limparTitulo(nome) {
-    var t = String(nome || '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
-    var m = /\s*\((\d{4})\)\s*$/.exec(t);
-    if (m) {
-      t = t.slice(0, m.index).replace(/\s+$/, '');
-      t = t.replace(new RegExp('\\s+' + m[1] + '$'), '');
-    }
-    return t || String(nome || '');
-  }
+  // "Reacher 2022 (2022) FULL HD" vira "Reacher" (a vassoura fica em titulo.js).
+  function limparTitulo(nome) { return VLTV.titulo.limpar(nome); }
 
   function anoDoNome(nome) {
     var m = /\((\d{4})\)\s*$/.exec(String(nome || ''));
@@ -204,6 +198,45 @@
       elFundo.style.visibility = 'hidden';
     }
   };
+
+  // ── Logo no lugar do nome (TMDB) ──────────────────────────────────
+  function mostrarNome() {
+    elLogo.classList.add('escondida');
+    elTitulo.classList.remove('escondida');
+  }
+
+  // Mostra a logo se existir; se faltar ou falhar ao carregar, o nome limpo continua na tela.
+  function colocarLogo(url, meu) {
+    var tentouTmdb = false;
+    elLogo.onload = function () {
+      if (meu !== idLogo) { return; }
+      elLogo.classList.remove('escondida');
+      elTitulo.classList.add('escondida');
+    };
+    elLogo.onerror = function () {
+      if (meu !== idLogo) { return; }
+      var cdn = VLTV.config.TMDB_IMAGENS_URL;
+      if (!tentouTmdb && cdn && url.indexOf(cdn) === 0) {   // a VPS falhou: tenta direto no TMDB
+        tentouTmdb = true;
+        elLogo.src = 'https://image.tmdb.org' + url.slice(cdn.length);
+        return;
+      }
+      mostrarNome();
+    };
+    elLogo.src = url;
+  }
+
+  function carregarLogo() {
+    var meu = ++idLogo;
+    mostrarNome();
+    elLogo.removeAttribute('src');
+    if (!VLTV.tmdb.ativo() && !VLTV.tmdb.guardada(item.tipo, item.id)) { return; }
+
+    VLTV.tmdb.logo(item.tipo, item.id, item.nome).then(function (url) {
+      if (meu !== idLogo || !url) { return; }
+      colocarLogo(url, meu);
+    });
+  }
 
   // ── Topo: título, nota, ano, gênero, sinopse ──────────────────────
   function renderTopo() {
@@ -437,7 +470,7 @@
 
     var nome = document.createElement('div');
     nome.className = 'celula-nome';
-    nome.textContent = nomeItem;
+    nome.textContent = VLTV.titulo.limpar(nomeItem);
 
     li.appendChild(capa);
     li.appendChild(nome);
@@ -862,6 +895,7 @@
 
     definirFundo(item.fundo || item.capa, !item.fundo);
     renderTopo();
+    carregarLogo();
     montarAbas();
     renderDetalhes();
     renderSugestoes();

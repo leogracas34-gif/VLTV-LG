@@ -65,7 +65,11 @@
   var timerInfo = null;
 
   // ── Utilidades de tela ────────────────────────────────────────────
-  function esvaziar(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
+  // Esvazia a lista e volta a rolagem para o topo (senão a lista nova nasce no meio e depois pula).
+  function esvaziar(el) {
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    el.scrollTop = 0;
+  }
 
   function mensagemLista(ul, texto) {
     esvaziar(ul);

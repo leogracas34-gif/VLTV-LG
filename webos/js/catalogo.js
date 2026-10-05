@@ -1,5 +1,5 @@
 // VLTV Play - webOS | Catálogo de Filmes e Séries: categorias à esquerda, capas em grade à direita.
-// Navegar pelas categorias só move a seleção; a grade só muda quando o usuário aperta OK (ou direita).
+// Navegar pelas categorias só move a seleção; a grade só muda quando o usuário aperta OK.
 (function () {
   'use strict';
 
@@ -58,7 +58,11 @@
   var idReq = 0;
 
   // ── Utilidades ────────────────────────────────────────────────────
-  function esvaziar(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
+  // Esvazia a lista e volta a rolagem para o topo (senão a lista nova nasce no meio e depois pula).
+  function esvaziar(el) {
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    el.scrollTop = 0;
+  }
 
   function mensagem(el, texto) {
     esvaziar(el);
@@ -132,7 +136,7 @@
 
     var nome = document.createElement('div');
     nome.className = 'celula-nome';
-    nome.textContent = nomeItem;
+    nome.textContent = VLTV.titulo.limpar(nomeItem);
 
     li.appendChild(capa);
     li.appendChild(nome);
@@ -217,6 +221,13 @@
     }
   }
 
+  // Passa para a grade sem mexer nela; o destaque volta para a categoria que está aberta.
+  function entrarNaGradeAberta() {
+    catIdx = catAplicada;
+    marcarCategoria();
+    trocarFoco('grade');
+  }
+
   // Volta para a lista de categorias, destacando a categoria que está na grade.
   function voltarParaCategorias() {
     if (catAplicada >= 0) { catIdx = catAplicada; }
@@ -254,8 +265,14 @@
       }
       return true;
     }
-    if (k === TECLA.DIR || k === TECLA.ENTER) {
+    if (k === TECLA.ENTER) {
+      // Só o OK abre a categoria destacada na grade.
       if (falhaCategorias) { abrir(tipo, acoes); } else { irParaGrade(); }
+      return true;
+    }
+    if (k === TECLA.DIR) {
+      // Direita só entra na grade que já está aberta: não troca de categoria.
+      if (catAplicada >= 0 && itens.length > 0) { entrarNaGradeAberta(); }
       return true;
     }
     return false;

@@ -21,7 +21,11 @@ html, body {
   width: 1920px;
   height: 1080px;
   overflow: hidden;
-  background: var(--fundo);
+  /* Fundo de todo o app: brilho roxo no canto, vermelho discreto embaixo, escuro no resto */
+  background:
+    radial-gradient(1300px 760px at 12% -8%, rgba(123, 92, 255, 0.30), rgba(123, 92, 255, 0) 62%),
+    radial-gradient(1000px 640px at 104% 108%, rgba(193, 68, 59, 0.20), rgba(193, 68, 59, 0) 60%),
+    var(--fundo);
   color: var(--texto);
   font-family: "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
   font-size: 32px;
@@ -1284,3 +1288,134 @@ input::placeholder { color: #565c78; }
   font-size: 22px;
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* ── Home com banner ─────────────────────────────────── */
+
+.tela-topo.com-banner .tiles { margin-top: 26px; }
+.tela-topo.com-banner .tile { width: 584px; height: 160px; padding: 0 40px; justify-content: center; }
+.tela-topo.com-banner .tiles > * + * { margin-left: 24px; }
+.tela-topo.com-banner .tile-titulo { font-size: 40px; }
+.tela-topo.com-banner .tile-sub { margin-top: 6px; font-size: 25px; }
+.tela-topo.com-banner .tile:focus { transform: scale(1.03); }
+
+.banner {
+  position: relative;
+  display: block;
+  width: 1800px;
+  height: 510px;
+  margin-top: 22px;
+  padding: 0;
+  overflow: hidden;
+  color: #fff;
+  text-align: left;
+  background: #000;
+  border: 4px solid transparent;
+  border-radius: 24px;
+  outline: none;
+}
+.banner:focus {
+  border-color: #fff;
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.5);
+}
+
+/* Capa do servidor desfocada ocupando o fundo todo */
+.bn-fundo {
+  position: absolute;
+  top: -40px;
+  left: -40px;
+  right: -40px;
+  bottom: -40px;
+  background-size: cover;
+  background-position: center;
+  -webkit-filter: blur(26px) brightness(0.62);
+  filter: blur(26px) brightness(0.62);
+}
+.bn-grad {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to right, rgba(11, 12, 20, 0.92) 0%, rgba(11, 12, 20, 0.55) 55%, rgba(11, 12, 20, 0.15) 100%);
+}
+
+.bn-conteudo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 70px 0 80px;
+  opacity: 1;
+  -webkit-transition: opacity 0.18s ease;
+  transition: opacity 0.18s ease;
+}
+.bn-conteudo.troca { opacity: 0; }
+
+.bn-texto { display: block; width: 1100px; }
+.bn-etiqueta {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ffd700;
+}
+.bn-titulo {
+  display: block;
+  max-height: 150px;
+  overflow: hidden;
+  font-size: 68px;
+  line-height: 1.08;
+  font-weight: 800;
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.8);
+}
+.bn-meta {
+  display: block;
+  margin-top: 16px;
+  font-size: 28px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.bn-botao {
+  display: inline-flex;
+  align-items: center;
+  height: 78px;
+  margin-top: 30px;
+  padding: 0 44px;
+  font-size: 32px;
+  font-weight: 800;
+  color: #0b0c14;
+  background: #fff;
+  border-radius: 39px;
+}
+.bn-botao svg { margin-right: 12px; }
+
+.bn-poster {
+  display: block;
+  width: 310px;
+  height: 430px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--painel-2);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+}
+.bn-poster img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.bn-pontos {
+  position: absolute;
+  left: 80px;
+  bottom: 24px;
+  display: flex;
+}
+.bn-ponto {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin-right: 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.bn-ponto.sel { width: 38px; background: #fff; }

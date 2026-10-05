@@ -69,7 +69,7 @@
     liSelTemp = itensTemps[tempIdx] || null;
     if (liSelTemp) {
       liSelTemp.classList.add('sel');
-      liSelTemp.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(liSelTemp);
     }
   }
 
@@ -100,7 +100,7 @@
     liSelEp = itensEps[epIdx] || null;
     if (liSelEp) {
       liSelEp.classList.add('sel');
-      liSelEp.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(liSelEp);
     }
   }
 

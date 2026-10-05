@@ -42,7 +42,10 @@
       }
       if (!compativel) {
         motivo = 'O VLTV Play funciona em TVs LG de ' + cfg.MIN_WEBOS_YEAR +
-                 ' em diante (webOS ' + cfg.MIN_WEBOS_SDK + ' ou mais novo).';
+                 ' em diante (webOS ' + cfg.MIN_WEBOS_SDK + ' ou mais novo). ' +
+                 'Detectado: ano ' + (ano !== null ? ano : '?') +
+                 ', webOS ' + (sdk !== null ? sdk : '?') +
+                 ', Chrome ' + (chrome !== null ? chrome : '?') + '.';
       }
     }
 
@@ -53,6 +56,7 @@
       partes.push(modelo || 'TV LG');
       if (sdk !== null) { partes.push('webOS ' + sdk); }
       if (ano !== null) { partes.push(String(ano)); }
+      if (chrome !== null) { partes.push('Chrome ' + chrome); }
     }
 
     return {
@@ -66,6 +70,13 @@
       descricao: partes.join(' | ')
     };
   }
+
+  // Rola o item para dentro da área visível (scrollIntoView com opções só existe no Chrome 61+).
+  VLTV.rolar = function (el) {
+    if (!el) { return; }
+    if (el.scrollIntoViewIfNeeded) { el.scrollIntoViewIfNeeded(false); }
+    else { el.scrollIntoView(false); }
+  };
 
   VLTV.platform = detectar();
 })();

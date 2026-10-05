@@ -96,7 +96,7 @@
     liSelCat = itensCats[catIdx] || null;
     if (liSelCat) {
       liSelCat.classList.add('sel');
-      liSelCat.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(liSelCat);
     }
   }
 
@@ -149,7 +149,7 @@
     celulaSel = celulas[itemIdx] || null;
     if (celulaSel) {
       celulaSel.classList.add('sel');
-      celulaSel.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(celulaSel);
     }
   }
 

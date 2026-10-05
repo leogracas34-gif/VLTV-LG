@@ -32,10 +32,10 @@ VLTV.config = {
     'http://cybertronplay.space'
   ],
 
-  // Compatibilidade: TVs LG de 2020 em diante (webOS 5.0 ou mais novo).
-  MIN_WEBOS_YEAR: 2020,
-  MIN_WEBOS_SDK: 5,
-  MIN_CHROME: 79,
+  // Compatibilidade: TVs LG de 2018 em diante (webOS 4.0 ou mais novo, navegador Chrome 53+).
+  MIN_WEBOS_YEAR: 2018,
+  MIN_WEBOS_SDK: 4,
+  MIN_CHROME: 53,
 
   // Servidor de parceiros (código de parceiro). Troque pelo endereço onde você publicar
   // o servidor da pasta vps-parceiros.

@@ -8,9 +8,19 @@
 
   // fetch com tempo limite (aborta se o servidor não responder).
   function fetchComTimeout(url, ms) {
-    var controle = new AbortController();
-    var timer = setTimeout(function () { controle.abort(); }, ms);
-    return fetch(url, { signal: controle.signal, cache: 'no-store' }).then(
+    // AbortController só existe no Chrome 66+ (webOS 5). Em TV mais antiga,
+    // o tempo limite é feito com uma corrida entre o fetch e um temporizador.
+    var controle = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer;
+    var limite = new Promise(function (_, rejeitar) {
+      timer = setTimeout(function () {
+        if (controle) { controle.abort(); }
+        rejeitar(new Error('tempo esgotado'));
+      }, ms);
+    });
+    var opcoes = { cache: 'no-store' };
+    if (controle) { opcoes.signal = controle.signal; }
+    return Promise.race([fetch(url, opcoes), limite]).then(
       function (r) { clearTimeout(timer); return r; },
       function (e) { clearTimeout(timer); throw e; }
     );

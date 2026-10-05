@@ -112,7 +112,7 @@
     liSelCat = itensCats[catIdx] || null;
     if (liSelCat) {
       liSelCat.classList.add('sel');
-      liSelCat.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(liSelCat);
     }
   }
 
@@ -154,7 +154,7 @@
     liSelCanal = itensCanais[canalIdx] || null;
     if (liSelCanal) {
       liSelCanal.classList.add('sel');
-      liSelCanal.scrollIntoView({ block: 'nearest' });
+      VLTV.rolar(liSelCanal);
     }
   }
 

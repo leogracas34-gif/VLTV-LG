@@ -3,6 +3,9 @@
 window.VLTV = window.VLTV || {};
 
 VLTV.config = {
+  // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
+  VERSAO: '1.0.0',
+
   // Arquivo com a lista de DNS, hospedado na sua VPS (o mesmo que o app Android usa).
   DNS_CONFIG_URL: 'https://vltvplay.tech/dns_config.json',
 

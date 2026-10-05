@@ -16,6 +16,7 @@
     incompativel: $('tela-incompativel'),
     login: $('tela-login'),
     home: $('tela-home'),
+    config: $('tela-config'),
     live: $('tela-live'),
     catalogo: $('tela-catalogo'),
     episodios: $('tela-episodios'),
@@ -35,7 +36,10 @@
   var tileLive = $('tile-live');
   var tileFilmes = $('tile-filmes');
   var tileSeries = $('tile-series');
-  var tileSair = $('tile-sair');
+  var tileSair = $('btn-sair');
+  var btnConfig = $('btn-config');
+  var elHora = $('home-hora');
+  var ultimoTile = tileLive;
 
   var modoAtual = 'usuario';
   var nomeParceiro = '';
@@ -53,8 +57,11 @@
       (lista[1] || lista[0]).focus();
     }
     if (nome === 'home') {
-      var botoes = focaveis();
-      if (botoes.length > 0) { botoes[0].focus(); }
+      atualizarHora();
+      if (ultimoTile.disabled) {
+        ultimoTile = [tileLive, tileFilmes, tileSeries].filter(function (t) { return !t.disabled; })[0] || tileSair;
+      }
+      ultimoTile.focus();
     }
   }
 
@@ -84,7 +91,14 @@
     return dia + '/' + mes + '/' + d.getFullYear();
   }
 
+  function atualizarHora() {
+    var d = new Date();
+    elHora.textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  setInterval(atualizarHora, 15000);
+
   function mostrarHome(ctx, info) {
+    VLTV.conta = info || null;
     var ehLista = ctx.modo === 'm3u';
     $('home-usuario').textContent = ehLista ? 'Lista M3U' : ctx.user;
     $('home-vencimento').textContent = ehLista
@@ -105,6 +119,11 @@
     });
 
     mostrarTela('home');
+  }
+
+  function abrirConfig() {
+    mostrarTela('config');
+    VLTV.ajustes.abrir({ sair: function () { mostrarTela('home'); } });
   }
 
   function abrirTvAoVivo() {
@@ -310,7 +329,31 @@
     try { window.close(); } catch (e) { /* ignora */ }
   }
 
+  // Home: três cartões grandes no meio, engrenagem em cima e "Sair" embaixo.
+  function navegarHome(k) {
+    var tiles = [tileLive, tileFilmes, tileSeries].filter(function (t) { return !t.disabled; });
+    var ativo = document.activeElement;
+    var i = tiles.indexOf(ativo);
+
+    if (i !== -1) {
+      if (k === TECLA_ESQ || k === TECLA_DIR) {
+        var novo = Math.max(0, Math.min(tiles.length - 1, i + (k === TECLA_ESQ ? -1 : 1)));
+        ultimoTile = tiles[novo];
+        ultimoTile.focus();
+      } else if (k === TECLA_CIMA) {
+        btnConfig.focus();
+      } else {
+        tileSair.focus();
+      }
+    } else if (ativo === btnConfig && k === TECLA_BAIXO) {
+      ultimoTile.focus();
+    } else if (ativo === tileSair && k === TECLA_CIMA) {
+      ultimoTile.focus();
+    }
+  }
+
   var TRATADORES = {
+    config: function (k) { return VLTV.ajustes.tecla(k); },
     live: function (k) { return VLTV.live.tecla(k); },
     catalogo: function (k) { return VLTV.catalogo.tecla(k); },
     episodios: function (k) { return VLTV.episodios.tecla(k); },
@@ -330,9 +373,9 @@
     if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) {
       e.preventDefault();
       fecharApp();
-    } else if (telaAtual === 'home' && (k === TECLA_ESQ || k === TECLA_DIR)) {
+    } else if (telaAtual === 'home' && (k === TECLA_ESQ || k === TECLA_DIR || k === TECLA_CIMA || k === TECLA_BAIXO)) {
       e.preventDefault();
-      moverFoco(k === TECLA_ESQ ? -1 : 1);
+      navegarHome(k);
     } else if (telaAtual === 'login') {
       var naAba = abas.indexOf(document.activeElement) !== -1;
       if (naAba && (k === TECLA_ESQ || k === TECLA_DIR)) {
@@ -355,6 +398,10 @@
   tileFilmes.addEventListener('click', function () { abrirCatalogo('filmes'); });
   tileSeries.addEventListener('click', function () { abrirCatalogo('series'); });
   tileSair.addEventListener('click', sair);
+  btnConfig.addEventListener('click', abrirConfig);
+  [tileLive, tileFilmes, tileSeries].forEach(function (t) {
+    t.addEventListener('focus', function () { ultimoTile = t; });
+  });
 
   // ── Início ────────────────────────────────────────────────────────
   function iniciar() {

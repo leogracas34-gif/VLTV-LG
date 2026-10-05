@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var COLUNAS = 5;
+  var COLUNAS = 8;
   var TAMANHO_LOTE = 60;
   var ESPERA_CATEGORIA_MS = 350;
 

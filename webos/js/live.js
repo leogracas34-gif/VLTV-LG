@@ -28,7 +28,8 @@
   var infoCheio = $('live-info-cheio');
   var infoNome = $('live-nome');
   var infoAgora = $('live-agora');
-  var infoDepois = $('live-depois');
+  var infoDesc = $('live-descricao');
+  var infoProximos = $('live-proximos');
 
   // Estado
   var categorias = [];
@@ -182,6 +183,9 @@
     marcarCanal();
     marcarTocando();
     if (focar) { trocarFoco('canais'); }
+    // Primeira vez na tela: já começa a tocar o primeiro canal na mini tela.
+    // Depois disso, o canal só muda quando o usuário aperta OK em outro.
+    if (!tocando) { tocar(lista, 0); }
   }
 
   function carregarCanais(idx, focar) {
@@ -239,19 +243,34 @@
   function mostrarInfoBasica() {
     infoNome.textContent = tocando ? (tocando.name || '') : '';
     infoAgora.textContent = '';
-    infoDepois.textContent = '';
+    infoDesc.textContent = '';
+    esvaziar(infoProximos);
     textoAgora = '';
   }
 
   function carregarEpg(canal) {
     var id = ++idEpg;
     if (canal.url) { return; }   // lista M3U: sem guia de programação
-    VLTV.api.epgCurto(canal.stream_id)
+    VLTV.api.epgCurto(canal.stream_id, 6)
       .then(function (lista) {
         if (id !== idEpg) { return; }
-        var agora = linhaEpg('Agora', lista[0]);
-        infoAgora.textContent = agora || 'Sem informação de programação.';
-        infoDepois.textContent = linhaEpg('Depois', lista[1]);
+        var atual = lista[0];
+        var agora = linhaEpg('Agora', atual);
+        infoAgora.textContent = atual && atual.titulo
+          ? 'Agora' + (atual.inicio ? ' (' + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + atual.titulo
+          : 'Sem informação de programação.';
+        infoDesc.textContent = atual && atual.descricao ? atual.descricao : '';
+        esvaziar(infoProximos);
+        lista.slice(1, 5).forEach(function (p) {
+          if (!p.titulo) { return; }
+          var linha = document.createElement('div');
+          var h = document.createElement('span');
+          h.className = 'hora-prog';
+          h.textContent = p.inicio;
+          linha.appendChild(h);
+          linha.appendChild(document.createTextNode(p.titulo));
+          infoProximos.appendChild(linha);
+        });
         textoAgora = agora;
         if (cheio && !infoCheio.classList.contains('escondida')) { desenharInfoCheio(); }
       })

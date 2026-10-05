@@ -56,13 +56,18 @@
       return chamar('get_live_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
-    // Devolve até 2 programas: [{ titulo, inicio }, ...]
-    epgCurto: function (streamId) {
+    // Devolve até `limite` programas: [{ titulo, inicio, fim, descricao }, ...]
+    epgCurto: function (streamId, limite) {
       if (daLista()) { return pronto([]); }
-      return chamar('get_short_epg', '&stream_id=' + enc(streamId) + '&limit=2').then(function (dados) {
+      return chamar('get_short_epg', '&stream_id=' + enc(streamId) + '&limit=' + (limite || 2)).then(function (dados) {
         var itens = dados && Array.isArray(dados.epg_listings) ? dados.epg_listings : [];
         return itens.map(function (p) {
-          return { titulo: decodificar(p.title), inicio: hora(p.start_timestamp) };
+          return {
+            titulo: decodificar(p.title),
+            inicio: hora(p.start_timestamp),
+            fim: hora(p.stop_timestamp || p.end),
+            descricao: decodificar(p.description)
+          };
         });
       });
     },

@@ -1,13 +1,21 @@
-// VLTV Play - webOS | Player de filmes e episódios (tela cheia, com barra de progresso).
-// Guarda de onde o usuário parou e retoma dali quando pedido.
+// VLTV Play - webOS | Player de filmes e episódios (tela cheia).
+// - Barra de progresso com avançar/voltar (esquerda/direita), botões na tela e teclas de mídia.
+// - Botão "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (igual ao Android).
+// - Guarda de onde o usuário parou e retoma dali quando pedido.
 (function () {
   'use strict';
 
   var ESPERA_REPRODUZIR_MS = 20000;
-  var TEMPO_CONTROLES_MS = 4000;
+  var TEMPO_CONTROLES_MS = 6000;
   var INTERVALO_SALVAR_MS = 5000;
-  var PULO_CURTO_S = 10;
+  var APLICAR_PULO_MS = 700;        // espera o usuário parar de apertar antes de pular de fato
+  var REPETIR_PULO_MS = 450;        // apertos dentro deste intervalo aceleram o pulo
   var PULO_LONGO_S = 30;
+
+  // Botão "Próximo episódio" (mesmos valores do PlayerActivity do Android)
+  var CREDITOS_PADRAO_S = 50;       // sem dado da VPS: aparece faltando 50s
+  var ANTECEDENCIA_S = 10;          // com dado da VPS: aparece 10s antes dos créditos
+  var ESPERA_APRENDER_MS = 6000;    // só aprende com o toque de quem esperou o botão
 
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
@@ -22,9 +30,24 @@
   var controles = $('player-controles');
   var elTitulo = $('player-titulo');
   var elProgresso = $('player-progresso');
+  var elPrevia = $('player-previa');
   var elTempo = $('player-tempo');
   var elEstado = $('player-estado');
   var elDuracao = $('player-duracao');
+  var elAviso = $('player-aviso');
+  var btnVolta = $('pb-volta');
+  var btnPlay = $('pb-play');
+  var btnAvanca = $('pb-avanca');
+  var btnProx = $('pb-prox');
+  var iconePlay = $('pb-icone-play');
+  var iconePause = $('pb-icone-pause');
+  var rotuloPlay = $('pb-rotulo-play');
+  var cartao = $('player-proximo');
+  var elAvisoTemporada = $('pp-temporada');
+  var elContagem = $('pp-contagem');
+  var elBotaoProximo = $('pp-botao');
+  var elProximoTitulo = $('pp-titulo');
+  var elProximoFill = $('pp-fill');
 
   var itens = [];
   var idx = 0;
@@ -35,8 +58,28 @@
   var idPlay = 0;
   var timerEspera = null;
   var timerControles = null;
+  var timerPulo = null;
+  var timerAviso = null;
+  var timerProximo = null;
   var inicioPendente = 0;   // segundos: ponto onde o vídeo deve começar
   var ultimoSalvo = 0;
+
+  // Avançar/voltar acumulando apertos
+  var puloAlvo = null;      // segundos; null = nenhum pulo pendente
+  var puloUltimoMs = 0;
+  var puloSequencia = 0;
+
+  // Foco dentro dos controles: 'barra' (esquerda/direita pulam) ou 'botoes'
+  var zona = 'barra';
+  var botaoIdx = 1;
+
+  // Próximo episódio / créditos
+  var contagemAtiva = false;
+  var proximoLancado = false;
+  var botaoDesdeMs = 0;
+  var creditosRestante = null;   // segundos que faltavam quando os créditos começaram (null = ninguém ensinou)
+  var creditosEnviados = false;
+  var serieChave = 0;
 
   // ── Utilidades ────────────────────────────────────────────────────
   function formatar(segundos) {
@@ -56,24 +99,130 @@
 
   function esconderOverlay() { overlay.className = 'overlay escondida'; }
 
+  function avisar(texto) {
+    elAviso.textContent = texto;
+    elAviso.classList.remove('escondida');
+    clearTimeout(timerAviso);
+    timerAviso = setTimeout(function () { elAviso.classList.add('escondida'); }, 2200);
+  }
+
+  function ehSerie(i) { var it = itens[i]; return !!it && it.tipo === 'series'; }
+
+  function temProximo() {
+    return ehSerie(idx) && idx + 1 < itens.length && ehSerie(idx + 1);
+  }
+
+  function controlesVisiveis() { return !controles.classList.contains('escondida'); }
+
+  function cartaoVisivel() { return !cartao.classList.contains('escondida'); }
+
+  // ── Barra e botões ────────────────────────────────────────────────
+  function botoesAtivos() {
+    var lista = [btnVolta, btnPlay, btnAvanca];
+    if (temProximo()) { lista.push(btnProx); }
+    return lista;
+  }
+
+  function marcarBotoes() {
+    var lista = botoesAtivos();
+    [btnVolta, btnPlay, btnAvanca, btnProx].forEach(function (b) { b.classList.remove('foco'); });
+    if (zona === 'botoes') {
+      if (botaoIdx >= lista.length) { botaoIdx = lista.length - 1; }
+      lista[botaoIdx].classList.add('foco');
+    }
+    controles.classList.toggle('na-barra', zona === 'barra');
+  }
+
+  function atualizarBotaoPlay() {
+    var pausado = video.paused;
+    iconePlay.style.display = pausado ? '' : 'none';
+    iconePause.style.display = pausado ? 'none' : '';
+    rotuloPlay.textContent = pausado ? 'Reproduzir' : 'Pausar';
+  }
+
   function atualizarBarra() {
     var d = video.duration;
-    var t = video.currentTime || 0;
-    var pct = isFinite(d) && d > 0 ? Math.min(100, (t / d) * 100) : 0;
+    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    var valida = isFinite(d) && d > 0;
+    var pct = valida ? Math.max(0, Math.min(100, (t / d) * 100)) : 0;
     elProgresso.style.width = pct + '%';
+    elPrevia.style.left = pct + '%';
+    elPrevia.classList.toggle('escondida', puloAlvo === null);
     elTempo.textContent = formatar(t);
-    elDuracao.textContent = isFinite(d) ? formatar(d) : '';
-    elEstado.textContent = video.paused ? 'Pausado' : '';
+    elDuracao.textContent = valida ? formatar(d) : '';
+    elEstado.textContent = puloAlvo !== null ? 'Ir para ' + formatar(t) : (video.paused ? 'Pausado' : '');
+    atualizarBotaoPlay();
+  }
+
+  function agendarEsconder() {
+    clearTimeout(timerControles);
+    // Pausado ou escolhendo botão, a barra continua na tela; tocando, some depois de alguns segundos.
+    if (!video.paused) {
+      timerControles = setTimeout(function () {
+        controles.classList.add('escondida');
+        zona = 'barra';
+        marcarBotoes();
+        ajustarCartao();
+      }, TEMPO_CONTROLES_MS);
+    }
   }
 
   function mostrarControles() {
     atualizarBarra();
+    marcarBotoes();
     controles.classList.remove('escondida');
-    clearTimeout(timerControles);
-    // Em pausa a barra fica na tela; tocando, some depois de alguns segundos.
-    if (!video.paused) {
-      timerControles = setTimeout(function () { controles.classList.add('escondida'); }, TEMPO_CONTROLES_MS);
+    ajustarCartao();
+    agendarEsconder();
+  }
+
+  // O cartão do próximo episódio sobe para não ficar em cima da barra de controles.
+  function ajustarCartao() {
+    cartao.classList.toggle('com-controles', controlesVisiveis());
+  }
+
+  // ── Avançar e voltar ──────────────────────────────────────────────
+  function podePular() {
+    var d = video.duration;
+    return isFinite(d) && d > 0;
+  }
+
+  function passoAtual() {
+    // Apertar várias vezes seguidas (ou segurar a tecla) aumenta o pulo: 10, 10, 10, 20, 30, 60...
+    if (puloSequencia < 3) { return 10; }
+    if (puloSequencia < 5) { return 20; }
+    if (puloSequencia < 8) { return 30; }
+    return 60;
+  }
+
+  function aplicarPulo() {
+    clearTimeout(timerPulo);
+    timerPulo = null;
+    if (puloAlvo === null) { return; }
+    var alvo = puloAlvo;
+    puloAlvo = null;
+    puloSequencia = 0;
+    try {
+      video.currentTime = alvo;
+    } catch (e) {
+      avisar('Esta TV não conseguiu pular neste vídeo.');
     }
+    atualizarBarra();
+  }
+
+  // segundos: positivo avança, negativo volta. fixo = true usa o valor exato (teclas de mídia).
+  function pular(segundos, fixo) {
+    if (!podePular()) { avisar('Aguarde o vídeo carregar...'); mostrarControles(); return; }
+    var agora = new Date().getTime();
+    if (agora - puloUltimoMs > REPETIR_PULO_MS) { puloSequencia = 0; }
+    puloUltimoMs = agora;
+    var sentido = segundos < 0 ? -1 : 1;
+    var passo = fixo ? Math.abs(segundos) : passoAtual();
+    puloSequencia++;
+    var base = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    puloAlvo = Math.max(0, Math.min(video.duration - 1, base + sentido * passo));
+    mostrarControles();
+    clearTimeout(timerPulo);
+    timerPulo = setTimeout(aplicarPulo, APLICAR_PULO_MS);
   }
 
   // ── Progresso salvo ───────────────────────────────────────────────
@@ -83,7 +232,7 @@
     // Enquanto o ponto de retomada não foi aplicado, não grava (evitaria apagar o progresso).
     if (inicioPendente > 0) { return; }
     var d = video.duration;
-    var t = video.currentTime || 0;
+    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
     if (!isFinite(d) || d <= 0 || t < 3) { return; }
     VLTV.dados.salvarProgresso(item.chave, t, d);
   }
@@ -98,6 +247,147 @@
     if (d > alvo + 5) {
       try { video.currentTime = alvo; } catch (e) { /* ignora */ }
     }
+  }
+
+  // ── Créditos aprendidos (VPS) ─────────────────────────────────────
+  function dnsAtual() {
+    var s = VLTV.sessao && VLTV.sessao.ler();
+    return s && s.dns ? s.dns : '';
+  }
+
+  // Chamado a cada episódio novo: só vale para série com id estável (o 1º episódio da série inteira).
+  function iniciarCreditos() {
+    creditosRestante = null;
+    creditosEnviados = false;
+    serieChave = 0;
+    var item = itens[idx];
+    if (!item || item.tipo !== 'series' || !item.serie) { return; }
+    serieChave = item.serie;
+
+    // 1) cópia local (instantânea)
+    creditosRestante = VLTV.creditos.lerLocal(serieChave);
+
+    // 2) VPS em segundo plano: o valor dela é a mediana de todos os clientes e sobrescreve a cópia local
+    var minha = idPlay;
+    var chave = serieChave;
+    VLTV.creditos.buscar(dnsAtual(), chave).then(function (seg) {
+      if (seg !== null && minha === idPlay && chave === serieChave) {
+        creditosRestante = seg;
+        VLTV.creditos.gravarLocal(chave, seg);
+      }
+    });
+  }
+
+  // Aprende o ponto dos créditos com um sinal confiável do cliente:
+  //  - toque no botão "Próximo episódio" (só vale se o botão já estava na tela há 6s ou mais);
+  //  - sair pelo "voltar" na reta final (75%+ assistido, 20s a 10min restantes).
+  // Não aprende quando o próximo episódio abre sozinho.
+  function aprenderCreditos(toqueNoBotao) {
+    if (!serieChave || creditosEnviados || proximoLancado) { return; }
+    var d = video.duration;
+    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    if (!isFinite(d) || d <= 0 || t < 0) { return; }
+    var restante = Math.floor(d - t);
+
+    if (toqueNoBotao) {
+      var esperou = botaoDesdeMs !== 0 && (new Date().getTime() - botaoDesdeMs) >= ESPERA_APRENDER_MS;
+      if (!esperou) { return; }
+    } else {
+      var progresso = t / d;
+      if (restante < 20 || restante > VLTV.creditos.MAX_S || progresso < 0.75) { return; }
+    }
+    if (!VLTV.creditos.valido(restante)) { return; }
+
+    creditosEnviados = true;
+    creditosRestante = restante;
+    VLTV.creditos.gravarLocal(serieChave, restante);
+    VLTV.creditos.enviar(dnsAtual(), serieChave, restante);
+  }
+
+  // ── Próximo episódio ──────────────────────────────────────────────
+  function limiarBotao() {
+    return creditosRestante === null ? CREDITOS_PADRAO_S : creditosRestante + ANTECEDENCIA_S;
+  }
+
+  // Quantos episódios faltam na temporada atual (contando o que está passando) e qual é a próxima temporada.
+  function avisoTemporada() {
+    var atual = itens[idx];
+    if (!atual || atual.tn === undefined) { return ''; }
+    var restantes = 0;
+    var i = idx;
+    while (i < itens.length && itens[i].tn === atual.tn) { restantes++; i++; }
+    var proxTemp = null;
+    for (var j = idx + 1; j < itens.length; j++) {
+      if (itens[j].tn !== atual.tn) { proxTemp = itens[j].tn; break; }
+    }
+    if (proxTemp === null) { return ''; }
+    if (restantes === 1) { return 'Último episódio da temporada — a seguir: Temporada ' + proxTemp; }
+    if (restantes >= 2 && restantes <= 3) { return 'Faltam ' + restantes + ' episódios para a próxima temporada'; }
+    return '';
+  }
+
+  function textoContagem(seg) {
+    if (seg > 60) {
+      return 'Próximo episódio em ' + Math.floor(seg / 60) + ':' + ('0' + (seg % 60)).slice(-2);
+    }
+    return 'Próximo episódio em ' + seg + 's';
+  }
+
+  function esconderCartao() {
+    cartao.classList.add('escondida');
+    elAvisoTemporada.classList.add('escondida');
+    contagemAtiva = false;
+    botaoDesdeMs = 0;
+  }
+
+  function mostrarCartao() {
+    var prox = itens[idx + 1];
+    elProximoTitulo.textContent = prox ? (prox.titulo || '') : '';
+    var aviso = avisoTemporada();
+    elAvisoTemporada.textContent = aviso;
+    elAvisoTemporada.classList.toggle('escondida', !aviso);
+    cartao.classList.remove('escondida');
+    ajustarCartao();
+    botaoDesdeMs = new Date().getTime();
+  }
+
+  // Roda a cada segundo, só enquanto há próximo episódio.
+  function verificarProximo() {
+    if (!ativo || proximoLancado || !temProximo()) { return; }
+    if (video.paused || video.ended) { return; }
+    var d = video.duration;
+    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    if (!isFinite(d) || d <= 0) { return; }
+
+    var restante = Math.floor(d - t);
+    var limiar = limiarBotao();
+
+    if (restante <= limiar) {
+      if (!contagemAtiva) {
+        contagemAtiva = true;
+        mostrarCartao();
+      }
+      var seg = Math.max(0, restante);
+      elContagem.textContent = textoContagem(seg);
+      var pct = Math.max(0, Math.min(100, (1 - seg / limiar) * 100));
+      elProximoFill.style.width = pct + '%';
+      if (restante <= 0) { abrirProximo(false); }
+    } else if (contagemAtiva) {
+      esconderCartao();
+    }
+  }
+
+  function abrirProximo(porToque) {
+    if (proximoLancado || !temProximo()) { return; }
+    if (porToque) { aprenderCreditos(true); }
+    proximoLancado = true;
+    esconderCartao();
+    salvarPosicao();
+    var item = itens[idx];
+    if (item && item.chave && isFinite(video.duration) && video.duration > 0 && !porToque) {
+      VLTV.dados.salvarProgresso(item.chave, video.duration, video.duration);   // assistido até o fim
+    }
+    carregarItem(idx + 1, 0);
   }
 
   // ── Reprodução ────────────────────────────────────────────────────
@@ -131,6 +421,11 @@
     }, ESPERA_REPRODUZIR_MS);
   }
 
+  function pararTimersProximo() {
+    clearInterval(timerProximo);
+    timerProximo = null;
+  }
+
   // inicioSeg: ponto (em segundos) onde começar. Só vale para o primeiro item.
   function carregarItem(i, inicioSeg) {
     idx = i;
@@ -139,10 +434,24 @@
     ultimoSalvo = 0;
     extensoes = montarExtensoes(itens[idx]);
     extIdx = 0;
+
+    clearTimeout(timerPulo);
+    timerPulo = null;
+    puloAlvo = null;
+    puloSequencia = 0;
+    zona = 'barra';
+    botaoIdx = 1;
+    proximoLancado = false;
+    esconderCartao();
+    pararTimersProximo();
+    iniciarCreditos();
+    if (temProximo()) { timerProximo = setInterval(verificarProximo, 1000); }
+
     elTitulo.textContent = itens[idx].titulo || '';
     elProgresso.style.width = '0%';
     elTempo.textContent = '0:00';
     elDuracao.textContent = '';
+    btnProx.style.display = temProximo() ? '' : 'none';
     mostrarControles();
     tentar();
   }
@@ -152,18 +461,27 @@
     ativo = false;
     clearTimeout(timerEspera);
     clearTimeout(timerControles);
+    clearTimeout(timerPulo);
+    clearTimeout(timerAviso);
+    pararTimersProximo();
+    puloAlvo = null;
     try {
       video.pause();
       video.removeAttribute('src');
       video.load();
     } catch (e) { /* ignora */ }
     esconderOverlay();
+    esconderCartao();
+    elAviso.classList.add('escondida');
     controles.classList.add('escondida');
   }
 
   function sair() {
     var ultimo = idx;
-    if (ativo) { salvarPosicao(); }
+    if (ativo) {
+      aprenderCreditos(false);
+      salvarPosicao();
+    }
     parar();
     if (aoSair) { aoSair(ultimo); }
   }
@@ -179,12 +497,15 @@
   video.addEventListener('waiting', function () {
     if (ativo) { mostrarOverlay('Carregando...'); }
   });
+  video.addEventListener('seeked', function () {
+    if (ativo) { esconderOverlay(); }
+  });
   video.addEventListener('pause', function () {
     if (ativo) { salvarPosicao(); mostrarControles(); }
   });
   video.addEventListener('timeupdate', function () {
     if (!ativo) { return; }
-    if (!controles.classList.contains('escondida')) { atualizarBarra(); }
+    if (controlesVisiveis()) { atualizarBarra(); }
     var agora = new Date().getTime();
     if (agora - ultimoSalvo > INTERVALO_SALVAR_MS) {
       ultimoSalvo = agora;
@@ -200,17 +521,12 @@
     if (item && item.chave && isFinite(video.duration) && video.duration > 0) {
       VLTV.dados.salvarProgresso(item.chave, video.duration, video.duration);   // marca como assistido
     }
-    if (idx + 1 < itens.length) { carregarItem(idx + 1, 0); } else { sair(); }
+    if (temProximo() && !proximoLancado) { abrirProximo(false); }
+    else if (idx + 1 < itens.length && !proximoLancado) { proximoLancado = true; carregarItem(idx + 1, 0); }
+    else if (idx + 1 >= itens.length) { sair(); }
   });
 
   // ── Controle remoto ───────────────────────────────────────────────
-  function pular(segundos) {
-    var d = video.duration;
-    if (!isFinite(d) || d <= 0) { return; }
-    video.currentTime = Math.max(0, Math.min(d - 1, (video.currentTime || 0) + segundos));
-    mostrarControles();
-  }
-
   function alternarPausa() {
     if (video.paused) {
       var p = video.play();
@@ -221,20 +537,50 @@
     mostrarControles();
   }
 
+  function ativarBotao() {
+    var b = botoesAtivos()[botaoIdx];
+    if (b === btnVolta) { pular(-10, true); }
+    else if (b === btnAvanca) { pular(10, true); }
+    else if (b === btnPlay) { alternarPausa(); }
+    else if (b === btnProx) { abrirProximo(true); }
+  }
+
   function tecla(k) {
-    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); }
-    else if (k === TECLA.ENTER) { alternarPausa(); }
-    else if (k === TECLA.PLAY) { if (video.paused) { alternarPausa(); } }
-    else if (k === TECLA.PAUSE) { if (!video.paused) { alternarPausa(); } }
-    else if (k === TECLA.ESQ) { pular(-PULO_CURTO_S); }
-    else if (k === TECLA.DIR) { pular(PULO_CURTO_S); }
-    else if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S); }
-    else if (k === TECLA.AVANCA) { pular(PULO_LONGO_S); }
-    else if (k === TECLA.CIMA || k === TECLA.BAIXO) { mostrarControles(); }
+    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); return true; }
+
+    // Teclas de mídia do controle (sempre iguais, em qualquer foco)
+    if (k === TECLA.PLAY) { if (video.paused) { alternarPausa(); } return true; }
+    if (k === TECLA.PAUSE) { if (!video.paused) { alternarPausa(); } return true; }
+    if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S, true); return true; }
+    if (k === TECLA.AVANCA) { pular(PULO_LONGO_S, true); return true; }
+
+    if (zona === 'botoes' && controlesVisiveis()) {
+      var qtd = botoesAtivos().length;
+      if (k === TECLA.ESQ) { botaoIdx = Math.max(0, botaoIdx - 1); marcarBotoes(); agendarEsconder(); }
+      else if (k === TECLA.DIR) { botaoIdx = Math.min(qtd - 1, botaoIdx + 1); marcarBotoes(); agendarEsconder(); }
+      else if (k === TECLA.CIMA) { zona = 'barra'; mostrarControles(); }
+      else if (k === TECLA.BAIXO) { mostrarControles(); }
+      else if (k === TECLA.ENTER) { ativarBotao(); }
+      return true;
+    }
+
+    // Foco na barra: esquerda/direita pulam, OK pausa, para baixo escolhe os botões.
+    if (k === TECLA.ESQ) { pular(-10, false); }
+    else if (k === TECLA.DIR) { pular(10, false); }
+    else if (k === TECLA.ENTER) {
+      // Com o cartão do próximo episódio na tela, OK vai direto para o próximo (igual ao Android).
+      if (cartaoVisivel()) { abrirProximo(true); }
+      else { alternarPausa(); }
+    }
+    else if (k === TECLA.BAIXO) {
+      if (controlesVisiveis()) { zona = 'botoes'; botaoIdx = 1; }
+      mostrarControles();
+    }
+    else if (k === TECLA.CIMA) { mostrarControles(); }
     return true;
   }
 
-  // lista: [{ titulo, tipo: 'movie' | 'series', id, ext, url, chave }].
+  // lista: [{ titulo, tipo: 'movie' | 'series', id, ext, url, chave, serie, tn }].
   // callbackSair recebe o índice do último item tocado.
   // inicioSeg (opcional): segundo onde o primeiro item deve começar.
   function abrir(lista, indice, callbackSair, inicioSeg) {

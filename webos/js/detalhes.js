@@ -783,6 +783,8 @@
         });
       });
     });
+    // Chave da série nos créditos aprendidos: id do 1º episódio da série inteira (igual ao Android).
+    plano.forEach(function (p) { p.serie = plano[0].id; });
 
     var fundo = primeiro(info.backdrop_path);
     if (fundo && fundo !== item.fundo) { usandoCapa = false; definirFundo(fundo, false); }

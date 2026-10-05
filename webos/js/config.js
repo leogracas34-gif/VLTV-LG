@@ -44,6 +44,14 @@ VLTV.config = {
   // o servidor da pasta vps-parceiros.
   PARCEIRO_URL: 'https://api.vltvplay.tech/parceiro/resolver',
 
+  // Backend da VPS (o mesmo HomeApiClient do Android). Créditos aprendidos do botão "Próximo episódio":
+  //   GET  {VPS_URL}/credits?domain=DNS&series=ID_DO_1o_EPISODIO  ->  { remaining_sec: N }
+  //   POST {VPS_URL}/credits  { domain, series, remaining_sec }  (cabeçalho x-app-key)
+  // Atenção: o servidor precisa liberar CORS (Access-Control-Allow-Origin e, para o POST,
+  // Access-Control-Allow-Headers: Content-Type, x-app-key), senão a TV só usa o valor salvo nela.
+  VPS_URL: 'http://51.222.26.119:3344',
+  VPS_APP_KEY: 'L468983c@',
+
   // Lista M3U: tamanho máximo aceito (a TV tem pouca memória).
   M3U_MAX_BYTES: 60000000,
 

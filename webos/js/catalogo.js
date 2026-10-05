@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  var COLUNAS = 6;
+  var COLUNAS = 8;
   var TAMANHO_LOTE = 48;
 
   var TECLA = {

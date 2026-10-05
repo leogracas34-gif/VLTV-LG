@@ -67,9 +67,15 @@
     <section id="tela-home" class="tela tela-topo escondida">
       <header class="topo">
         <div class="logo-pequeno">VLTV <span>PLAY</span></div>
-        <div class="conta">
-          <div id="home-usuario">-</div>
-          <div id="home-vencimento" class="conta-suave">-</div>
+        <div class="topo-direita">
+          <div class="conta">
+            <div id="home-hora" class="hora"></div>
+            <div id="home-usuario">-</div>
+            <div id="home-vencimento" class="conta-suave">-</div>
+          </div>
+          <button id="btn-config" type="button" class="btn-engrenagem" aria-label="Configurações">
+            <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="6" stroke-dasharray="3.53 3.53"/><circle cx="24" cy="24" r="12" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="24" cy="24" r="4" fill="currentColor"/></svg>
+          </button>
         </div>
       </header>
 
@@ -86,13 +92,26 @@
           <span class="tile-titulo">Séries</span>
           <span class="tile-sub" data-sub="Temporadas e episódios">Temporadas e episódios</span>
         </button>
-        <button id="tile-sair" type="button" class="tile">
-          <span class="tile-titulo">Sair da conta</span>
-          <span class="tile-sub">Trocar de usuário</span>
-        </button>
       </nav>
 
-      <footer id="home-aparelho" class="rodape"></footer>
+      <footer class="rodape">
+        <span id="home-aparelho"></span>
+        <button id="btn-sair" type="button" class="btn-discreto">Sair</button>
+      </footer>
+    </section>
+
+    <!-- Configurações -->
+    <section id="tela-config" class="tela tela-topo escondida">
+      <div class="live">
+        <div id="cfg-painel-menu" class="painel ativo painel-cfg-menu">
+          <h2>Configurações</h2>
+          <ul id="cfg-menu" class="lista"></ul>
+        </div>
+        <div class="painel painel-cfg-conteudo">
+          <h2 id="cfg-titulo"></h2>
+          <div id="cfg-conteudo" class="cfg-conteudo"></div>
+        </div>
+      </div>
     </section>
 
     <!-- TV ao vivo -->
@@ -117,8 +136,9 @@
           </div>
           <div class="info">
             <div id="live-nome" class="info-nome"></div>
-            <div id="live-agora" class="info-linha"></div>
-            <div id="live-depois" class="info-linha info-suave"></div>
+            <div id="live-agora" class="info-linha info-agora"></div>
+            <div id="live-descricao" class="info-desc"></div>
+            <div id="live-proximos" class="info-proximos"></div>
           </div>
         </div>
 
@@ -193,6 +213,7 @@
   <script src="js/catalogo.js"></script>
   <script src="js/episodios.js"></script>
   <script src="js/player.js"></script>
+  <script src="js/ajustes.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

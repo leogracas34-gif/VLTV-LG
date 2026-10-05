@@ -127,6 +127,7 @@
     if (sessao && sessao.user) { linha('Usuário', sessao.user); }
     linha('Endereço MAC', mac || 'Indisponível nesta TV');
     linha('Versão do produto', VLTV.config.VERSAO);
+    linha('Logos dos títulos (TMDB)', VLTV.tmdb && VLTV.tmdb.ativo() ? 'Ativadas' : 'Chave não configurada no app', VLTV.tmdb && VLTV.tmdb.ativo() ? 'ok' : 'erro');
     linha('Chave do dispositivo', chaveDispositivo());
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
   }

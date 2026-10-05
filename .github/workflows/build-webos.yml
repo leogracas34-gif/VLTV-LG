@@ -19,6 +19,25 @@ jobs:
       - name: Instalar as ferramentas da LG (ares-cli)
         run: npm install -g @webos-tools/cli
 
+      - name: Colocar a chave do TMDB no app (Secret TMDB_API_KEY)
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)
+          PASTA=$(dirname "$ARQUIVO")
+          CONFIG="$PASTA/js/config.js"
+          CHAVE=$(printf '%s' "$TMDB_API_KEY" | tr -d '[:space:]"'"'"'')
+          if [ -z "$CHAVE" ]; then
+            echo "::warning::Secret TMDB_API_KEY vazio ou não encontrado. O app vai funcionar, mas sem logos."
+          else
+            sed -i "s|__TMDB_API_KEY__|$CHAVE|" "$CONFIG"
+            if grep -q "__TMDB_API_KEY__" "$CONFIG"; then
+              echo "ERRO: não consegui trocar a chave no config.js"
+              exit 1
+            fi
+            echo "Chave do TMDB aplicada (${#CHAVE} caracteres)."
+          fi
+
       - name: Gerar o .ipk
         run: |
           ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)

@@ -165,7 +165,7 @@ input:focus {
 .tiles > * + * { margin-left: 40px; }
 
 .tile {
-  width: 405px;
+  width: 560px;
   height: 330px;
   padding: 40px;
   display: flex;
@@ -219,8 +219,8 @@ input:focus {
   border: 3px solid var(--borda);
   border-radius: 18px;
 }
-#painel-cats { width: 480px; }
-#painel-canais { width: 620px; }
+#painel-cats { width: 420px; }
+#painel-canais { width: 440px; }
 .painel.ativo { border-color: var(--destaque-claro); }
 
 .painel h2 {
@@ -246,7 +246,7 @@ input:focus {
   height: 84px;
   margin-bottom: 6px;
   padding: 0 16px;
-  font-size: 30px;
+  font-size: 27px;
   border: 3px solid transparent;
   border-left: 8px solid transparent;
   border-radius: 12px;
@@ -287,12 +287,12 @@ input:focus {
   border-color: #fff;
 }
 
-.coluna-player { width: 640px; }
+.coluna-player { width: 880px; }
 
 .player {
   position: relative;
-  width: 640px;
-  height: 360px;
+  width: 880px;
+  height: 495px;
   background: #000;
   border-radius: 14px;
   overflow: hidden;
@@ -338,15 +338,31 @@ input:focus {
 .info-cheio .info-nome { font-size: 52px; }
 .info-cheio .info-linha { font-size: 34px; }
 
-.info { padding: 24px 8px; }
-.info-nome { font-size: 38px; font-weight: 700; margin-bottom: 14px; }
+.info { padding: 16px 8px; }
+.info-nome { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
 .info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
+.info-agora { color: var(--destaque-claro); font-weight: 700; }
+.info-desc {
+  font-size: 24px;
+  line-height: 1.35;
+  color: var(--suave);
+  margin-bottom: 10px;
+  max-height: 66px;
+  overflow: hidden;
+}
+.info-proximos { font-size: 26px; line-height: 1.5; color: var(--texto); }
+.info-proximos div {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.info-proximos .hora-prog { color: var(--suave); margin-right: 14px; }
 .info-suave { color: var(--suave); }
 
 /* ── Catálogo (Filmes e Séries) ──────────────────────── */
 
-.painel-cat { width: 420px; }
-.painel-grade { width: 1350px; }
+.painel-cat { width: 400px; }
+.painel-grade { width: 1370px; }
 
 .grade {
   flex: 1;
@@ -355,6 +371,7 @@ input:focus {
   align-content: flex-start;
   list-style: none;
   padding: 6px 10px;
+  margin-right: -14px;
   overflow: hidden;
 }
 
@@ -367,8 +384,8 @@ input:focus {
 }
 
 .celula {
-  margin: 0 20px 20px 0;
-  width: 240px;
+  margin: 0 14px 12px 0;
+  width: 150px;
   border: 4px solid transparent;
   border-radius: 14px;
   overflow: hidden;
@@ -379,8 +396,8 @@ input:focus {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 320px;
-  font-size: 80px;
+  height: 190px;
+  font-size: 60px;
   color: var(--suave);
   background: var(--painel-2);
   overflow: hidden;
@@ -393,9 +410,9 @@ input:focus {
 }
 
 .celula-nome {
-  height: 78px;
-  padding: 8px 8px 0;
-  font-size: 26px;
+  height: 62px;
+  padding: 6px 6px 0;
+  font-size: 22px;
   line-height: 1.2;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -544,3 +561,67 @@ input::placeholder { color: #565c78; }
   border-color: #fff;
   box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
 }
+
+/* ── Home: topo, relógio, engrenagem e rodapé ────────── */
+
+.topo-direita { display: flex; align-items: flex-start; }
+.topo-direita .conta { margin-right: 24px; }
+.hora { font-size: 24px; color: var(--suave); margin-bottom: 6px; }
+
+.btn-engrenagem {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--suave);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 50%;
+  outline: none;
+}
+.btn-engrenagem:focus {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 8px rgba(123, 92, 255, 0.5);
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  right: 0;
+}
+.btn-discreto {
+  padding: 8px 28px;
+  font-size: 24px;
+  color: var(--suave);
+  background: transparent;
+  border: 2px solid var(--borda);
+  border-radius: 12px;
+  outline: none;
+}
+.btn-discreto:focus {
+  color: #fff;
+  background: var(--painel-2);
+  border-color: #fff;
+}
+
+/* ── Configurações ───────────────────────────────────── */
+
+.painel-cfg-menu { width: 520px; }
+.painel-cfg-conteudo { width: 1250px; }
+.cfg-conteudo { flex: 1; padding: 20px 16px; overflow: hidden; }
+.cfg-linha {
+  display: flex;
+  justify-content: space-between;
+  padding: 22px 12px;
+  font-size: 32px;
+  border-bottom: 2px solid var(--borda);
+}
+.cfg-rotulo { color: var(--suave); }
+.cfg-valor { font-weight: 700; text-align: right; }
+.cfg-valor.ok { color: var(--ok); }
+.cfg-valor.erro { color: var(--erro); }
+.cfg-texto { font-size: 30px; line-height: 1.5; color: var(--suave); padding: 12px; }

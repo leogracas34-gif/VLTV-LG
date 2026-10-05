@@ -8,6 +8,7 @@
   var TIMEOUT_MS = 6000;
   var VALIDADE_SEM_LOGO_MS = 7 * 24 * 3600 * 1000;   // título sem logo: tenta de novo em 7 dias
   var PREFIXO = 'vltv_logo_';
+  var PREFIXO_FUNDO = 'vltv_fundo_';
 
   var emAndamento = {};   // evita pesquisar o mesmo título duas vezes ao mesmo tempo
 
@@ -115,5 +116,60 @@
     return p;
   }
 
-  VLTV.tmdb = { ativo: ativo, logo: logo, guardada: guardada };
+  // ── Imagem de fundo (só filmes que o painel não manda com fundo) ───
+  function enderecoFundo(caminho) {
+    var base = cfg().TMDB_IMAGENS_URL || 'https://image.tmdb.org';
+    return base + '/t/p/' + (cfg().TMDB_TAMANHO_FUNDO || 'w1280') + (caminho.charAt(0) === '/' ? caminho : '/' + caminho);
+  }
+
+  function fundoGuardado(tipo, id) {
+    try {
+      var texto = window.localStorage.getItem(PREFIXO_FUNDO + tipo + '_' + id);
+      if (!texto) { return null; }
+      var c = JSON.parse(texto);
+      if (c.url) { return c.url; }
+      return (new Date().getTime() - c.t < VALIDADE_SEM_LOGO_MS) ? '' : null;
+    } catch (e) { return null; }
+  }
+
+  function gravarFundo(k, url) {
+    try { window.localStorage.setItem(PREFIXO_FUNDO + k, JSON.stringify({ url: url || '', t: new Date().getTime() })); }
+    catch (e) { /* sem espaço: segue sem guardar */ }
+  }
+
+  // Resolve com o endereço do fundo (backdrop do TMDB, 1 pesquisa só), ou null. Nunca rejeita.
+  function fundo(tipo, id, nome) {
+    var guard = fundoGuardado(tipo, id);
+    if (guard !== null) { return Promise.resolve(guard || null); }
+    if (!ativo()) { return Promise.resolve(null); }
+
+    var busca = VLTV.titulo.paraBusca(nome);
+    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+    var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
+      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';
+    var url = busca.ano ? base + (tipoTmdb === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano : base;
+
+    function primeiroComFundo(j) {
+      var lista = j && j.results ? j.results : [];
+      for (var i = 0; i < lista.length && i < 3; i++) {
+        if (lista[i].backdrop_path) { return lista[i].backdrop_path; }
+      }
+      return null;
+    }
+
+    return pegarJson(url).then(function (j) {
+      var c = primeiroComFundo(j);
+      if (c || !busca.ano) { return c; }
+      return pegarJson(base).then(primeiroComFundo);     // com o ano não achou: tenta sem ele
+    }).then(function (caminho) {
+      var u = caminho ? enderecoFundo(caminho) : null;
+      gravarFundo(tipo + '_' + id, u);
+      return u;
+    }).catch(function () { return null; });
+  }
+
+  function fundoPronto(tipo, id) { return fundoGuardado(tipo, id); }
+
+  VLTV.tmdb = { ativo: ativo, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+
 })();

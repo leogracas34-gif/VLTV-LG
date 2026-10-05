@@ -59,6 +59,10 @@ VLTV.config = {
   // Imagens do TMDB servidas pela sua VPS (mesmo endereço do app Android).
   TMDB_IMAGENS_URL: 'https://cdn.vltvplay.tech',
   TMDB_TAMANHO_LOGO: 'w500',
+  // Fundo dos filmes que o painel não manda com imagem de fundo (tela de detalhes).
+  TMDB_TAMANHO_FUNDO: 'w1280',
+  // Quanto esperar (ms) pelo fundo do TMDB antes de usar a capa desfocada. Decide UMA vez, sem trocar depois.
+  TMDB_FUNDO_ESPERA_MS: 1800,
 
   // Lista M3U: tamanho máximo aceito (a TV tem pouca memória).
   M3U_MAX_BYTES: 60000000,

@@ -205,6 +205,55 @@
     timerFundo = setTimeout(mostrarFundo, 2500);   // se demorar muito, mostra mesmo assim
   }
 
+  // Fundo escolhido UMA vez por título (sem trocar depois, então não pisca):
+  //  1) imagem de fundo que o painel mandou;
+  //  2) filmes sem ela: backdrop do TMDB (já guardado na TV = na hora; senão espera um pouco);
+  //  3) se o TMDB não responder a tempo ou falhar: capa do painel desfocada.
+  var idFundo = 0;
+  function escolherFundo() {
+    var meu = ++idFundo;
+    if (item.fundo) { definirFundo(item.fundo, false); return; }
+
+    var tmdbOk = item.tipo === 'filmes' && (VLTV.tmdb.ativo() || VLTV.tmdb.fundoGuardado('filmes', item.id));
+    if (!tmdbOk) { definirFundo(item.capa, true); return; }
+
+    definirFundo('', false);          // preto enquanto decide
+    var decidido = false;
+    function usarCapa() {
+      if (decidido || meu !== idFundo) { return; }
+      decidido = true;
+      usandoCapa = true;
+      definirFundo(item.capa, true);
+    }
+    function usarTmdb(url) {
+      var img = new Image();
+      var tentouDireto = false;
+      img.onload = function () {
+        if (decidido || meu !== idFundo) { return; }
+        decidido = true;
+        usandoCapa = true;            // se falhar depois de mostrado, não troca de novo
+        definirFundo(url, false);
+      };
+      img.onerror = function () {
+        var cdn = VLTV.config.TMDB_IMAGENS_URL;
+        if (!tentouDireto && cdn && url.indexOf(cdn) === 0) {
+          tentouDireto = true;
+          url = 'https://image.tmdb.org' + url.slice(cdn.length);
+          img.src = url;
+          return;
+        }
+        usarCapa();
+      };
+      img.src = url;
+    }
+
+    setTimeout(usarCapa, VLTV.config.TMDB_FUNDO_ESPERA_MS || 1800);
+    VLTV.tmdb.fundo('filmes', item.id, item.nome).then(function (url) {
+      if (decidido || meu !== idFundo) { return; }
+      if (url) { usarTmdb(url); } else { usarCapa(); }
+    });
+  }
+
   // Se a imagem de fundo falhar, usa a capa desfocada (ou fica só o preto).
   elFundo.onerror = function () {
     if (!usandoCapa && item && item.capa) {
@@ -917,7 +966,7 @@
     itensEps = [];
     esvaziar(elEps);
 
-    definirFundo(item.fundo || item.capa, !item.fundo);
+    escolherFundo();
     renderTopo();
     carregarLogo();
     montarAbas();

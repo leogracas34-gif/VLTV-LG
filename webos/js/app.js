@@ -38,6 +38,7 @@
   var tileSeries = $('tile-series');
   var tileSair = $('btn-sair');
   var btnConfig = $('btn-config');
+  var elBanner = $('banner');
   var elHora = $('home-hora');
   var ultimoTile = tileLive;
 
@@ -56,6 +57,7 @@
       var lista = focaveis();
       (lista[1] || lista[0]).focus();
     }
+    if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') {
       atualizarHora();
       if (ultimoTile.disabled) {
@@ -118,6 +120,7 @@
       sub.textContent = tem ? sub.getAttribute('data-sub') : 'Não há na lista';
     });
 
+    VLTV.banner.carregar(false);
     mostrarTela('home');
   }
 
@@ -338,18 +341,24 @@
     var ativo = document.activeElement;
     var i = tiles.indexOf(ativo);
 
+    var temBanner = VLTV.banner.visivel();
     if (i !== -1) {
       if (k === TECLA_ESQ || k === TECLA_DIR) {
         var novo = Math.max(0, Math.min(tiles.length - 1, i + (k === TECLA_ESQ ? -1 : 1)));
         ultimoTile = tiles[novo];
         ultimoTile.focus();
       } else if (k === TECLA_CIMA) {
-        btnConfig.focus();
+        if (temBanner) { elBanner.focus(); } else { btnConfig.focus(); }
       } else {
         tileSair.focus();
       }
+    } else if (ativo === elBanner) {
+      if (k === TECLA_ESQ) { VLTV.banner.mover(-1); }
+      else if (k === TECLA_DIR) { VLTV.banner.mover(1); }
+      else if (k === TECLA_CIMA) { btnConfig.focus(); }
+      else { ultimoTile.focus(); }
     } else if (ativo === btnConfig && k === TECLA_BAIXO) {
-      ultimoTile.focus();
+      if (temBanner) { elBanner.focus(); } else { ultimoTile.focus(); }
     } else if (ativo === tileSair && k === TECLA_CIMA) {
       ultimoTile.focus();
     }
@@ -400,6 +409,14 @@
   tileLive.addEventListener('click', abrirTvAoVivo);
   tileFilmes.addEventListener('click', function () { abrirCatalogo('filmes'); });
   tileSeries.addEventListener('click', function () { abrirCatalogo('series'); });
+  VLTV.banner.configurar(function (tipo, raw, lista) {
+    mostrarTela('detalhes');
+    VLTV.detalhes.abrir(tipo, raw, lista, {
+      sair: function () { mostrarTela('home'); },
+      reproduzir: function (itens, indice, inicioSeg) { tocar(itens, indice, 'detalhes', inicioSeg); }
+    });
+  }, function (existe) { telas.home.classList.toggle('com-banner', existe); });
+  elBanner.addEventListener('click', function () { VLTV.banner.abrirAtual(); });
   tileSair.addEventListener('click', sair);
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {

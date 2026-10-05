@@ -1,9 +1,11 @@
 // VLTV Play - webOS | Player de filmes e episódios (tela cheia, com barra de progresso).
+// Guarda de onde o usuário parou e retoma dali quando pedido.
 (function () {
   'use strict';
 
   var ESPERA_REPRODUZIR_MS = 20000;
   var TEMPO_CONTROLES_MS = 4000;
+  var INTERVALO_SALVAR_MS = 5000;
   var PULO_CURTO_S = 10;
   var PULO_LONGO_S = 30;
 
@@ -33,6 +35,8 @@
   var idPlay = 0;
   var timerEspera = null;
   var timerControles = null;
+  var inicioPendente = 0;   // segundos: ponto onde o vídeo deve começar
+  var ultimoSalvo = 0;
 
   // ── Utilidades ────────────────────────────────────────────────────
   function formatar(segundos) {
@@ -72,6 +76,30 @@
     }
   }
 
+  // ── Progresso salvo ───────────────────────────────────────────────
+  function salvarPosicao() {
+    var item = itens[idx];
+    if (!item || !item.chave) { return; }
+    // Enquanto o ponto de retomada não foi aplicado, não grava (evitaria apagar o progresso).
+    if (inicioPendente > 0) { return; }
+    var d = video.duration;
+    var t = video.currentTime || 0;
+    if (!isFinite(d) || d <= 0 || t < 3) { return; }
+    VLTV.dados.salvarProgresso(item.chave, t, d);
+  }
+
+  // Pula para o ponto de retomada assim que a TV souber a duração do vídeo.
+  function aplicarInicio() {
+    if (inicioPendente <= 0) { return; }
+    var d = video.duration;
+    if (!isFinite(d) || d <= 0) { return; }
+    var alvo = inicioPendente;
+    inicioPendente = 0;
+    if (d > alvo + 5) {
+      try { video.currentTime = alvo; } catch (e) { /* ignora */ }
+    }
+  }
+
   // ── Reprodução ────────────────────────────────────────────────────
   function montarExtensoes(item) {
     if (item.url) { return ['']; }   // endereço direto (lista M3U)
@@ -103,9 +131,12 @@
     }, ESPERA_REPRODUZIR_MS);
   }
 
-  function carregarItem(i) {
+  // inicioSeg: ponto (em segundos) onde começar. Só vale para o primeiro item.
+  function carregarItem(i, inicioSeg) {
     idx = i;
     idPlay++;
+    inicioPendente = inicioSeg > 0 ? inicioSeg : 0;
+    ultimoSalvo = 0;
     extensoes = montarExtensoes(itens[idx]);
     extIdx = 0;
     elTitulo.textContent = itens[idx].titulo || '';
@@ -132,28 +163,44 @@
 
   function sair() {
     var ultimo = idx;
+    if (ativo) { salvarPosicao(); }
     parar();
     if (aoSair) { aoSair(ultimo); }
   }
 
+  video.addEventListener('loadedmetadata', aplicarInicio);
+  video.addEventListener('durationchange', aplicarInicio);
   video.addEventListener('playing', function () {
     clearTimeout(timerEspera);
     esconderOverlay();
+    aplicarInicio();
     mostrarControles();
   });
   video.addEventListener('waiting', function () {
     if (ativo) { mostrarOverlay('Carregando...'); }
   });
-  video.addEventListener('pause', function () { if (ativo) { mostrarControles(); } });
+  video.addEventListener('pause', function () {
+    if (ativo) { salvarPosicao(); mostrarControles(); }
+  });
   video.addEventListener('timeupdate', function () {
-    if (ativo && !controles.classList.contains('escondida')) { atualizarBarra(); }
+    if (!ativo) { return; }
+    if (!controles.classList.contains('escondida')) { atualizarBarra(); }
+    var agora = new Date().getTime();
+    if (agora - ultimoSalvo > INTERVALO_SALVAR_MS) {
+      ultimoSalvo = agora;
+      salvarPosicao();
+    }
   });
   video.addEventListener('error', function () {
     if (ativo) { extIdx++; tentar(); }
   });
   video.addEventListener('ended', function () {
     if (!ativo) { return; }
-    if (idx + 1 < itens.length) { carregarItem(idx + 1); } else { sair(); }
+    var item = itens[idx];
+    if (item && item.chave && isFinite(video.duration) && video.duration > 0) {
+      VLTV.dados.salvarProgresso(item.chave, video.duration, video.duration);   // marca como assistido
+    }
+    if (idx + 1 < itens.length) { carregarItem(idx + 1, 0); } else { sair(); }
   });
 
   // ── Controle remoto ───────────────────────────────────────────────
@@ -187,12 +234,14 @@
     return true;
   }
 
-  // lista: [{ titulo, tipo: 'movie' | 'series', id, ext }]. callbackSair recebe o índice do último item tocado.
-  function abrir(lista, indice, callbackSair) {
+  // lista: [{ titulo, tipo: 'movie' | 'series', id, ext, url, chave }].
+  // callbackSair recebe o índice do último item tocado.
+  // inicioSeg (opcional): segundo onde o primeiro item deve começar.
+  function abrir(lista, indice, callbackSair, inicioSeg) {
     itens = lista;
     aoSair = callbackSair;
     ativo = true;
-    carregarItem(indice);
+    carregarItem(indice, inicioSeg || 0);
   }
 
   VLTV.player = { abrir: abrir, tecla: tecla };

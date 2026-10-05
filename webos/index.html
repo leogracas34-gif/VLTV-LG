@@ -162,26 +162,86 @@
       </div>
     </section>
 
-    <!-- Detalhes da série: temporadas e episódios -->
-    <section id="tela-episodios" class="tela tela-topo escondida">
-      <div class="live">
+    <!-- Detalhes de filmes e séries (mesmo layout do app do celular, em paisagem) -->
+    <section id="tela-detalhes" class="tela escondida">
+      <img id="det-fundo" class="det-fundo" alt="">
+      <div class="det-grad"></div>
+      <div id="det-grad-rolado" class="det-grad-rolado"></div>
 
-        <div class="ep-info">
-          <img id="ep-capa" class="ep-capa" alt="">
-          <div id="ep-titulo" class="ep-titulo"></div>
-          <div id="ep-sinopse" class="ep-sinopse"></div>
+      <div class="det-janela">
+        <div id="det-pagina" class="det-pagina">
+          <div class="det-coluna">
+
+            <div id="det-titulo" class="det-titulo"></div>
+
+            <div class="det-meta">
+              <span id="det-nota-bloco" class="det-nota escondida">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
+                <span id="det-nota"></span>
+              </span>
+              <span id="det-ano" class="escondida"></span>
+              <span id="det-duracao" class="escondida"></span>
+              <span id="det-qual" class="det-tag">HD</span>
+            </div>
+
+            <div id="det-genero" class="det-genero escondida"></div>
+
+            <div id="det-progresso" class="det-progresso escondida">
+              <div class="det-barra"><div id="det-barra-cheia" class="det-barra-cheia"></div></div>
+              <span id="det-restam" class="det-restam"></span>
+            </div>
+
+            <div id="det-play" class="det-play">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>
+              <span id="det-play-txt">ASSISTIR</span>
+            </div>
+
+            <div class="det-acoes">
+              <div id="det-reiniciar" class="det-acao escondida">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V8h4.5"/></svg>
+                <span>REINICIAR</span>
+              </div>
+              <div id="det-fav" class="det-acao">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
+                <span>MINHA LISTA</span>
+              </div>
+            </div>
+
+            <div id="det-sinopse" class="det-sinopse"></div>
+
+            <div id="det-abas" class="det-abas"></div>
+
+            <div id="det-conteudo" class="det-conteudo">
+              <div id="det-sec-eps" class="det-secao">
+                <div id="det-temp" class="det-temp">Temporada</div>
+                <div id="det-eps-janela" class="det-eps-janela">
+                  <ul id="det-eps" class="det-eps"></ul>
+                </div>
+              </div>
+
+              <div id="det-sec-sug" class="det-secao escondida">
+                <div id="det-sug-janela" class="det-sug-janela">
+                  <ul id="det-sug" class="det-sug"></ul>
+                </div>
+              </div>
+
+              <div id="det-sec-det" class="det-secao escondida"></div>
+            </div>
+
+          </div>
         </div>
+      </div>
 
-        <div id="ep-painel-temp" class="painel ativo painel-temp">
-          <h2>Temporadas</h2>
-          <ul id="ep-temporadas" class="lista"></ul>
+      <div id="det-fade-topo" class="det-fade-topo"></div>
+
+      <!-- Escolha da temporada -->
+      <div id="det-popup" class="det-popup escondida">
+        <div class="det-popup-caixa">
+          <h3>Temporada</h3>
+          <div id="det-popup-janela" class="det-popup-janela">
+            <ul id="det-popup-lista" class="det-popup-lista"></ul>
+          </div>
         </div>
-
-        <div id="ep-painel-eps" class="painel painel-eps">
-          <h2 id="ep-eps-titulo">Episódios</h2>
-          <ul id="ep-lista" class="lista"></ul>
-        </div>
-
       </div>
     </section>
 
@@ -209,9 +269,10 @@
   <script src="js/parceiro.js"></script>
   <script src="js/m3u.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/armazenamento.js"></script>
   <script src="js/live.js"></script>
   <script src="js/catalogo.js"></script>
-  <script src="js/episodios.js"></script>
+  <script src="js/detalhes.js"></script>
   <script src="js/player.js"></script>
   <script src="js/ajustes.js"></script>
   <script src="js/app.js"></script>

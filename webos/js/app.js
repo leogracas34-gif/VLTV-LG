@@ -1,4 +1,4 @@
-// VLTV Play - webOS | Telas e navegação por controle remoto (etapa 4: login por Usuário, Parceiro, Xtream e M3U).
+// VLTV Play - webOS | Telas e navegação por controle remoto (login, catálogo, detalhes e player).
 (function () {
   'use strict';
 
@@ -19,7 +19,7 @@
     config: $('tela-config'),
     live: $('tela-live'),
     catalogo: $('tela-catalogo'),
-    episodios: $('tela-episodios'),
+    detalhes: $('tela-detalhes'),
     player: $('tela-player')
   };
   var telaAtual = 'carregando';
@@ -136,26 +136,29 @@
     mostrarTela('catalogo');
     VLTV.catalogo.abrir(tipo, {
       sair: function () { mostrarTela('home'); },
-      reproduzir: function (itens, indice) { tocar(itens, indice, 'catalogo'); },
-      abrirSerie: function (serie) { abrirEpisodios(serie); }
+      abrirDetalhes: function (tipoItem, item, listaDaCategoria) {
+        abrirDetalhes(tipoItem, item, listaDaCategoria);
+      }
     });
   }
 
-  function abrirEpisodios(serie) {
-    mostrarTela('episodios');
-    VLTV.episodios.abrir(serie, {
+  // Detalhes de um filme ou série (mesma tela para os dois).
+  function abrirDetalhes(tipo, item, lista) {
+    mostrarTela('detalhes');
+    VLTV.detalhes.abrir(tipo, item, lista, {
       sair: function () { mostrarTela('catalogo'); },
-      reproduzir: function (itens, indice) { tocar(itens, indice, 'episodios'); }
+      reproduzir: function (itens, indice, inicioSeg) { tocar(itens, indice, 'detalhes', inicioSeg); }
     });
   }
 
   // voltarPara: tela que reaparece quando o vídeo termina ou o usuário aperta Voltar.
-  function tocar(itens, indice, voltarPara) {
+  // inicioSeg: segundo onde o vídeo começa (para continuar de onde parou).
+  function tocar(itens, indice, voltarPara, inicioSeg) {
     mostrarTela('player');
     VLTV.player.abrir(itens, indice, function (ultimo) {
       mostrarTela(voltarPara);
-      if (voltarPara === 'episodios') { VLTV.episodios.irPara(ultimo); }
-    });
+      if (voltarPara === 'detalhes') { VLTV.detalhes.voltou(ultimo); }
+    }, inicioSeg || 0);
   }
 
   // ── Mensagens ─────────────────────────────────────────────────────
@@ -356,7 +359,7 @@
     config: function (k) { return VLTV.ajustes.tecla(k); },
     live: function (k) { return VLTV.live.tecla(k); },
     catalogo: function (k) { return VLTV.catalogo.tecla(k); },
-    episodios: function (k) { return VLTV.episodios.tecla(k); },
+    detalhes: function (k) { return VLTV.detalhes.tecla(k); },
     player: function (k) { return VLTV.player.tecla(k); }
   };
 

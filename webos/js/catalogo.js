@@ -1,10 +1,10 @@
 // VLTV Play - webOS | Catálogo de Filmes e Séries: categorias à esquerda, capas em grade à direita.
+// Navegar pelas categorias só move a seleção; a grade só muda quando o usuário aperta OK (ou direita).
 (function () {
   'use strict';
 
-  var COLUNAS = 8;
-  var TAMANHO_LOTE = 60;
-  var ESPERA_CATEGORIA_MS = 350;
+  var COLUNAS = 6;
+  var TAMANHO_LOTE = 48;
 
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
@@ -25,14 +25,12 @@
       titulo: 'Filmes',
       categorias: function () { return VLTV.api.categoriasFilmes(); },
       itens: function (id) { return VLTV.api.filmesPorCategoria(id); },
-      campoId: 'stream_id',
       campoCapa: 'stream_icon'
     },
     series: {
       titulo: 'Séries',
       categorias: function () { return VLTV.api.categoriasSeries(); },
       itens: function (id) { return VLTV.api.seriesPorCategoria(id); },
-      campoId: 'series_id',
       campoCapa: 'cover'
     }
   };
@@ -42,9 +40,11 @@
   var acoes = null;
 
   var categorias = [];
-  var catIdx = 0;
+  var catIdx = 0;            // categoria destacada (move com cima/baixo)
+  var catAplicada = -1;      // categoria cujos títulos estão na grade
   var itensCats = [];
   var liSelCat = null;
+  var liAplicada = null;
 
   var itens = [];
   var itemIdx = 0;
@@ -56,7 +56,6 @@
   var foco = 'cat';
   var falhaCategorias = false;
   var idReq = 0;
-  var timerCat = null;
 
   // ── Utilidades ────────────────────────────────────────────────────
   function esvaziar(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
@@ -80,6 +79,7 @@
     esvaziar(listaCats);
     itensCats = [];
     liSelCat = null;
+    liAplicada = null;
     categorias.forEach(function (c) {
       var li = document.createElement('li');
       var nome = document.createElement('span');
@@ -98,6 +98,13 @@
       liSelCat.classList.add('sel');
       VLTV.rolar(liSelCat);
     }
+  }
+
+  // Sinaliza qual categoria está aberta na grade (fica marcada enquanto se navega pelas outras).
+  function marcarAplicada() {
+    if (liAplicada) { liAplicada.classList.remove('aplicada'); }
+    liAplicada = itensCats[catAplicada] || null;
+    if (liAplicada) { liAplicada.classList.add('aplicada'); }
   }
 
   // ── Grade de capas ────────────────────────────────────────────────
@@ -195,48 +202,33 @@
       });
   }
 
-  function agendarCategoria() {
-    if (timerCat) { clearTimeout(timerCat); }
-    timerCat = setTimeout(function () {
-      timerCat = null;
-      carregarItens(catIdx, false);
-    }, ESPERA_CATEGORIA_MS);
+  // Abre na grade a categoria destacada.
+  function aplicarCategoria(idx, focar) {
+    catAplicada = idx;
+    marcarAplicada();
+    carregarItens(idx, focar);
   }
 
   function irParaGrade() {
-    if (timerCat) {
-      clearTimeout(timerCat);
-      timerCat = null;
-      carregarItens(catIdx, true);
-    } else if (itens.length > 0) {
-      trocarFoco('grade');
+    if (catIdx === catAplicada && itens.length > 0) {
+      trocarFoco('grade');     // já é a categoria da grade: só entra nela
     } else {
-      carregarItens(catIdx, true);
+      aplicarCategoria(catIdx, true);
     }
+  }
+
+  // Volta para a lista de categorias, destacando a categoria que está na grade.
+  function voltarParaCategorias() {
+    if (catAplicada >= 0) { catIdx = catAplicada; }
+    marcarCategoria();
+    trocarFoco('cat');
   }
 
   // ── Escolher um título ────────────────────────────────────────────
   function escolher() {
     var item = itens[itemIdx];
     if (!item) { return; }
-
-    if (tipo === 'series') {
-      acoes.abrirSerie({
-        id: item.series_id,
-        nome: item.name || '',
-        capa: item.cover || '',
-        sinopse: item.plot || ''
-      });
-      return;
-    }
-
-    acoes.reproduzir([{
-      titulo: item.name || '',
-      tipo: 'movie',
-      id: item.stream_id,
-      ext: item.container_extension,
-      url: item.url
-    }], 0);
+    acoes.abrirDetalhes(tipo, item, itens);
   }
 
   // ── Controle remoto ───────────────────────────────────────────────
@@ -258,8 +250,7 @@
       var novo = catIdx + (k === TECLA.CIMA ? -1 : 1);
       if (novo >= 0 && novo < categorias.length) {
         catIdx = novo;
-        marcarCategoria();
-        agendarCategoria();
+        marcarCategoria();      // só move o destaque: a grade ao lado não muda
       }
       return true;
     }
@@ -272,13 +263,13 @@
 
   function teclaGrade(k) {
     if (k === TECLA.ESQ) {
-      if (itemIdx % COLUNAS === 0 || itens.length === 0) { trocarFoco('cat'); } else { moverItem(-1); }
+      if (itemIdx % COLUNAS === 0 || itens.length === 0) { voltarParaCategorias(); } else { moverItem(-1); }
     }
     else if (k === TECLA.DIR) { moverItem(1); }
     else if (k === TECLA.CIMA) { moverItem(-COLUNAS); }
     else if (k === TECLA.BAIXO) { moverItem(COLUNAS); }
     else if (k === TECLA.ENTER) {
-      if (itens.length === 0) { carregarItens(catIdx, true); } else { escolher(); }
+      if (itens.length === 0) { carregarItens(catAplicada, true); } else { escolher(); }
     }
     else { return false; }
     return true;
@@ -287,14 +278,15 @@
   // Devolve true se a tecla foi usada por esta tela.
   function tecla(k) {
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (foco === 'grade') { trocarFoco('cat'); } else { sair(); }
+      if (foco === 'grade') { voltarParaCategorias(); } else { sair(); }
       return true;
     }
     return foco === 'cat' ? teclaCategorias(k) : teclaGrade(k);
   }
 
   // ── Entrada e saída da tela ───────────────────────────────────────
-  // tipoNovo: 'filmes' ou 'series'. acoesNovas: { sair, reproduzir(lista, indice), abrirSerie(serie) }
+  // tipoNovo: 'filmes' ou 'series'.
+  // acoesNovas: { sair, abrirDetalhes(tipo, item, listaDaCategoria) }
   function abrir(tipoNovo, acoesNovas) {
     tipo = tipoNovo;
     cfg = CONFIG[tipo];
@@ -303,8 +295,9 @@
     categorias = [];
     itens = [];
     catIdx = 0;
+    catAplicada = -1;
     falhaCategorias = false;
-    if (timerCat) { clearTimeout(timerCat); timerCat = null; }
+    idReq++;
 
     tituloCats.textContent = cfg.titulo;
     tituloGrade.textContent = '';
@@ -321,7 +314,7 @@
         }
         renderCategorias();
         marcarCategoria();
-        carregarItens(0, false);
+        aplicarCategoria(0, false);
       })
       .catch(function () {
         falhaCategorias = true;
@@ -330,7 +323,6 @@
   }
 
   function sair() {
-    if (timerCat) { clearTimeout(timerCat); timerCat = null; }
     if (acoes) { acoes.sair(); }
   }
 

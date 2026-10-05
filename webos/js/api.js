@@ -90,6 +90,14 @@
       return chamar('get_vod_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
+    // Detalhes de um filme (sinopse, fundo, gênero, elenco...). Devolve o objeto "info" do painel.
+    infoFilme: function (filmeId) {
+      if (daLista()) { return pronto({}); }
+      return chamar('get_vod_info', '&vod_id=' + enc(filmeId)).then(function (dados) {
+        return (dados && dados.info && typeof dados.info === 'object') ? dados.info : {};
+      });
+    },
+
     // ── Séries ──────────────────────────────────────────────────────
     categoriasSeries: function () {
       if (daLista()) { return pronto(VLTV.m3u.categorias('series')); }

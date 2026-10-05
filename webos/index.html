@@ -25,16 +25,37 @@
     <!-- Tela de login -->
     <section id="tela-login" class="tela escondida">
       <div class="logo">VLTV <span>PLAY</span></div>
-      <h1>Entrar</h1>
 
-      <div class="campo">
+      <div class="abas">
+        <button id="aba-usuario" type="button" class="aba" data-modo="usuario">Usuário</button>
+        <button id="aba-parceiro" type="button" class="aba" data-modo="parceiro">Parceiro</button>
+        <button id="aba-xtream" type="button" class="aba" data-modo="xtream">Xtream</button>
+        <button id="aba-m3u" type="button" class="aba" data-modo="m3u">Lista M3U</button>
+      </div>
+
+      <div class="campo" data-modos="parceiro">
+        <label for="campo-codigo">Código de parceiro</label>
+        <input id="campo-codigo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+
+      <div class="campo" data-modos="xtream">
+        <label for="campo-servidor">Servidor</label>
+        <input id="campo-servidor" type="text" placeholder="http://servidor.com:8080" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <div class="campo" data-modos="usuario parceiro xtream">
         <label for="campo-usuario">Usuário</label>
         <input id="campo-usuario" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
-      <div class="campo">
+      <div class="campo" data-modos="usuario parceiro xtream">
         <label for="campo-senha">Senha</label>
         <input id="campo-senha" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <div class="campo" data-modos="m3u">
+        <label for="campo-m3u">Endereço da lista M3U</label>
+        <input id="campo-m3u" type="text" placeholder="http://servidor.com/lista.m3u" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
       <button id="btn-entrar" type="button" class="botao">Entrar</button>
@@ -55,15 +76,15 @@
       <nav class="tiles">
         <button id="tile-live" type="button" class="tile">
           <span class="tile-titulo">TV ao vivo</span>
-          <span class="tile-sub">Canais e programação</span>
+          <span class="tile-sub" data-sub="Canais e programação">Canais e programação</span>
         </button>
         <button id="tile-filmes" type="button" class="tile">
           <span class="tile-titulo">Filmes</span>
-          <span class="tile-sub">Catálogo de filmes</span>
+          <span class="tile-sub" data-sub="Catálogo de filmes">Catálogo de filmes</span>
         </button>
         <button id="tile-series" type="button" class="tile">
           <span class="tile-titulo">Séries</span>
-          <span class="tile-sub">Temporadas e episódios</span>
+          <span class="tile-sub" data-sub="Temporadas e episódios">Temporadas e episódios</span>
         </button>
         <button id="tile-sair" type="button" class="tile">
           <span class="tile-titulo">Sair da conta</span>
@@ -165,6 +186,8 @@
   <script src="js/platform.js"></script>
   <script src="js/dns.js"></script>
   <script src="js/xtream.js"></script>
+  <script src="js/parceiro.js"></script>
+  <script src="js/m3u.js"></script>
   <script src="js/api.js"></script>
   <script src="js/live.js"></script>
   <script src="js/catalogo.js"></script>

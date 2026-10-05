@@ -500,3 +500,47 @@ input:focus {
   font-size: 28px;
   color: var(--suave);
 }
+
+/* ── Login com abas (Usuário, Parceiro, Xtream, M3U) ─── */
+
+#tela-login .logo {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+#tela-login .campo { margin-bottom: 18px; }
+#tela-login input { height: 80px; }
+#tela-login .status { min-height: 70px; margin-top: 16px; }
+
+input::placeholder { color: #565c78; }
+
+.abas {
+  display: flex;
+  gap: 16px;
+  width: 900px;
+  margin-bottom: 24px;
+}
+
+.aba {
+  flex: 1;
+  height: 80px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--suave);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+
+.aba.ativa {
+  color: #fff;
+  border-color: var(--destaque-claro);
+}
+
+.aba:focus {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
+}

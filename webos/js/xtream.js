@@ -5,32 +5,52 @@
   var CH_DNS = 'vltv_dns';
   var CH_USER = 'vltv_user';
   var CH_PASS = 'vltv_pass';
+  var CH_MODO = 'vltv_modo';
+  var CH_CODIGO = 'vltv_codigo';
+  var CH_M3U = 'vltv_m3u';
+  var CH_ABA = 'vltv_aba';
+
+  function guardar(chave, valor) {
+    try {
+      if (valor) { localStorage.setItem(chave, valor); } else { localStorage.removeItem(chave); }
+    } catch (e) { /* ignora */ }
+  }
+
+  function pegar(chave) {
+    try { return localStorage.getItem(chave) || ''; } catch (e) { return ''; }
+  }
 
   // ── Sessão salva no aparelho ──────────────────────────────────────
+  // modo: 'usuario' | 'parceiro' | 'xtream' | 'm3u'
   var sessao = {
     ler: function () {
-      try {
-        var dns = localStorage.getItem(CH_DNS);
-        var user = localStorage.getItem(CH_USER);
-        var pass = localStorage.getItem(CH_PASS);
-        if (dns && user && pass) { return { dns: dns, user: user, pass: pass }; }
-      } catch (e) { /* ignora */ }
-      return null;
+      var modo = pegar(CH_MODO) || 'usuario';
+      var s = {
+        modo: modo,
+        dns: pegar(CH_DNS),
+        user: pegar(CH_USER),
+        pass: pegar(CH_PASS),
+        codigo: pegar(CH_CODIGO),
+        m3u: pegar(CH_M3U)
+      };
+      if (modo === 'm3u') { return s.m3u ? s : null; }
+      if (modo === 'parceiro' && !s.codigo) { return null; }
+      return s.dns && s.user && s.pass ? s : null;
     },
-    salvar: function (dns, user, pass) {
-      try {
-        localStorage.setItem(CH_DNS, dns);
-        localStorage.setItem(CH_USER, user);
-        localStorage.setItem(CH_PASS, pass);
-      } catch (e) { /* ignora */ }
+    salvar: function (d) {
+      guardar(CH_MODO, d.modo);
+      guardar(CH_DNS, d.dns);
+      guardar(CH_USER, d.user);
+      guardar(CH_PASS, d.pass);
+      guardar(CH_CODIGO, d.codigo);
+      guardar(CH_M3U, d.m3u);
+      guardar(CH_ABA, d.modo);
     },
     limpar: function () {
-      try {
-        localStorage.removeItem(CH_DNS);
-        localStorage.removeItem(CH_USER);
-        localStorage.removeItem(CH_PASS);
-      } catch (e) { /* ignora */ }
-    }
+      [CH_DNS, CH_USER, CH_PASS, CH_MODO, CH_CODIGO, CH_M3U].forEach(function (c) { guardar(c, ''); });
+    },
+    // Última aba usada na tela de login (continua salva depois de sair da conta).
+    ultimaAba: function () { return pegar(CH_ABA) || 'usuario'; }
   };
 
   // ── Teste de um servidor ──────────────────────────────────────────
@@ -66,9 +86,13 @@
 
   // ── Login ─────────────────────────────────────────────────────────
   // dnsPreferido (opcional) vai na frente da fila.
+  // listaServidores (opcional) substitui a lista da VPS (parceiro e Xtream manual).
   // Resolve com { estado, base, info, teste }.
-  function login(user, pass, dnsPreferido) {
-    var servidores = VLTV.dns.lista();
+  function login(user, pass, dnsPreferido, listaServidores) {
+    var servidores = Array.isArray(listaServidores) && listaServidores.length > 0
+      ? listaServidores.slice()
+      : VLTV.dns.lista();
+
     if (dnsPreferido) {
       var pref = VLTV.dns.normalizar(dnsPreferido);
       servidores = [pref].concat(servidores.filter(function (s) { return s !== pref; }));

@@ -245,6 +245,7 @@
 
   function carregarEpg(canal) {
     var id = ++idEpg;
+    if (canal.url) { return; }   // lista M3U: sem guia de programação
     VLTV.api.epgCurto(canal.stream_id)
       .then(function (lista) {
         if (id !== idEpg) { return; }
@@ -265,13 +266,15 @@
     var meu = idPlay;
     clearTimeout(timerEspera);
 
-    if (extIdx >= EXTENSOES.length) {
+    // Canal de lista M3U tem endereço próprio: uma tentativa só.
+    var tentativas = tocando.url ? [''] : EXTENSOES;
+    if (extIdx >= tentativas.length) {
       mostrarOverlay('Canal indisponível no momento.', 'erro');
       return;
     }
 
     mostrarOverlay('Carregando...');
-    video.src = VLTV.api.urlCanal(tocando.stream_id, EXTENSOES[extIdx]);
+    video.src = tocando.url ? tocando.url : VLTV.api.urlCanal(tocando.stream_id, EXTENSOES[extIdx]);
     var p = video.play();
     if (p && p.catch) { p.catch(function () { /* o erro chega pelo evento 'error' */ }); }
 

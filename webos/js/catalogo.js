@@ -234,7 +234,8 @@
       titulo: item.name || '',
       tipo: 'movie',
       id: item.stream_id,
-      ext: item.container_extension
+      ext: item.container_extension,
+      url: item.url
     }], 0);
   }
 

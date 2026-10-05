@@ -118,6 +118,7 @@
           tipo: 'series',
           id: ep.id,
           ext: ep.container_extension,
+          url: ep.url,
           temp: ti,
           pos: pos
         });

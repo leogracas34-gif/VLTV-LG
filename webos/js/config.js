@@ -37,7 +37,16 @@ VLTV.config = {
   MIN_WEBOS_SDK: 5,
   MIN_CHROME: 79,
 
+  // Servidor de parceiros (código de parceiro). Troque pelo endereço onde você publicar
+  // o servidor da pasta vps-parceiros.
+  PARCEIRO_URL: 'https://api.vltvplay.tech/parceiro/resolver',
+
+  // Lista M3U: tamanho máximo aceito (a TV tem pouca memória).
+  M3U_MAX_BYTES: 60000000,
+
   // Tempos de espera (milissegundos).
   DNS_CONFIG_TIMEOUT_MS: 5000,
-  LOGIN_TIMEOUT_MS: 8000
+  LOGIN_TIMEOUT_MS: 8000,
+  PARCEIRO_TIMEOUT_MS: 8000,
+  M3U_TIMEOUT_MS: 45000
 };

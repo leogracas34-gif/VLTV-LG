@@ -21,6 +21,10 @@
 
   function comoLista(dados) { return Array.isArray(dados) ? dados : []; }
 
+  // Quando a conta é uma lista M3U, os dados já estão na memória do app.
+  function daLista() { return VLTV.m3u.ativo(); }
+  function pronto(valor) { return Promise.resolve(valor); }
+
   // Os títulos do guia (EPG) vêm em Base64 com texto UTF-8.
   function decodificar(texto) {
     if (!texto) { return ''; }
@@ -37,16 +41,24 @@
 
   VLTV.api = {
     // ── TV ao vivo ──────────────────────────────────────────────────
+    // Em lista M3U: false se a lista não tem esse tipo de conteúdo ('ao_vivo', 'filmes' ou 'series').
+    temConteudo: function (tipo) {
+      return daLista() ? VLTV.m3u.temConteudo(tipo) : true;
+    },
+
     categoriasAoVivo: function () {
+      if (daLista()) { return pronto(VLTV.m3u.categorias('ao_vivo')); }
       return chamar('get_live_categories').then(comoLista);
     },
 
     canaisAoVivo: function (categoriaId) {
+      if (daLista()) { return pronto(VLTV.m3u.itens('ao_vivo', categoriaId)); }
       return chamar('get_live_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
     // Devolve até 2 programas: [{ titulo, inicio }, ...]
     epgCurto: function (streamId) {
+      if (daLista()) { return pronto([]); }
       return chamar('get_short_epg', '&stream_id=' + enc(streamId) + '&limit=2').then(function (dados) {
         var itens = dados && Array.isArray(dados.epg_listings) ? dados.epg_listings : [];
         return itens.map(function (p) {
@@ -64,24 +76,29 @@
 
     // ── Filmes ──────────────────────────────────────────────────────
     categoriasFilmes: function () {
+      if (daLista()) { return pronto(VLTV.m3u.categorias('filmes')); }
       return chamar('get_vod_categories').then(comoLista);
     },
 
     filmesPorCategoria: function (categoriaId) {
+      if (daLista()) { return pronto(VLTV.m3u.itens('filmes', categoriaId)); }
       return chamar('get_vod_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
     // ── Séries ──────────────────────────────────────────────────────
     categoriasSeries: function () {
+      if (daLista()) { return pronto(VLTV.m3u.categorias('series')); }
       return chamar('get_series_categories').then(comoLista);
     },
 
     seriesPorCategoria: function (categoriaId) {
+      if (daLista()) { return pronto(VLTV.m3u.itens('series', categoriaId)); }
       return chamar('get_series', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
     // Devolve { info, temporadas: [{ numero, episodios: [...] }] } com as temporadas em ordem.
     infoSerie: function (serieId) {
+      if (daLista()) { return pronto(VLTV.m3u.infoSerie(serieId)); }
       return chamar('get_series_info', '&series_id=' + enc(serieId)).then(function (dados) {
         var info = (dados && dados.info) || {};
         var bruto = (dados && dados.episodes) || {};

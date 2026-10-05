@@ -1,4 +1,4 @@
-// VLTV Play - webOS | Telas e navegação por controle remoto (etapa 3: login, Home, TV ao vivo, filmes e séries).
+// VLTV Play - webOS | Telas e navegação por controle remoto (etapa 4: login por Usuário, Parceiro, Xtream e M3U).
 (function () {
   'use strict';
 
@@ -23,8 +23,13 @@
   };
   var telaAtual = 'carregando';
 
+  var abas = [].slice.call(document.querySelectorAll('.aba'));
+  var grupos = [].slice.call(document.querySelectorAll('#tela-login .campo'));
+  var campoCodigo = $('campo-codigo');
+  var campoServidor = $('campo-servidor');
   var campoUsuario = $('campo-usuario');
   var campoSenha = $('campo-senha');
+  var campoM3u = $('campo-m3u');
   var btnEntrar = $('btn-entrar');
   var statusLogin = $('login-status');
   var tileLive = $('tile-live');
@@ -32,6 +37,8 @@
   var tileSeries = $('tile-series');
   var tileSair = $('tile-sair');
 
+  var modoAtual = 'usuario';
+  var nomeParceiro = '';
   var entrando = false;
 
   // ── Telas ─────────────────────────────────────────────────────────
@@ -41,13 +48,32 @@
     });
     telaAtual = nome;
 
-    if (nome === 'login') { campoUsuario.focus(); }
-    if (nome === 'home') { tileLive.focus(); }
+    if (nome === 'login') {
+      var lista = focaveis();
+      (lista[1] || lista[0]).focus();
+    }
+    if (nome === 'home') {
+      var botoes = focaveis();
+      if (botoes.length > 0) { botoes[0].focus(); }
+    }
   }
 
   function mensagemLogin(texto, tipo) {
     statusLogin.textContent = texto || '';
     statusLogin.className = 'status' + (tipo ? ' ' + tipo : '');
+  }
+
+  // Mostra só os campos do modo escolhido (Usuário, Parceiro, Xtream ou M3U).
+  function definirModo(modo) {
+    modoAtual = modo;
+    abas.forEach(function (a) {
+      a.classList.toggle('ativa', a.getAttribute('data-modo') === modo);
+    });
+    grupos.forEach(function (g) {
+      var modos = g.getAttribute('data-modos').split(' ');
+      g.classList.toggle('escondida', modos.indexOf(modo) === -1);
+    });
+    mensagemLogin('', '');
   }
 
   function dataVencimento(expDate) {
@@ -58,10 +84,26 @@
     return dia + '/' + mes + '/' + d.getFullYear();
   }
 
-  function mostrarHome(user, info) {
-    $('home-usuario').textContent = user;
-    $('home-vencimento').textContent = 'Vence em ' + dataVencimento(info && info.exp_date);
-    $('home-aparelho').textContent = VLTV.platform.descricao;
+  function mostrarHome(ctx, info) {
+    var ehLista = ctx.modo === 'm3u';
+    $('home-usuario').textContent = ehLista ? 'Lista M3U' : ctx.user;
+    $('home-vencimento').textContent = ehLista
+      ? VLTV.m3u.total() + ' itens'
+      : 'Vence em ' + dataVencimento(info && info.exp_date);
+
+    var rodape = [];
+    if (nomeParceiro) { rodape.push('Parceiro: ' + nomeParceiro); }
+    rodape.push(VLTV.platform.descricao);
+    $('home-aparelho').textContent = rodape.join(' | ');
+
+    // Lista M3U pode não ter todos os tipos de conteúdo.
+    [[tileLive, 'ao_vivo'], [tileFilmes, 'filmes'], [tileSeries, 'series']].forEach(function (par) {
+      var tem = VLTV.api.temConteudo(par[1]);
+      var sub = par[0].querySelector('.tile-sub');
+      par[0].disabled = !tem;
+      sub.textContent = tem ? sub.getAttribute('data-sub') : 'Não há na lista';
+    });
+
     mostrarTela('home');
   }
 
@@ -97,65 +139,155 @@
     });
   }
 
+  // ── Mensagens ─────────────────────────────────────────────────────
   function textoExpirado(teste) {
     return teste
       ? 'Seu teste expirou. Entre em contato com o suporte para assinar o VLTV Play.'
       : 'Sua assinatura expirou. Entre em contato com o suporte para renovar.';
   }
 
+  function textoErro(res, modo) {
+    switch (res.estado) {
+      case 'expirado': return textoExpirado(res.teste);
+      case 'invalido': return 'Usuário ou senha incorretos.';
+      case 'codigo_invalido': return 'Código de parceiro inválido. Confira com o seu provedor.';
+      case 'suspenso': return 'Este código de parceiro está suspenso. Fale com o seu provedor.';
+      case 'limite': return 'Muitas tentativas. Aguarde um minuto e tente de novo.';
+      case 'm3u_grande': return 'A lista é grande demais para esta TV. Use uma lista menor.';
+      case 'm3u_vazia': return 'Nenhum canal, filme ou série encontrado nessa lista.';
+      default:
+        return modo === 'm3u'
+          ? 'Não foi possível baixar a lista. Confira o endereço e a internet da TV.'
+          : 'Não foi possível conectar. Verifique a internet da TV e tente de novo.';
+    }
+  }
+
   // ── Login ─────────────────────────────────────────────────────────
-  // Trata o resultado do login e leva para a tela certa.
-  function tratarResultado(res, user, pass) {
+  // ctx: { modo, user, pass, codigo, servidor, m3u, dnsPreferido }
+  // Resolve com { estado, base, info, teste, nome }.
+  function autenticar(ctx) {
+    if (ctx.modo === 'm3u') {
+      return VLTV.m3u.carregar(ctx.m3u).then(
+        function () { return { estado: 'ok' }; },
+        function (erro) {
+          var motivo = erro && erro.message;
+          return { estado: motivo === 'tamanho' ? 'm3u_grande' : motivo === 'vazia' ? 'm3u_vazia' : 'erro' };
+        }
+      );
+    }
+
+    if (ctx.modo === 'parceiro') {
+      return VLTV.parceiro.resolver(ctx.codigo).then(function (p) {
+        if (p.estado === 'ok') {
+          return VLTV.xtream.login(ctx.user, ctx.pass, ctx.dnsPreferido, p.dns).then(function (r) {
+            r.nome = p.nome;
+            return r;
+          });
+        }
+        // Sem resposta da VPS: tenta o servidor que funcionou da última vez.
+        if (p.estado === 'rede' && ctx.dnsPreferido) {
+          return VLTV.xtream.login(ctx.user, ctx.pass, ctx.dnsPreferido, [ctx.dnsPreferido]);
+        }
+        return { estado: p.estado === 'rede' ? 'erro' : p.estado };
+      });
+    }
+
+    if (ctx.modo === 'xtream') {
+      return VLTV.xtream.login(ctx.user, ctx.pass, ctx.dnsPreferido, [VLTV.dns.normalizar(ctx.servidor)]);
+    }
+
+    // Usuário e senha do VLTV Play: DNS vem da VPS.
+    return VLTV.dns.atualizar().then(function () {
+      return VLTV.xtream.login(ctx.user, ctx.pass, ctx.dnsPreferido || null);
+    });
+  }
+
+  function preencherCampos(ctx) {
+    campoCodigo.value = ctx.codigo || '';
+    campoServidor.value = ctx.servidor || '';
+    campoUsuario.value = ctx.user || '';
+    campoSenha.value = '';
+    campoM3u.value = ctx.m3u || '';
+  }
+
+  // Leva para a tela certa depois do login.
+  function concluir(res, ctx) {
     if (res.estado === 'ok') {
-      VLTV.sessao.salvar(res.base, user, pass);
-      mostrarHome(user, res.info);
+      nomeParceiro = res.nome || '';
+      VLTV.sessao.salvar({
+        modo: ctx.modo,
+        dns: res.base || '',
+        user: ctx.user || '',
+        pass: ctx.pass || '',
+        codigo: ctx.codigo || '',
+        m3u: ctx.m3u || ''
+      });
+      mostrarHome(ctx, res.info);
       return;
     }
 
     VLTV.sessao.limpar();
-    campoUsuario.value = user;
-    campoSenha.value = '';
+    VLTV.m3u.limpar();
+    preencherCampos(ctx);
+    definirModo(ctx.modo);
     mostrarTela('login');
+    mensagemLogin(textoErro(res, ctx.modo), 'erro');
+  }
 
-    if (res.estado === 'expirado') {
-      mensagemLogin(textoExpirado(res.teste), 'erro');
-    } else if (res.estado === 'invalido') {
-      mensagemLogin('Usuário ou senha incorretos.', 'erro');
-    } else {
-      mensagemLogin('Não foi possível conectar. Verifique a internet da TV e tente de novo.', 'erro');
-    }
+  function lerCampos() {
+    return {
+      modo: modoAtual,
+      codigo: campoCodigo.value.trim(),
+      servidor: campoServidor.value.trim(),
+      user: campoUsuario.value.trim(),
+      pass: campoSenha.value,
+      m3u: campoM3u.value.trim(),
+      dnsPreferido: null
+    };
+  }
+
+  function faltaPreencher(c) {
+    if (c.modo === 'm3u') { return c.m3u ? '' : 'Digite o endereço da lista.'; }
+    if (c.modo === 'parceiro' && !c.codigo) { return 'Digite o código de parceiro.'; }
+    if (c.modo === 'xtream' && !c.servidor) { return 'Digite o endereço do servidor.'; }
+    return c.user && c.pass ? '' : 'Digite o usuário e a senha.';
   }
 
   function entrar() {
     if (entrando) { return; }
 
-    var user = campoUsuario.value.trim();
-    var pass = campoSenha.value;
-    if (!user || !pass) {
-      mensagemLogin('Digite o usuário e a senha.', 'erro');
-      return;
-    }
+    var ctx = lerCampos();
+    var aviso = faltaPreencher(ctx);
+    if (aviso) { mensagemLogin(aviso, 'erro'); return; }
 
     entrando = true;
     btnEntrar.disabled = true;
-    mensagemLogin('Conectando...', '');
+    mensagemLogin(ctx.modo === 'm3u' ? 'Baixando a lista... isso pode demorar.' : 'Conectando...', '');
 
-    VLTV.dns.atualizar()
-      .then(function () { return VLTV.xtream.login(user, pass, null); })
-      .then(function (res) { tratarResultado(res, user, pass); })
+    autenticar(ctx)
+      .then(function (res) { concluir(res, ctx); })
       .then(function () { entrando = false; btnEntrar.disabled = false; });
   }
 
   function sair() {
     VLTV.sessao.limpar();
-    campoUsuario.value = '';
-    campoSenha.value = '';
-    mensagemLogin('', '');
+    VLTV.m3u.limpar();
+    nomeParceiro = '';
+    preencherCampos({});
+    definirModo(VLTV.sessao.ultimaAba());
     mostrarTela('login');
   }
 
   // ── Controle remoto ───────────────────────────────────────────────
+  function visivel(el) { return !el.closest('.escondida'); }
+
+  // Na tela de login: aba escolhida, campos visíveis e botão Entrar.
   function focaveis() {
+    if (telaAtual === 'login') {
+      var ativa = abas.filter(function (a) { return a.classList.contains('ativa'); })[0] || abas[0];
+      var campos = [].slice.call(telas.login.querySelectorAll('input')).filter(visivel);
+      return [ativa].concat(campos, [btnEntrar]);
+    }
     return [].slice.call(telas[telaAtual].querySelectorAll('input, button:not([disabled])'));
   }
 
@@ -165,6 +297,12 @@
     var i = lista.indexOf(document.activeElement);
     var novo = i === -1 ? 0 : Math.max(0, Math.min(lista.length - 1, i + passo));
     lista[novo].focus();
+  }
+
+  function moverAba(passo) {
+    var i = abas.indexOf(document.activeElement);
+    var novo = Math.max(0, Math.min(abas.length - 1, i + passo));
+    abas[novo].focus();   // ao receber o foco, a aba vira a escolhida
   }
 
   function fecharApp() {
@@ -195,13 +333,23 @@
     } else if (telaAtual === 'home' && (k === TECLA_ESQ || k === TECLA_DIR)) {
       e.preventDefault();
       moverFoco(k === TECLA_ESQ ? -1 : 1);
-    } else if (telaAtual === 'login' && (k === TECLA_CIMA || k === TECLA_BAIXO)) {
-      e.preventDefault();
-      moverFoco(k === TECLA_CIMA ? -1 : 1);
+    } else if (telaAtual === 'login') {
+      var naAba = abas.indexOf(document.activeElement) !== -1;
+      if (naAba && (k === TECLA_ESQ || k === TECLA_DIR)) {
+        e.preventDefault();
+        moverAba(k === TECLA_ESQ ? -1 : 1);
+      } else if (k === TECLA_CIMA || k === TECLA_BAIXO) {
+        e.preventDefault();
+        moverFoco(k === TECLA_CIMA ? -1 : 1);
+      }
     }
     // Enter nos campos fica no padrão da TV: abre o teclado na tela.
   });
 
+  abas.forEach(function (aba) {
+    aba.addEventListener('focus', function () { definirModo(aba.getAttribute('data-modo')); });
+    aba.addEventListener('click', function () { definirModo(aba.getAttribute('data-modo')); moverFoco(1); });
+  });
   btnEntrar.addEventListener('click', entrar);
   tileLive.addEventListener('click', abrirTvAoVivo);
   tileFilmes.addEventListener('click', function () { abrirCatalogo('filmes'); });
@@ -217,26 +365,36 @@
     }
 
     var salva = VLTV.sessao.ler();
+    definirModo(salva ? salva.modo : VLTV.sessao.ultimaAba());
+
     if (!salva) {
       VLTV.dns.atualizar();
       mostrarTela('login');
       return;
     }
 
-    // Já tem login salvo: entra direto, testando primeiro o servidor que funcionou da última vez.
-    $('carregando-msg').textContent = 'Entrando...';
-    VLTV.dns.atualizar()
-      .then(function () { return VLTV.xtream.login(salva.user, salva.pass, salva.dns); })
-      .then(function (res) {
-        if (res.estado === 'erro') {
-          // Sem internet: mantém o login salvo e deixa tentar de novo.
-          campoUsuario.value = salva.user;
-          mostrarTela('login');
-          mensagemLogin('Não foi possível conectar. Verifique a internet da TV e tente de novo.', 'erro');
-          return;
-        }
-        tratarResultado(res, salva.user, salva.pass);
-      });
+    // Já tem login salvo: entra direto. O servidor que funcionou da última vez é testado primeiro.
+    var ctx = {
+      modo: salva.modo,
+      user: salva.user,
+      pass: salva.pass,
+      codigo: salva.codigo,
+      servidor: salva.dns,
+      m3u: salva.m3u,
+      dnsPreferido: salva.dns
+    };
+
+    $('carregando-msg').textContent = ctx.modo === 'm3u' ? 'Carregando a lista...' : 'Entrando...';
+    autenticar(ctx).then(function (res) {
+      if (res.estado === 'erro') {
+        // Sem internet: mantém o login salvo e deixa tentar de novo.
+        preencherCampos(ctx);
+        mostrarTela('login');
+        mensagemLogin(textoErro(res, ctx.modo), 'erro');
+        return;
+      }
+      concluir(res, ctx);
+    });
   }
 
   iniciar();

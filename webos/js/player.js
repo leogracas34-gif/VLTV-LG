@@ -74,6 +74,7 @@
 
   // ── Reprodução ────────────────────────────────────────────────────
   function montarExtensoes(item) {
+    if (item.url) { return ['']; }   // endereço direto (lista M3U)
     var lista = [];
     [item.ext, 'mp4', 'mkv', ''].forEach(function (e) {
       var ext = e === undefined || e === null ? '' : String(e);
@@ -93,7 +94,7 @@
 
     mostrarOverlay('Carregando...');
     var item = itens[idx];
-    video.src = VLTV.api.urlVod(item.tipo, item.id, extensoes[extIdx]);
+    video.src = item.url ? item.url : VLTV.api.urlVod(item.tipo, item.id, extensoes[extIdx]);
     var p = video.play();
     if (p && p.catch) { p.catch(function () { /* o erro chega pelo evento 'error' */ }); }
 

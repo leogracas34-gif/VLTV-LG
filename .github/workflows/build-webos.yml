@@ -2,10 +2,6 @@ name: Build webOS IPK
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'webos/**'
-      - '.github/workflows/build-webos.yml'
   workflow_dispatch:
 
 jobs:
@@ -25,8 +21,15 @@ jobs:
 
       - name: Gerar o .ipk
         run: |
+          ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)
+          if [ -z "$ARQUIVO" ]; then
+            echo "ERRO: appinfo.json não encontrado. A pasta webos precisa estar no repositório."
+            exit 1
+          fi
+          PASTA=$(dirname "$ARQUIVO")
+          echo "App encontrado em: $PASTA"
           mkdir -p saida
-          ares-package webos --outdir saida
+          ares-package "$PASTA" --outdir saida
           ls -la saida
 
       - name: Guardar o .ipk

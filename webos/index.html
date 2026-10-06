@@ -28,27 +28,21 @@
 
       <div class="abas">
         <button id="aba-usuario" type="button" class="aba" data-modo="usuario">Usuário</button>
-        <button id="aba-parceiro" type="button" class="aba" data-modo="parceiro">Parceiro</button>
         <button id="aba-xtream" type="button" class="aba" data-modo="xtream">Xtream</button>
         <button id="aba-m3u" type="button" class="aba" data-modo="m3u">Lista M3U</button>
       </div>
 
-      <div class="campo" data-modos="parceiro">
-        <label for="campo-codigo">Código de parceiro</label>
-        <input id="campo-codigo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
-      </div>
-
       <div class="campo" data-modos="xtream">
-        <label for="campo-servidor">Servidor</label>
-        <input id="campo-servidor" type="text" placeholder="http://servidor.com:8080" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="campo-servidor">Servidor ou código de parceiro</label>
+        <input id="campo-servidor" type="text" placeholder="http://servidor.com:8080  ou  código" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
-      <div class="campo" data-modos="usuario parceiro xtream">
+      <div class="campo" data-modos="usuario xtream">
         <label for="campo-usuario">Usuário</label>
         <input id="campo-usuario" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
-      <div class="campo" data-modos="usuario parceiro xtream">
+      <div class="campo" data-modos="usuario xtream">
         <label for="campo-senha">Senha</label>
         <input id="campo-senha" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
@@ -70,7 +64,6 @@
         <div class="topo-direita">
           <div class="conta">
             <div id="home-hora" class="hora"></div>
-            <div id="home-usuario">-</div>
             <div id="home-vencimento" class="conta-suave">-</div>
           </div>
           <button id="btn-config" type="button" class="btn-engrenagem" aria-label="Configurações">
@@ -116,9 +109,21 @@
       </nav>
 
       <footer class="rodape">
-        <span id="home-aparelho"></span>
+        <button id="btn-listas" type="button" class="btn-discreto">Listas</button>
         <button id="btn-sair" type="button" class="btn-discreto">Sair</button>
       </footer>
+    </section>
+
+    <!-- Minhas listas -->
+    <section id="tela-listas" class="tela tela-topo escondida">
+      <div class="live">
+        <div class="painel ativo painel-listas">
+          <h2>Minhas listas</h2>
+          <div id="listas-abas" class="lst-abas"></div>
+          <ul id="listas-lista" class="lista"></ul>
+          <div id="listas-msg" class="listas-msg"></div>
+        </div>
+      </div>
     </section>
 
     <!-- Configurações -->
@@ -289,6 +294,26 @@
       </div>
     </section>
 
+    <!-- Janela da senha (controle parental) -->
+    <div id="pin-overlay" class="pin-overlay escondida">
+      <div class="pin-caixa">
+        <h3 id="pin-titulo"></h3>
+        <p id="pin-sub" class="pin-sub"></p>
+        <div id="pin-pontos" class="pin-pontos"><span></span><span></span><span></span><span></span></div>
+        <div id="pin-teclado" class="pin-teclado"></div>
+        <button id="pin-esqueci" type="button" class="pin-link escondida">Esqueci a senha</button>
+        <div id="pin-form" class="pin-form escondida">
+          <div id="pin-perg" class="pin-perg"></div>
+          <input id="pin-resp" type="text" placeholder="Sua resposta" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div class="pin-botoes">
+            <button id="pin-btn-ok" type="button" class="pin-botao">Salvar</button>
+            <button id="pin-btn-cancelar" type="button" class="pin-botao">Cancelar</button>
+          </div>
+        </div>
+        <div id="pin-msg" class="pin-msg"></div>
+      </div>
+    </div>
+
   </div>
 
   <script src="js/config.js"></script>
@@ -302,6 +327,8 @@
   <script src="js/sync.js"></script>
   <script src="js/armazenamento.js"></script>
   <script src="js/creditos.js"></script>
+  <script src="js/parental.js"></script>
+  <script src="js/listas.js"></script>
   <script src="js/titulo.js"></script>
   <script src="js/tmdb.js"></script>
   <script src="js/indice.js"></script>

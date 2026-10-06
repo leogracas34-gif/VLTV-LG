@@ -26,8 +26,9 @@
   var donoAtual = '';
   var estados = {};
 
+  // Banner e pesquisa nunca mostram conteúdo adulto (mesma regra do controle parental).
   function adulta(nome) {
-    return /adult|xxx|\+\s?18|18\s?\+|sexo|hentai/i.test(String(nome || ''));
+    return VLTV.parental.ehCategoriaAdulta(nome) || VLTV.parental.ehNomeAdulto(nome);
   }
 
   function dono() {

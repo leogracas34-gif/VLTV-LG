@@ -125,10 +125,26 @@
       nome.className = 'nome';
       nome.textContent = c.category_name || '';
       li.appendChild(nome);
+      if (c.adulta) {
+        var cad = document.createElement('span');
+        cad.className = 'cadeado';
+        cad.innerHTML = VLTV.parental.ICONE_CADEADO;
+        li.appendChild(cad);
+        if (VLTV.parental.bloqueando()) { li.classList.add('adulta'); }
+      }
       listaCats.appendChild(li);
       itensCats.push(li);
     });
   }
+
+  // Depois de digitar a senha, os cadeados somem.
+  function atualizarCadeados() {
+    itensCats.forEach(function (li, i) {
+      li.classList.toggle('adulta', !!(categorias[i] && categorias[i].adulta && VLTV.parental.bloqueando()));
+    });
+  }
+
+  function categoriaTrancada(c) { return !!(c && c.adulta && VLTV.parental.bloqueando()); }
 
   // Uma barrinha clara mostra qual categoria está com os canais na tela.
   function marcarCarregada() {
@@ -200,6 +216,7 @@
   }
 
   function aplicarCanais(lista, focar) {
+    lista = VLTV.parental.filtrarItens(lista, 'canais');
     canais = lista;
     canalIdx = 0;
     renderizados = 0;
@@ -269,6 +286,13 @@
 
   // OK: só agora carrega os canais da categoria marcada.
   function escolherCategoria() {
+    if (categoriaTrancada(categorias[catIdx])) {
+      VLTV.parental.pedirSenha(function () {
+        atualizarCadeados();
+        carregarCanais(catIdx, true);
+      }, { titulo: 'Categoria +18', sub: 'Digite a senha para abrir.' });
+      return;
+    }
     if (catIdx === catCarregada && canais.length > 0) { trocarFoco('canais'); return; }
     carregarCanais(catIdx, true);
   }
@@ -562,8 +586,12 @@
   }
 
   // ── Entrada e saída da tela ───────────────────────────────────────
+  var listaDoCache = '';
+
   function abrir(callbackSair) {
     aoSair = callbackSair;
+    var listaAtual = VLTV.listas.idAtiva();
+    if (listaAtual !== listaDoCache) { cacheCanais = {}; listaDoCache = listaAtual; }
     cheio = false;
     caixaPlayer.classList.remove('cheio');
     infoCheio.classList.add('escondida');
@@ -585,10 +613,12 @@
           mensagemLista(listaCats, 'Nenhuma categoria encontrada.');
           return;
         }
-        categorias = [CAT_FAV].concat(lista);
+        categorias = [CAT_FAV].concat(VLTV.parental.filtrarCategorias('canais', lista));
         renderCategorias();
-        // Abre em Favoritos se já tem algum canal marcado; senão na primeira categoria de verdade.
+        // Abre em Favoritos se já tem algum canal marcado; senão na primeira categoria de verdade (que não esteja bloqueada).
         var inicio = VLTV.dados.favoritosDe('canais').length > 0 ? 0 : 1;
+        while (inicio < categorias.length - 1 && categoriaTrancada(categorias[inicio])) { inicio++; }
+        if (categoriaTrancada(categorias[inicio])) { inicio = 0; }
         catIdx = inicio;
         marcarCategoria();
         carregarCanais(inicio, false);

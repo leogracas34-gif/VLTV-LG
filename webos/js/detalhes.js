@@ -730,12 +730,21 @@
     };
   }
 
+  // Filme ou série adulto (ou com classificação 18+) pede a senha antes de assistir.
+  function comSenha(depois) {
+    VLTV.parental.checarReproducao({ raw: item.raw, info: info, tipo: item.tipo }, depois);
+  }
+
   function tocarPrincipal(doInicio) {
     if (item.tipo === 'series') {
       if (!alvo) { return; }
-      acoes.reproduzir(plano, alvo.indice, (!doInicio && alvo.continuar) ? alvo.pos : 0);
+      comSenha(function () {
+        acoes.reproduzir(plano, alvo.indice, (!doInicio && alvo.continuar) ? alvo.pos : 0);
+      });
     } else {
-      acoes.reproduzir([itemFilme()], 0, (!doInicio && alvo && alvo.continuar) ? alvo.pos : 0);
+      comSenha(function () {
+        acoes.reproduzir([itemFilme()], 0, (!doInicio && alvo && alvo.continuar) ? alvo.pos : 0);
+      });
     }
   }
 
@@ -745,7 +754,7 @@
     var i = t.inicio + epIdx;
     var p = plano[i] ? VLTV.dados.progresso(plano[i].chave) : null;
     var inicio = (p && !p.fim && p.pos > RESUME_MIN_FILME_S) ? p.pos : 0;
-    acoes.reproduzir(plano, i, inicio);
+    comSenha(function () { acoes.reproduzir(plano, i, inicio); });
   }
 
   function alternarFav() {

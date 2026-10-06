@@ -111,8 +111,9 @@
     });
   }
 
+  // Banner e pesquisa nunca mostram conteúdo adulto (mesma regra do controle parental).
   function adulta(nome) {
-    return /adult|xxx|\+\s?18|18\s?\+|sexo|hentai/i.test(String(nome || ''));
+    return VLTV.parental.ehCategoriaAdulta(nome) || VLTV.parental.ehNomeAdulto(nome);
   }
 
   // Sem VPS: primeiros títulos com capa das primeiras categorias de filmes e de séries.

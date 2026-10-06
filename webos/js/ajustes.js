@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, CIMA: 38, BAIXO: 40 };
+  var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40 };
   var CH_CHAVE = 'vltv_chave_dispositivo';
 
   function $(id) { return document.getElementById(id); }
@@ -13,12 +13,16 @@
 
   var ITENS = [
     { id: 'info', nome: 'Informação geral' },
+    { id: 'parental', nome: 'Controle parental' },
     { id: 'cache', nome: 'Limpar cache' },
     { id: 'recarregar', nome: 'Atualizar o aplicativo' }
   ];
 
   var idx = 0;
   var lis = [];
+  var foco = 'menu';       // 'menu' (lista da esquerda) | 'dir' (opções do Controle parental)
+  var dirIdx = 0;
+  var dirItens = [];
   var acoes = null;
   var mac = '';
   var macCarregado = false;
@@ -124,10 +128,10 @@
       linha('Status', 'Ativo', 'ok');
     }
 
+    if (VLTV.parceiroNome) { linha('Parceiro', VLTV.parceiroNome); }
     if (sessao && sessao.user) { linha('Usuário', sessao.user); }
     linha('Endereço MAC', mac || 'Indisponível nesta TV');
     linha('Versão do produto', VLTV.config.VERSAO);
-    linha('Logos dos títulos (TMDB)', VLTV.tmdb && VLTV.tmdb.ativo() ? 'Ativadas' : 'Chave não configurada no app', VLTV.tmdb && VLTV.tmdb.ativo() ? 'ok' : 'erro');
     linha('Chave do dispositivo', chaveDispositivo());
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
   }
@@ -139,6 +143,12 @@
       esvaziar(conteudo);
       texto('Carregando...');
       lerMac(function () { if (ITENS[idx].id === 'info') { desenharInfo(); } });
+    } else if (item.id === 'parental') {
+      if (foco === 'dir') { desenharParental(); }
+      else {
+        esvaziar(conteudo);
+        texto('Bloqueia canais, filmes e séries adultos (+18) com uma senha de 4 dígitos. A senha padrão é 0000: crie a sua e escolha uma pergunta secreta para recuperar. Pressione OK para abrir (pede a senha).');
+      }
     } else if (item.id === 'cache') {
       esvaziar(conteudo);
       texto('Apaga a lista de servidores guardada e os dados temporários. Seu login continua salvo. Pressione OK para limpar.');
@@ -146,6 +156,69 @@
       esvaziar(conteudo);
       texto('Reinicia o aplicativo e carrega tudo de novo. Pressione OK para atualizar.');
     }
+  }
+
+  // ── Controle parental ─────────────────────────────────────────────
+  function linhaOpcao(rotulo, valor, classe, selecionada) {
+    var l = document.createElement('div');
+    l.className = 'cfg-linha' + (selecionada ? ' sel' : '');
+    var a = document.createElement('span');
+    a.className = 'cfg-rotulo';
+    a.textContent = rotulo;
+    var b = document.createElement('span');
+    b.className = 'cfg-valor' + (classe ? ' ' + classe : '');
+    b.textContent = valor;
+    l.appendChild(a);
+    l.appendChild(b);
+    conteudo.appendChild(l);
+  }
+
+  function desenharParental() {
+    var P = VLTV.parental;
+    dirItens = [
+      {
+        rotulo: 'Bloqueio de conteúdo adulto',
+        valor: P.ativo() ? 'Ativado' : 'Desativado',
+        classe: P.ativo() ? 'ok' : 'erro',
+        acao: function () { P.definirAtivo(!P.ativo()); }
+      },
+      {
+        rotulo: 'Conteúdo bloqueado',
+        valor: P.modo() === 'ocultar' ? 'Ocultar' : 'Pedir senha',
+        classe: '',
+        acao: function () { P.definirModo(P.modo() === 'ocultar' ? 'senha' : 'ocultar'); }
+      },
+      {
+        rotulo: 'Senha',
+        valor: P.senhaPadrao() ? 'Padrão (0000) - alterar' : 'Personalizada - alterar',
+        classe: P.senhaPadrao() ? 'erro' : 'ok',
+        acao: criarNovaSenha
+      },
+      {
+        rotulo: 'Pergunta secreta',
+        valor: P.temPergunta() ? 'Definida - alterar' : 'Não definida - criar',
+        classe: P.temPergunta() ? 'ok' : 'erro',
+        acao: criarNovaSenha
+      }
+    ];
+    if (dirIdx > dirItens.length - 1) { dirIdx = dirItens.length - 1; }
+    esvaziar(conteudo);
+    dirItens.forEach(function (it, i) { linhaOpcao(it.rotulo, it.valor, it.classe, i === dirIdx); });
+    texto(P.senhaPadrao()
+      ? 'Você ainda usa a senha padrão (0000). Crie a sua para proteger de verdade.'
+      : 'Com o bloqueio ativado, categorias, canais e filmes adultos pedem a senha (ou ficam ocultos). Depois de digitada, a senha libera o conteúdo até voltar para a tela inicial.');
+  }
+
+  function criarNovaSenha() {
+    VLTV.parental.criarSenha(function () { desenharParental(); }, function () { desenharParental(); });
+  }
+
+  function abrirParental() {
+    VLTV.parental.pedirSenha(function () {
+      foco = 'dir';
+      dirIdx = 0;
+      desenharParental();
+    }, { titulo: 'Controle parental', sub: 'Digite a senha para abrir.', sempre: true });
   }
 
   function marcar() {
@@ -180,16 +253,34 @@
     setTimeout(function () { window.location.reload(); }, 400);
   }
 
+  function teclaDireita(k) {
+    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.ESQ) {
+      foco = 'menu';
+      desenharDireita();
+    } else if (k === TECLA.CIMA) {
+      if (dirIdx > 0) { dirIdx--; desenharParental(); }
+    } else if (k === TECLA.BAIXO) {
+      if (dirIdx < dirItens.length - 1) { dirIdx++; desenharParental(); }
+    } else if (k === TECLA.ENTER) {
+      var it = dirItens[dirIdx];
+      if (it) { it.acao(); desenharParental(); }
+    } else { return false; }
+    return true;
+  }
+
   function tecla(k) {
+    if (foco === 'dir') { return teclaDireita(k); }
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
       if (acoes) { acoes.sair(); }
     } else if (k === TECLA.CIMA) {
       if (idx > 0) { idx--; marcar(); }
     } else if (k === TECLA.BAIXO) {
       if (idx < ITENS.length - 1) { idx++; marcar(); }
-    } else if (k === TECLA.ENTER) {
+    } else if (k === TECLA.ENTER || k === TECLA.DIR) {
       var id = ITENS[idx].id;
-      if (id === 'cache') { limparCache(); }
+      if (id === 'parental') { abrirParental(); }
+      else if (k === TECLA.DIR) { return true; }
+      else if (id === 'cache') { limparCache(); }
       else if (id === 'recarregar') { recarregar(); }
     } else { return false; }
     return true;
@@ -198,6 +289,7 @@
   function abrir(callbacks) {
     acoes = callbacks;
     idx = 0;
+    foco = 'menu';
     esvaziar(menu);
     lis = ITENS.map(function (item) {
       var li = document.createElement('li');

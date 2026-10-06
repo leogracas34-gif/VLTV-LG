@@ -16,6 +16,7 @@
     incompativel: $('tela-incompativel'),
     login: $('tela-login'),
     home: $('tela-home'),
+    listas: $('tela-listas'),
     config: $('tela-config'),
     live: $('tela-live'),
     catalogo: $('tela-catalogo'),
@@ -26,7 +27,6 @@
 
   var abas = [].slice.call(document.querySelectorAll('.aba'));
   var grupos = [].slice.call(document.querySelectorAll('#tela-login .campo'));
-  var campoCodigo = $('campo-codigo');
   var campoServidor = $('campo-servidor');
   var campoUsuario = $('campo-usuario');
   var campoSenha = $('campo-senha');
@@ -37,6 +37,7 @@
   var tileFilmes = $('tile-filmes');
   var tileSeries = $('tile-series');
   var tileSair = $('btn-sair');
+  var btnListas = $('btn-listas');
   var btnConfig = $('btn-config');
   var elBanner = $('banner');
   var elHora = $('home-hora');
@@ -45,6 +46,8 @@
   var modoAtual = 'usuario';
   var nomeParceiro = '';
   var entrando = false;
+  var adicionando = false;   // o login foi aberto por "Adicionar nova lista" (a lista em uso continua valendo)
+  var trocando = false;      // trocando de lista
 
   // ── Telas ─────────────────────────────────────────────────────────
   function mostrarTela(nome) {
@@ -57,11 +60,12 @@
       var lista = focaveis();
       (lista[1] || lista[0]).focus();
     }
+    if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') {
       atualizarHora();
       if (ultimoTile.disabled) {
-        ultimoTile = [tileLive, tileFilmes, tileSeries].filter(function (t) { return !t.disabled; })[0] || tileSair;
+        ultimoTile = [tileLive, tileFilmes, tileSeries].filter(function (t) { return !t.disabled; })[0] || btnListas;
       }
       ultimoTile.focus();
     }
@@ -72,8 +76,9 @@
     statusLogin.className = 'status' + (tipo ? ' ' + tipo : '');
   }
 
-  // Mostra só os campos do modo escolhido (Usuário, Parceiro, Xtream ou M3U).
+  // Mostra só os campos do modo escolhido (Usuário, Xtream ou M3U).
   function definirModo(modo) {
+    if (modo === 'parceiro') { modo = 'xtream'; }   // código de parceiro é digitado na aba Xtream
     modoAtual = modo;
     abas.forEach(function (a) {
       a.classList.toggle('ativa', a.getAttribute('data-modo') === modo);
@@ -102,15 +107,11 @@
   function mostrarHome(ctx, info) {
     VLTV.conta = info || null;
     var ehLista = ctx.modo === 'm3u';
-    $('home-usuario').textContent = ehLista ? 'Lista M3U' : ctx.user;
     $('home-vencimento').textContent = ehLista
       ? VLTV.m3u.total() + ' itens'
       : 'Vence em ' + dataVencimento(info && info.exp_date);
 
-    var rodape = [];
-    if (nomeParceiro) { rodape.push('Parceiro: ' + nomeParceiro); }
-    rodape.push(VLTV.platform.descricao);
-    $('home-aparelho').textContent = rodape.join(' | ');
+    VLTV.parceiroNome = nomeParceiro;
 
     // Lista M3U pode não ter todos os tipos de conteúdo.
     [[tileLive, 'ao_vivo'], [tileFilmes, 'filmes'], [tileSeries, 'series']].forEach(function (par) {
@@ -228,8 +229,7 @@
   }
 
   function preencherCampos(ctx) {
-    campoCodigo.value = ctx.codigo || '';
-    campoServidor.value = ctx.servidor || '';
+    campoServidor.value = ctx.codigo || ctx.servidor || '';
     campoUsuario.value = ctx.user || '';
     campoSenha.value = '';
     campoM3u.value = ctx.m3u || '';
@@ -239,42 +239,61 @@
   function concluir(res, ctx) {
     if (res.estado === 'ok') {
       nomeParceiro = res.nome || '';
-      VLTV.sessao.salvar({
+      var dados = {
         modo: ctx.modo,
         dns: res.base || '',
         user: ctx.user || '',
         pass: ctx.pass || '',
         codigo: ctx.codigo || '',
         m3u: ctx.m3u || ''
-      });
+      };
+      VLTV.sessao.salvar(dados);
+      if (ctx.modo !== 'm3u') { VLTV.m3u.limpar(); }
+      dados.parceiro = nomeParceiro;
+      VLTV.listas.registrar(dados);
+      adicionando = false;
       mostrarHome(ctx, res.info);
       return;
     }
 
-    VLTV.sessao.limpar();
-    VLTV.m3u.limpar();
+    // Se o login foi aberto por "Adicionar nova lista", a lista que já estava em uso continua valendo.
+    if (!adicionando) {
+      VLTV.sessao.limpar();
+      VLTV.m3u.limpar();
+    }
     preencherCampos(ctx);
     definirModo(ctx.modo);
     mostrarTela('login');
     mensagemLogin(textoErro(res, ctx.modo), 'erro');
   }
 
+  // Na aba Xtream o campo aceita o endereço do servidor (DNS) ou o código de parceiro.
+  // Endereço tem ponto, dois pontos ou barra; o que não tem é código de parceiro.
+  function ehCodigoParceiro(texto) {
+    return !!texto && !/[.:\/]/.test(texto);
+  }
+
   function lerCampos() {
-    return {
+    var ctx = {
       modo: modoAtual,
-      codigo: campoCodigo.value.trim(),
+      codigo: '',
       servidor: campoServidor.value.trim(),
       user: campoUsuario.value.trim(),
       pass: campoSenha.value,
       m3u: campoM3u.value.trim(),
       dnsPreferido: null
     };
+    if (ctx.modo === 'xtream' && ehCodigoParceiro(ctx.servidor)) {
+      ctx.modo = 'parceiro';
+      ctx.codigo = ctx.servidor;
+      ctx.servidor = '';
+    }
+    return ctx;
   }
 
   function faltaPreencher(c) {
     if (c.modo === 'm3u') { return c.m3u ? '' : 'Digite o endereço da lista.'; }
-    if (c.modo === 'parceiro' && !c.codigo) { return 'Digite o código de parceiro.'; }
-    if (c.modo === 'xtream' && !c.servidor) { return 'Digite o endereço do servidor.'; }
+    if (c.modo === 'xtream' && !c.servidor) { return 'Digite o endereço do servidor ou o código de parceiro.'; }
     return c.user && c.pass ? '' : 'Digite o usuário e a senha.';
   }
 
@@ -294,13 +313,72 @@
       .then(function () { entrando = false; btnEntrar.disabled = false; });
   }
 
-  function sair() {
-    VLTV.sessao.limpar();
-    VLTV.m3u.limpar();
-    nomeParceiro = '';
+  // ── Minhas listas ─────────────────────────────────────────────────
+  function abrirListas(aviso) {
+    mostrarTela('listas');
+    VLTV.listasTela.abrir({
+      usar: usarLista,
+      adicionar: adicionarLista,
+      sair: function () {
+        if (VLTV.sessao.ler()) { mostrarTela('home'); } else { mostrarLogin(); }
+      }
+    }, aviso);
+  }
+
+  function mostrarLogin() {
     preencherCampos({});
     definirModo(VLTV.sessao.ultimaAba());
     mostrarTela('login');
+  }
+
+  // "Adicionar nova lista": abre o login na aba escolhida (Usuário, Xtream ou M3U).
+  function adicionarLista(grupo) {
+    adicionando = !!VLTV.sessao.ler();
+    preencherCampos({});
+    definirModo(grupo || VLTV.sessao.ultimaAba());
+    mostrarTela('login');
+    mensagemLogin('', '');
+  }
+
+  // Troca para outra lista já salva, sem sair da conta.
+  function usarLista(e) {
+    if (trocando) { return; }
+    var ctx = {
+      modo: e.modo,
+      user: e.user,
+      pass: e.pass,
+      codigo: e.codigo,
+      servidor: e.dns,
+      m3u: e.m3u,
+      dnsPreferido: e.dns
+    };
+    trocando = true;
+    VLTV.listasTela.ocupar(true, ctx.modo === 'm3u' ? 'Baixando a lista... isso pode demorar.' : 'Conectando...');
+    autenticar(ctx).then(function (res) {
+      trocando = false;
+      if (res.estado === 'ok') {
+        VLTV.listasTela.ocupar(false);
+        concluir(res, ctx);
+      } else {
+        VLTV.listasTela.ocupar(false);
+        VLTV.listasTela.mensagem(textoErro(res, ctx.modo), 'erro');
+      }
+    });
+  }
+
+  function sair() {
+    // Sair tira da TV a lista que estava em uso. Se sobrar outra, o app mostra a tela de listas.
+    var ativa = VLTV.listas.idAtiva();
+    if (ativa) { VLTV.listas.remover(ativa); }
+    VLTV.sessao.limpar();
+    VLTV.m3u.limpar();
+    nomeParceiro = '';
+    adicionando = false;
+    if (VLTV.listas.todas().length > 0) {
+      abrirListas('Escolha uma lista para entrar.');
+    } else {
+      mostrarLogin();
+    }
   }
 
   // ── Controle remoto ───────────────────────────────────────────────
@@ -350,7 +428,7 @@
       } else if (k === TECLA_CIMA) {
         if (temBanner) { elBanner.focus(); } else { btnConfig.focus(); }
       } else {
-        tileSair.focus();
+        btnListas.focus();
       }
     } else if (ativo === elBanner) {
       if (k === TECLA_ESQ) { VLTV.banner.mover(-1); }
@@ -359,12 +437,17 @@
       else { ultimoTile.focus(); }
     } else if (ativo === btnConfig && k === TECLA_BAIXO) {
       if (temBanner) { elBanner.focus(); } else { ultimoTile.focus(); }
-    } else if (ativo === tileSair && k === TECLA_CIMA) {
+    } else if ((ativo === tileSair || ativo === btnListas) && k === TECLA_CIMA) {
       ultimoTile.focus();
+    } else if (ativo === btnListas && k === TECLA_DIR) {
+      tileSair.focus();
+    } else if (ativo === tileSair && k === TECLA_ESQ) {
+      btnListas.focus();
     }
   }
 
   var TRATADORES = {
+    listas: function (k) { return VLTV.listasTela.tecla(k); },
     config: function (k) { return VLTV.ajustes.tecla(k); },
     live: function (k) { return VLTV.live.tecla(k); },
     catalogo: function (k) { return VLTV.catalogo.tecla(k); },
@@ -375,6 +458,12 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
 
+    // A janela da senha fica por cima de tudo e fica com as teclas enquanto está aberta.
+    if (VLTV.parental.aberto()) {
+      if (VLTV.parental.tecla(k)) { e.preventDefault(); }
+      return;
+    }
+
     // Estas telas cuidam das próprias teclas.
     var tratador = TRATADORES[telaAtual];
     if (tratador) {
@@ -382,7 +471,12 @@
       return;
     }
 
-    if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) {
+    if ((k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) && telaAtual === 'login' && adicionando) {
+      // Estava adicionando uma lista: volta para a tela de listas.
+      e.preventDefault();
+      adicionando = false;
+      abrirListas();
+    } else if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) {
       e.preventDefault();
       fecharApp();
     } else if (telaAtual === 'home' && (k === TECLA_ESQ || k === TECLA_DIR || k === TECLA_CIMA || k === TECLA_BAIXO)) {
@@ -423,6 +517,7 @@
   }, function () { /* o layout é fixo */ });
   elBanner.addEventListener('click', function () { VLTV.banner.abrirAtual(); });
   tileSair.addEventListener('click', sair);
+  btnListas.addEventListener('click', function () { abrirListas(); });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {
     t.addEventListener('focus', function () { ultimoTile = t; });
@@ -441,7 +536,7 @@
 
     if (!salva) {
       VLTV.dns.atualizar();
-      mostrarTela('login');
+      if (VLTV.listas.todas().length > 0) { abrirListas('Escolha uma lista para entrar.'); } else { mostrarTela('login'); }
       return;
     }
 

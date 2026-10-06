@@ -124,10 +124,26 @@
       nome.className = 'nome';
       nome.textContent = c.category_name || '';
       li.appendChild(nome);
+      if (c.adulta) {
+        var cad = document.createElement('span');
+        cad.className = 'cadeado';
+        cad.innerHTML = VLTV.parental.ICONE_CADEADO;
+        li.appendChild(cad);
+        if (VLTV.parental.bloqueando()) { li.classList.add('adulta'); }
+      }
       listaCats.appendChild(li);
       itensCats.push(li);
     });
   }
+
+  // Depois de digitar a senha, os cadeados somem.
+  function atualizarCadeados() {
+    itensCats.forEach(function (li, i) {
+      li.classList.toggle('adulta', !!(categorias[i] && categorias[i].adulta && VLTV.parental.bloqueando()));
+    });
+  }
+
+  function categoriaTrancada(c) { return !!(c && c.adulta && VLTV.parental.bloqueando()); }
 
   function marcarCategoria() {
     if (liSelCat) { liSelCat.classList.remove('sel'); }
@@ -259,6 +275,7 @@
   }
 
   function aplicarItens(lista, focar) {
+    lista = VLTV.parental.filtrarItens(lista, tipo);
     itens = lista;
     itemIdx = 0;
     renderizados = 0;
@@ -470,7 +487,11 @@
     }
     if (k === TECLA.ENTER) {
       // Só o OK abre a categoria destacada na grade.
-      if (falhaCategorias) { abrir(tipo, acoes); } else { irParaGrade(); }
+      if (falhaCategorias) { abrir(tipo, acoes); }
+      else if (categoriaTrancada(categorias[catIdx])) {
+        VLTV.parental.pedirSenha(function () { atualizarCadeados(); irParaGrade(); },
+          { titulo: 'Categoria +18', sub: 'Digite a senha para abrir.' });
+      } else { irParaGrade(); }
       return true;
     }
     if (k === TECLA.DIR) {
@@ -544,7 +565,7 @@
   function atualizarCategorias(nova) {
     var idDestaque = categorias[catIdx] ? categorias[catIdx].category_id : null;
     var idAberta = categorias[catAplicada] ? categorias[catAplicada].category_id : null;
-    categorias = comEspeciais(nova);
+    categorias = comEspeciais(VLTV.parental.filtrarCategorias(tipo, nova));
     renderCategorias();
     var novoDestaque = 0;
     var novaAberta = 0;
@@ -584,10 +605,12 @@
     VLTV.sync.obter(tipo + '|cats', cfg.categorias)
       .then(function (r) {
         if (abertura !== idAbertura) { return; }
-        categorias = comEspeciais(r.dados);
+        categorias = comEspeciais(VLTV.parental.filtrarCategorias(tipo, r.dados));
         renderCategorias();
-        // Abre em Favoritos se já tem algum; senão na primeira categoria de verdade.
+        // Abre em Favoritos se já tem algum; senão na primeira categoria de verdade (que não esteja bloqueada).
         var inicio = VLTV.dados.favoritosDe(tipo).length > 0 ? 1 : (categorias.length > 2 ? 2 : 1);
+        while (inicio < categorias.length - 1 && categoriaTrancada(categorias[inicio])) { inicio++; }
+        if (categoriaTrancada(categorias[inicio])) { inicio = 1; }
         catIdx = inicio;
         marcarCategoria();
         aplicarCategoria(inicio, false);

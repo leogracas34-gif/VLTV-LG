@@ -409,13 +409,18 @@
   tileLive.addEventListener('click', abrirTvAoVivo);
   tileFilmes.addEventListener('click', function () { abrirCatalogo('filmes'); });
   tileSeries.addEventListener('click', function () { abrirCatalogo('series'); });
+  // Layout da Home decidido uma vez só, antes de aparecer: nada pula de lugar quando o banner chega.
+  var bannerAtivo = VLTV.config.BANNER_ATIVO !== false;
+  telas.home.classList.toggle('com-banner', bannerAtivo);
+  elBanner.classList.toggle('escondida', !bannerAtivo);
+
   VLTV.banner.configurar(function (tipo, raw, lista) {
     mostrarTela('detalhes');
     VLTV.detalhes.abrir(tipo, raw, lista, {
       sair: function () { mostrarTela('home'); },
       reproduzir: function (itens, indice, inicioSeg) { tocar(itens, indice, 'detalhes', inicioSeg); }
     });
-  }, function (existe) { telas.home.classList.toggle('com-banner', existe); });
+  }, function () { /* o layout é fixo */ });
   elBanner.addEventListener('click', function () { VLTV.banner.abrirAtual(); });
   tileSair.addEventListener('click', sair);
   btnConfig.addEventListener('click', abrirConfig);

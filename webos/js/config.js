@@ -35,6 +35,9 @@ VLTV.config = {
     'http://cybertronplay.space'
   ],
 
+  // Banner de destaques na Home. false = só os três botões grandes (sem banner).
+  BANNER_ATIVO: true,
+
   // Compatibilidade: TVs LG de 2018 em diante (webOS 4.0 ou mais novo, navegador Chrome 53+).
   MIN_WEBOS_YEAR: 2018,
   MIN_WEBOS_SDK: 4,

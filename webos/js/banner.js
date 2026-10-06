@@ -3,6 +3,7 @@
 // Se a VPS não responder, usa os primeiros títulos das categorias do próprio painel.
 // A imagem é sempre a CAPA que vem do servidor (nítida, ao lado, e desfocada no fundo): não troca por
 // imagem do TMDB, então não pisca.
+// O último banner fica guardado na TV: da segunda vez em diante ele aparece na hora, junto com os botões.
 (function () {
   'use strict';
 
@@ -10,7 +11,8 @@
   var TROCA_MS = 8000;
   var TIMEOUT_VPS_MS = 4000;
   var CATEGORIAS_FALLBACK = 3;
-  var ESPERA_TMDB_MS = 3500;
+  var ESPERA_TMDB_MS = 2500;
+  var CHAVE_CACHE = 'vltv_banner_cache';
 
   function $(id) { return document.getElementById(id); }
 
@@ -27,6 +29,7 @@
   var atual = 0;
   var timer = null;
   var chaveCarregada = '';
+  var pendente = null;      // lista nova (da rede) que entra na próxima troca de slide
   var idCarga = 0;
   var abrirItem = null;     // função: (tipo, raw, lista) -> abre os detalhes
   var onMudou = null;       // avisa o app quando o banner passa a existir ou deixa de existir
@@ -171,7 +174,12 @@
   }
 
   // Desenha um destaque: fundo (TMDB nítido ou capa desfocada), logo (ou nome) e dados.
+  // Qualquer erro aqui nunca deixa o banner pela metade: mantém o que já estava na tela.
   function desenhar(s) {
+    try { desenharSlide(s); } catch (e) { /* ignora */ }
+  }
+
+  function desenharSlide(s) {
     elBanner.classList.toggle('com-fundo', !!s.fundo);
     elFundo.classList.toggle('desfocado', !s.fundo);
     elFundo.style.backgroundImage = 'url("' + (s.fundo || s.capa).replace(/"/g, '%22') + '")';
@@ -216,7 +224,12 @@
   function reiniciarTimer() {
     clearInterval(timer);
     timer = null;
-    if (slides.length > 1) { timer = setInterval(function () { mostrarSlide(atual + 1); }, TROCA_MS); }
+    if (slides.length > 1) {
+      timer = setInterval(function () {
+        if (pendente) { slides = pendente; pendente = null; atual = -1; }
+        mostrarSlide(atual + 1);
+      }, TROCA_MS);
+    }
   }
 
   function mover(passo) {
@@ -232,9 +245,36 @@
     abrirItem(s.tipo, s.raw, mesmos);
   }
 
+  // ── Guardado na TV ────────────────────────────────────────────────
+  function lerCache(chave) {
+    try {
+      var bruto = localStorage.getItem(CHAVE_CACHE);
+      if (!bruto) { return []; }
+      var c = JSON.parse(bruto);
+      return c && c.chave === chave && Array.isArray(c.slides) ? c.slides : [];
+    } catch (e) { return []; }
+  }
+
+  function gravarCache(chave, lista) {
+    try { localStorage.setItem(CHAVE_CACHE, JSON.stringify({ chave: chave, slides: lista })); } catch (e) { /* ignora */ }
+  }
+
+  // Mostra a lista agora (sem esperar nada) e liga a troca automática.
+  function mostrar(lista) {
+    slides = lista;
+    atual = 0;
+    elBanner.classList.remove('vazio');
+    elConteudo.classList.remove('troca');
+    desenhar(slides[0]);
+    reiniciarTimer();
+    if (onMudou) { onMudou(true); }
+  }
+
   // ── Interface pública ─────────────────────────────────────────────
   // forcar: recarrega mesmo que já tenha carregado para esta conta.
   function carregar(forcar) {
+    if (VLTV.config.BANNER_ATIVO === false) { return; }
+
     var s = VLTV.sessao.ler();
     var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u) : '';
     if (!forcar && chave === chaveCarregada && slides.length > 0) { return; }
@@ -242,27 +282,30 @@
 
     var meu = ++idCarga;
     slides = [];
-    elBanner.classList.add('escondida');
+    pendente = null;
+    clearInterval(timer);
+    timer = null;
+    elBanner.classList.add('vazio');
     if (onMudou) { onMudou(false); }
 
+    // 1) O que ficou guardado da última vez aparece na hora.
+    var guardado = lerCache(chave);
+    if (guardado.length > 0) { mostrar(guardado); }
+
+    // 2) A rede busca a lista de hoje. Se já há banner na tela, a lista nova só entra na próxima troca de slide.
     var inicio = VLTV.m3u.ativo() ? porPainel() : porVps().then(function (l) { return l.length >= 3 ? l : porPainel(); });
     inicio.catch(function () { return []; }).then(function (lista) {
       if (meu !== idCarga || lista.length === 0) { return; }
-      // Logo e fundo do TMDB de cada destaque chegam ANTES do banner aparecer (já guardados na TV =
-      // na hora), para ele não trocar de imagem na frente do usuário. Se demorar, aparece sem eles.
+      // Logo e fundo do TMDB de cada destaque chegam ANTES de entrarem na tela, para não trocar de
+      // imagem na frente do usuário. Se demorar, entra sem eles.
       return Promise.race([
         Promise.all(lista.map(preparar)),
         new Promise(function (resolve) { setTimeout(resolve, ESPERA_TMDB_MS); })
       ]).then(function () { return lista; });
     }).then(function (lista) {
       if (!lista || meu !== idCarga) { return; }
-      slides = lista;
-      atual = 0;
-      elBanner.classList.remove('escondida');
-      elConteudo.classList.remove('troca');
-      desenhar(slides[0]);
-      reiniciarTimer();
-      if (onMudou) { onMudou(true); }
+      gravarCache(chave, lista);
+      if (slides.length === 0) { mostrar(lista); } else { pendente = lista; }
     });
   }
 

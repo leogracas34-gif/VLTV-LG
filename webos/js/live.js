@@ -5,7 +5,6 @@
   // Ordem de tentativa do formato do canal (se um falhar, tenta o próximo).
   var EXTENSOES = ['m3u8', 'ts', ''];
   var ESPERA_REPRODUZIR_MS = 12000;
-  var ESPERA_CATEGORIA_MS = 350;
   var TAMANHO_LOTE = 150;
   var TEMPO_INFO_MS = 4000;
 
@@ -33,7 +32,8 @@
 
   // Estado
   var categorias = [];
-  var catIdx = 0;
+  var catIdx = 0;            // categoria marcada pelo cursor
+  var catCarregada = -1;     // categoria cujos canais estão na tela
   var itensCats = [];
   var liSelCat = null;
 
@@ -60,7 +60,6 @@
   var idReqCanais = 0;
   var idPlay = 0;
   var idEpg = 0;
-  var timerCat = null;
   var timerEspera = null;
   var timerInfo = null;
 
@@ -110,6 +109,11 @@
       listaCats.appendChild(li);
       itensCats.push(li);
     });
+  }
+
+  // Uma barrinha clara mostra qual categoria está com os canais na tela.
+  function marcarCarregada() {
+    itensCats.forEach(function (li, i) { li.classList.toggle('carregada', i === catCarregada); });
   }
 
   function marcarCategoria() {
@@ -196,6 +200,8 @@
     var cat = categorias[idx];
     if (!cat) { return; }
     var id = ++idReqCanais;
+    catCarregada = idx;
+    marcarCarregada();
     tituloCanais.textContent = cat.category_name || 'Canais';
 
     if (cacheCanais[cat.category_id]) {
@@ -218,24 +224,21 @@
       });
   }
 
-  function agendarCategoria() {
-    if (timerCat) { clearTimeout(timerCat); }
-    timerCat = setTimeout(function () {
-      timerCat = null;
-      carregarCanais(catIdx, false);
-    }, ESPERA_CATEGORIA_MS);
+  // Seta para a direita: volta para a lista de canais que já está na tela (não carrega nada).
+  function irParaCanais() {
+    if (canais.length > 0) { trocarFoco('canais'); }
   }
 
-  function irParaCanais() {
-    if (timerCat) {
-      clearTimeout(timerCat);
-      timerCat = null;
-      carregarCanais(catIdx, true);
-    } else if (canais.length > 0) {
-      trocarFoco('canais');
-    } else {
-      carregarCanais(catIdx, true);
-    }
+  // OK: só agora carrega os canais da categoria marcada.
+  function escolherCategoria() {
+    if (catIdx === catCarregada && canais.length > 0) { trocarFoco('canais'); return; }
+    carregarCanais(catIdx, true);
+  }
+
+  // Voltando para as categorias, o cursor volta para a que está com os canais na tela.
+  function voltarParaCategorias() {
+    if (catCarregada >= 0) { catIdx = catCarregada; marcarCategoria(); }
+    trocarFoco('cat');
   }
 
   // ── Guia de programação (EPG) ─────────────────────────────────────
@@ -418,19 +421,22 @@
       if (novo >= 0 && novo < categorias.length) {
         catIdx = novo;
         marcarCategoria();
-        agendarCategoria();
       }
       return true;
     }
-    if (k === TECLA.DIR || k === TECLA.ENTER) {
+    if (k === TECLA.DIR) {
       if (falhaCategorias) { abrir(aoSair); } else { irParaCanais(); }
+      return true;
+    }
+    if (k === TECLA.ENTER) {
+      if (falhaCategorias) { abrir(aoSair); } else { escolherCategoria(); }
       return true;
     }
     return false;
   }
 
   function teclaCanais(k) {
-    if (k === TECLA.ESQ) { trocarFoco('cat'); }
+    if (k === TECLA.ESQ) { voltarParaCategorias(); }
     else if (k === TECLA.CIMA) { mover(-1); }
     else if (k === TECLA.BAIXO) { mover(1); }
     else if (k === TECLA.PG_CIMA || k === TECLA.CH_MAIS) { mover(-8); }
@@ -449,7 +455,7 @@
     if (cheio) { return teclaCheio(k); }
 
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (foco === 'canais') { trocarFoco('cat'); } else { sair(); }
+      if (foco === 'canais') { voltarParaCategorias(); } else { sair(); }
       return true;
     }
     return foco === 'cat' ? teclaCategorias(k) : teclaCanais(k);
@@ -465,6 +471,7 @@
     categorias = [];
     canais = [];
     catIdx = 0;
+    catCarregada = -1;
     trocarFoco('cat');
     mensagemLista(listaCats, 'Carregando categorias...');
     mensagemLista(listaCanais, '');
@@ -490,7 +497,6 @@
   function sair() {
     sairCheio();
     parar();
-    if (timerCat) { clearTimeout(timerCat); timerCat = null; }
     if (aoSair) { aoSair(); }
   }
 

@@ -10,12 +10,13 @@
   var TROCA_MS = 8000;
   var TIMEOUT_VPS_MS = 4000;
   var CATEGORIAS_FALLBACK = 3;
+  var ESPERA_TMDB_MS = 3500;
 
   function $(id) { return document.getElementById(id); }
 
   var elBanner = $('banner');
   var elFundo = $('bn-fundo');
-  var elEtiqueta = $('bn-etiqueta');
+  var elLogo = $('bn-logo');
   var elTitulo = $('bn-titulo');
   var elMeta = $('bn-meta');
   var elPoster = $('bn-poster');
@@ -59,7 +60,8 @@
       raw: raw,
       nome: VLTV.titulo.limpar(raw.name),
       capa: capa,
-      etiqueta: etiqueta,
+      logo: null,
+      fundo: null,
       nota: isFinite(nota) && nota > 0 ? nota.toFixed(1) : '',
       ano: busca.ano || ''
     };
@@ -139,6 +141,25 @@
     });
   }
 
+  // ── Logo e fundo do TMDB ──────────────────────────────────────────
+  function carregarImagem(url) {
+    return new Promise(function (resolve) {
+      if (!url) { resolve(null); return; }
+      var img = new Image();
+      img.onload = function () { resolve(url); };
+      img.onerror = function () { resolve(null); };
+      img.src = url;
+    });
+  }
+
+  // Preenche slide.logo e slide.fundo (só com imagens que carregaram de verdade). Nunca rejeita.
+  function preparar(s) {
+    var id = s.tipo === 'series' ? s.raw.series_id : s.raw.stream_id;
+    var logo = VLTV.tmdb.logo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.logo = u; });
+    var fundo = VLTV.tmdb.fundo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.fundo = u; });
+    return Promise.all([logo, fundo]).catch(function () { return null; });
+  }
+
   // ── Tela ──────────────────────────────────────────────────────────
   function desenharPontos() {
     while (elPontos.firstChild) { elPontos.removeChild(elPontos.firstChild); }
@@ -149,6 +170,36 @@
     });
   }
 
+  // Desenha um destaque: fundo (TMDB nítido ou capa desfocada), logo (ou nome) e dados.
+  function desenhar(s) {
+    elBanner.classList.toggle('com-fundo', !!s.fundo);
+    elFundo.classList.toggle('desfocado', !s.fundo);
+    elFundo.style.backgroundImage = 'url("' + (s.fundo || s.capa).replace(/"/g, '%22') + '")';
+    elPoster.onerror = function () { elPoster.style.visibility = 'hidden'; };
+    elPoster.style.visibility = 'visible';
+    elPoster.src = s.capa;
+
+    elTitulo.textContent = s.nome;
+    elLogo.onload = null;
+    elLogo.onerror = function () { elLogo.classList.add('escondida'); elTitulo.classList.remove('escondida'); };
+    if (s.logo) {
+      elLogo.classList.remove('escondida');
+      elTitulo.classList.add('escondida');
+      elLogo.src = s.logo;
+    } else {
+      elLogo.classList.add('escondida');
+      elLogo.removeAttribute('src');
+      elTitulo.classList.remove('escondida');
+    }
+
+    var meta = [];
+    if (s.nota) { meta.push('★ ' + s.nota); }
+    if (s.ano) { meta.push(s.ano); }
+    meta.push(s.tipo === 'series' ? 'Série' : 'Filme');
+    elMeta.textContent = meta.join('   •   ');
+    desenharPontos();
+  }
+
   function mostrarSlide(i) {
     if (slides.length === 0) { return; }
     atual = (i + slides.length) % slides.length;
@@ -157,18 +208,7 @@
     elConteudo.classList.add('troca');
     setTimeout(function () {
       if (slides[atual] !== s) { return; }
-      elFundo.style.backgroundImage = 'url("' + s.capa.replace(/"/g, '%22') + '")';
-      elPoster.onerror = function () { elPoster.style.visibility = 'hidden'; };
-      elPoster.style.visibility = 'visible';
-      elPoster.src = s.capa;
-      elEtiqueta.textContent = s.etiqueta;
-      elTitulo.textContent = s.nome;
-      var meta = [];
-      if (s.nota) { meta.push('★ ' + s.nota); }
-      if (s.ano) { meta.push(s.ano); }
-      meta.push(s.tipo === 'series' ? 'Série' : 'Filme');
-      elMeta.textContent = meta.join('   •   ');
-      desenharPontos();
+      desenhar(s);
       elConteudo.classList.remove('troca');
     }, 180);
   }
@@ -208,22 +248,19 @@
     var inicio = VLTV.m3u.ativo() ? porPainel() : porVps().then(function (l) { return l.length >= 3 ? l : porPainel(); });
     inicio.catch(function () { return []; }).then(function (lista) {
       if (meu !== idCarga || lista.length === 0) { return; }
+      // Logo e fundo do TMDB de cada destaque chegam ANTES do banner aparecer (já guardados na TV =
+      // na hora), para ele não trocar de imagem na frente do usuário. Se demorar, aparece sem eles.
+      return Promise.race([
+        Promise.all(lista.map(preparar)),
+        new Promise(function (resolve) { setTimeout(resolve, ESPERA_TMDB_MS); })
+      ]).then(function () { return lista; });
+    }).then(function (lista) {
+      if (!lista || meu !== idCarga) { return; }
       slides = lista;
       atual = 0;
       elBanner.classList.remove('escondida');
-      elFundo.style.backgroundImage = '';
       elConteudo.classList.remove('troca');
-      var s0 = slides[0];
-      elFundo.style.backgroundImage = 'url("' + s0.capa.replace(/"/g, '%22') + '")';
-      elPoster.src = s0.capa;
-      elEtiqueta.textContent = s0.etiqueta;
-      elTitulo.textContent = s0.nome;
-      var meta = [];
-      if (s0.nota) { meta.push('★ ' + s0.nota); }
-      if (s0.ano) { meta.push(s0.ano); }
-      meta.push(s0.tipo === 'series' ? 'Série' : 'Filme');
-      elMeta.textContent = meta.join('   •   ');
-      desenharPontos();
+      desenhar(slides[0]);
       reiniciarTimer();
       if (onMudou) { onMudou(true); }
     });

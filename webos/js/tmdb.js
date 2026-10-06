@@ -7,8 +7,8 @@
   var API = 'https://api.themoviedb.org/3';
   var TIMEOUT_MS = 6000;
   var VALIDADE_SEM_LOGO_MS = 7 * 24 * 3600 * 1000;   // título sem logo: tenta de novo em 7 dias
-  var PREFIXO = 'vltv_logo_';
-  var PREFIXO_FUNDO = 'vltv_fundo_';
+  var PREFIXO = 'vltv_logo2_';   // 2: descarta logos antigas, que podiam ser de outro título parecido
+  var PREFIXO_FUNDO = 'vltv_fundo2_';
 
   var emAndamento = {};   // evita pesquisar o mesmo título duas vezes ao mesmo tempo
 
@@ -47,21 +47,63 @@
     return base + '/t/p/' + (cfg().TMDB_TAMANHO_LOGO || 'w500') + (caminho.charAt(0) === '/' ? caminho : '/' + caminho);
   }
 
-  // Primeiro título que o TMDB devolve (com o ano, se houver; sem ele, se com o ano não achou nada).
-  function procurar(tipoTmdb, busca) {
-    var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
-      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';
-    var comAno = busca.ano
-      ? base + (tipoTmdb === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano
-      : null;
+  // ── Escolha do título certo ───────────────────────────────────────
+  // O TMDB devolve vários títulos parecidos ("Duna" 1984 e 2021, "Lanternas"...). Cada resultado ganha
+  // pontos: nome igual ao do painel (100), nome que começa igual (45), ano igual (+60), ano vizinho (+30),
+  // ano diferente (-40). Só vale a partir de 90; abaixo disso é melhor mostrar o nome que uma logo errada.
+  function norm(texto) {
+    var t = String(texto || '').toLowerCase();
+    try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* TV sem normalize */ }
+    return t.replace(/[^a-z0-9]/g, '');
+  }
 
-    function primeiro(url) {
-      return pegarJson(url).then(function (j) {
-        return j && j.results && j.results.length > 0 ? j.results[0].id : null;
+  function anoDe(r) {
+    var d = String(r.release_date || r.first_air_date || '');
+    return parseInt(d.slice(0, 4), 10) || 0;
+  }
+
+  function pontuar(r, busca) {
+    var q = norm(busca.query);
+    var nomes = [r.title, r.name, r.original_title, r.original_name].map(norm).filter(function (n) { return n !== ''; });
+    var s = 0;
+    if (nomes.indexOf(q) !== -1) {
+      s = 100;
+    } else {
+      nomes.forEach(function (n) {
+        if (q.length >= 4 && n.length >= 4 && (n.indexOf(q) === 0 || q.indexOf(n) === 0)) { s = Math.max(s, 45); }
       });
     }
-    if (!comAno) { return primeiro(base); }
-    return primeiro(comAno).then(function (id) { return id !== null ? id : primeiro(base); });
+    if (busca.ano) {
+      var a = anoDe(r);
+      if (a) {
+        var dif = Math.abs(a - parseInt(busca.ano, 10));
+        if (dif === 0) { s += 60; } else if (dif === 1) { s += 30; } else { s -= 40; }
+      }
+    }
+    return s;
+  }
+
+  function escolher(resultados, busca) {
+    var melhor = null;
+    var melhorPontos = -1000;
+    for (var i = 0; i < resultados.length && i < 10; i++) {
+      var p = pontuar(resultados[i], busca);
+      if (p > melhorPontos) { melhorPontos = p; melhor = resultados[i]; }
+    }
+    return melhorPontos >= 90 ? melhor : null;
+  }
+
+  // Resolve com o resultado do TMDB (objeto com id, backdrop_path...) ou null.
+  function procurarMelhor(tipoTmdb, busca) {
+    var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
+      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';
+
+    function pegar(url) {
+      return pegarJson(url).then(function (j) { return escolher(j && j.results ? j.results : [], busca); });
+    }
+    if (!busca.ano) { return pegar(base); }
+    var comAno = base + (tipoTmdb === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano;
+    return pegar(comAno).then(function (r) { return r || pegar(base); });
   }
 
   function escolherLogo(logos) {
@@ -79,8 +121,9 @@
   }
 
   function buscarLogo(tipoTmdb, busca) {
-    return procurar(tipoTmdb, busca).then(function (id) {
-      if (id === null) { return null; }
+    return procurarMelhor(tipoTmdb, busca).then(function (achado) {
+      if (achado === null) { return null; }
+      var id = achado.id;
       var url = API + '/' + tipoTmdb + '/' + id + '/images?api_key=' + chave() + '&include_image_language=pt-BR,pt,null';
       return pegarJson(url).then(function (j) {
         var caminho = j && j.logos ? escolherLogo(j.logos) : null;
@@ -144,25 +187,8 @@
     if (!ativo()) { return Promise.resolve(null); }
 
     var busca = VLTV.titulo.paraBusca(nome);
-    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
-    var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
-      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';
-    var url = busca.ano ? base + (tipoTmdb === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano : base;
-
-    function primeiroComFundo(j) {
-      var lista = j && j.results ? j.results : [];
-      for (var i = 0; i < lista.length && i < 3; i++) {
-        if (lista[i].backdrop_path) { return lista[i].backdrop_path; }
-      }
-      return null;
-    }
-
-    return pegarJson(url).then(function (j) {
-      var c = primeiroComFundo(j);
-      if (c || !busca.ano) { return c; }
-      return pegarJson(base).then(primeiroComFundo);     // com o ano não achou: tenta sem ele
-    }).then(function (caminho) {
-      var u = caminho ? enderecoFundo(caminho) : null;
+    return procurarMelhor(tipo === 'series' ? 'tv' : 'movie', busca).then(function (achado) {
+      var u = achado && achado.backdrop_path ? enderecoFundo(achado.backdrop_path) : null;
       gravarFundo(tipo + '_' + id, u);
       return u;
     }).catch(function () { return null; });

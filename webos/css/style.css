@@ -1321,14 +1321,43 @@ input::placeholder { color: #565c78; }
 /* Capa do servidor desfocada ocupando o fundo todo */
 .bn-fundo {
   position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center top;
+}
+/* Sem imagem de fundo de verdade: capa do servidor desfocada (mais pesada para a TV) */
+.bn-fundo.desfocado {
   top: -40px;
   left: -40px;
   right: -40px;
   bottom: -40px;
-  background-size: cover;
-  background-position: center;
-  -webkit-filter: blur(26px) brightness(0.62);
-  filter: blur(26px) brightness(0.62);
+  -webkit-filter: blur(22px) brightness(0.62);
+  filter: blur(22px) brightness(0.62);
+}
+/* Com imagem de fundo do TMDB: nítida, sem poster ao lado (como na Netflix) */
+.banner.com-fundo .bn-poster { display: none; }
+.banner.com-fundo .bn-grad {
+  background: linear-gradient(to right, rgba(11, 12, 20, 0.95) 0%, rgba(11, 12, 20, 0.7) 38%, rgba(11, 12, 20, 0) 75%),
+              linear-gradient(to top, rgba(11, 12, 20, 0.8) 0%, rgba(11, 12, 20, 0) 40%);
+}
+
+/* Logo (ou nome) numa caixa de altura fixa: trocar um pelo outro não mexe no resto */
+.bn-titulo-caixa {
+  display: flex;
+  align-items: flex-end;
+  height: 170px;
+  width: 1000px;
+}
+.bn-logo {
+  display: block;
+  max-width: 720px;
+  max-height: 170px;
+  object-fit: contain;
+  -webkit-filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8));
 }
 .bn-grad {
   position: absolute;
@@ -1366,7 +1395,7 @@ input::placeholder { color: #565c78; }
 }
 .bn-titulo {
   display: block;
-  max-height: 150px;
+  max-height: 170px;
   overflow: hidden;
   font-size: 68px;
   line-height: 1.08;

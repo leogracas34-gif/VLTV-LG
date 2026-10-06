@@ -1378,12 +1378,12 @@ input::placeholder { color: #565c78; }
 }
 /* Sem imagem de fundo de verdade: capa do servidor desfocada (mais pesada para a TV) */
 .bn-fundo.desfocado {
-  top: -40px;
-  left: -40px;
-  right: -40px;
-  bottom: -40px;
-  -webkit-filter: blur(22px) brightness(0.62);
-  filter: blur(22px) brightness(0.62);
+  top: -16px;
+  left: -16px;
+  right: -16px;
+  bottom: -16px;
+  -webkit-filter: blur(7px) brightness(0.72);
+  filter: blur(7px) brightness(0.72);
 }
 /* Com imagem de fundo do TMDB: nítida, sem poster ao lado (como na Netflix) */
 .banner.com-fundo .bn-poster { display: none; }
@@ -1496,3 +1496,99 @@ input::placeholder { color: #565c78; }
   background: rgba(255, 255, 255, 0.35);
 }
 .bn-ponto.sel { width: 38px; background: #fff; }
+
+
+/* ── Favoritos (estrela) e Pesquisa (lupa) ───────────── */
+
+/* Itens especiais no topo das categorias: Pesquisar e Favoritos */
+.lista li.especial .icone {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin-right: 16px;
+  flex: none;
+}
+.lista li.especial .icone svg { display: block; width: 34px; height: 34px; }
+.lista li.especial.busca .icone svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.lista li.especial.fav .icone svg { fill: #ffc94d; stroke: none; }
+.lista li.especial span.nome { font-weight: 700; }
+
+/* Estrela na frente de cada canal (do lado direito da linha) */
+.lista li .estrela {
+  display: block;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: 10px;
+  padding: 5px;
+  border: 3px solid transparent;
+  border-radius: 22px;
+}
+.lista li .estrela svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.lista li .estrela.ativa svg { fill: #ffc94d; stroke: #ffc94d; }
+.lista li.foco-estrela .estrela {
+  background: #fff;
+  border-color: #fff;
+}
+.lista li.foco-estrela .estrela svg { stroke: #14172b; }
+.lista li.foco-estrela .estrela.ativa svg { fill: #f5a800; stroke: #f5a800; }
+.lista li.foco-estrela { background: var(--painel-2); }
+
+/* Caixa de pesquisa dentro de Filmes e Séries */
+.busca-caixa {
+  display: flex;
+  align-items: center;
+  height: 76px;
+  margin: 4px 10px 10px 10px;
+  padding: 0 22px;
+  background: var(--painel-2);
+  border: 3px solid var(--borda);
+  border-radius: 16px;
+}
+.busca-caixa.foco {
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(123, 92, 255, 0.5);
+}
+.busca-caixa svg {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-right: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.busca-caixa input,
+.busca-caixa input:focus {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 60px;
+  padding: 0;
+  font-size: 32px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.busca-status {
+  margin: 0 12px 8px 12px;
+  font-size: 24px;
+  color: var(--suave);
+}

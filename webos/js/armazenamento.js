@@ -57,7 +57,19 @@
   }
 
   // ── Favoritos (Minha Lista) ───────────────────────────────────────
-  // Cada favorito: { tipo: 'filmes' | 'series', id, nome, capa }
+  // Cada favorito: { tipo: 'filmes' | 'series' | 'canais', id, nome, capa, raw }
+  // "raw" é o item do painel (só os campos úteis): com ele o favorito abre direto, sem buscar de novo.
+  var CAMPOS_RAW = ['stream_id', 'series_id', 'name', 'stream_icon', 'cover', 'container_extension', 'rating',
+                    'plot', 'genre', 'releaseDate', 'release_date', 'releasedate', 'backdrop_path', 'cast',
+                    'director', 'category_id', 'url', 'num', 'epg_channel_id'];
+
+  function enxugar(raw) {
+    if (!raw || typeof raw !== 'object') { return null; }
+    var saida = {};
+    CAMPOS_RAW.forEach(function (c) { if (raw[c] !== undefined && raw[c] !== null) { saida[c] = raw[c]; } });
+    return saida;
+  }
+
   function favoritos() { return ler(chave('fav'), []); }
 
   function indiceFavorito(lista, tipo, id) {
@@ -69,13 +81,25 @@
 
   function ehFavorito(tipo, id) { return indiceFavorito(favoritos(), tipo, id) !== -1; }
 
+  // Item do painel de um favorito (os antigos, sem "raw", são remontados com o que foi guardado).
+  function rawDe(f) {
+    if (f.raw) { return f.raw; }
+    if (f.tipo === 'series') { return { series_id: f.id, name: f.nome, cover: f.capa }; }
+    return { stream_id: f.id, name: f.nome, stream_icon: f.capa };
+  }
+
+  // Favoritos de um tipo, do mais novo para o mais antigo: lista de itens do painel.
+  function favoritosDe(tipo) {
+    return favoritos().filter(function (f) { return f.tipo === tipo; }).reverse().map(rawDe);
+  }
+
   // Devolve o novo estado: true = acabou de entrar na lista, false = saiu da lista.
   function alternarFavorito(fav) {
     var lista = favoritos();
     var i = indiceFavorito(lista, fav.tipo, fav.id);
     var agora;
     if (i === -1) {
-      lista.push({ tipo: fav.tipo, id: fav.id, nome: fav.nome, capa: fav.capa });
+      lista.push({ tipo: fav.tipo, id: fav.id, nome: fav.nome, capa: fav.capa, raw: enxugar(fav.raw) });
       agora = true;
     } else {
       lista.splice(i, 1);
@@ -89,6 +113,7 @@
     progresso: progresso,
     salvarProgresso: salvarProgresso,
     favoritos: favoritos,
+    favoritosDe: favoritosDe,
     ehFavorito: ehFavorito,
     alternarFavorito: alternarFavorito
   };

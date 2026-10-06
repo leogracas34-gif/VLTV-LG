@@ -7,8 +7,8 @@
   var API = 'https://api.themoviedb.org/3';
   var TIMEOUT_MS = 6000;
   var VALIDADE_SEM_LOGO_MS = 7 * 24 * 3600 * 1000;   // título sem logo: tenta de novo em 7 dias
-  var PREFIXO = 'vltv_logo2_';   // 2: descarta logos antigas, que podiam ser de outro título parecido
-  var PREFIXO_FUNDO = 'vltv_fundo2_';
+  var PREFIXO = 'vltv_logo3_';   // 3: descarta logos antigas, que podiam ser de outro título (o banner usava o id da VPS)
+  var PREFIXO_FUNDO = 'vltv_fundo3_';
 
   var emAndamento = {};   // evita pesquisar o mesmo título duas vezes ao mesmo tempo
 

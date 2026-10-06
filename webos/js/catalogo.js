@@ -1,5 +1,6 @@
 // VLTV Play - webOS | Catálogo de Filmes e Séries: categorias à esquerda, capas em grade à direita.
 // Navegar pelas categorias só move a seleção; a grade só muda quando o usuário aperta OK.
+// No topo da lista de categorias ficam "Pesquisar" (lupa) e "Favoritos" (tudo que foi marcado em MINHA LISTA).
 // Categorias e títulos ficam guardados na TV (sync.js): da 2ª abertura em diante a tela já abre cheia
 // e o painel é conferido por trás. As capas carregam por prioridade: primeiro as que aparecem na tela.
 (function () {
@@ -25,6 +26,9 @@
   var grade = $('cat-grade');
   var painelCats = $('cat-painel-cats');
   var painelGrade = $('cat-painel-grade');
+  var caixaBusca = $('cat-busca-caixa');
+  var elBusca = $('cat-busca');
+  var statusBusca = $('cat-busca-status');
 
   var CONFIG = {
     filmes: {
@@ -40,6 +44,14 @@
       campoCapa: 'cover'
     }
   };
+
+  var ESPERA_BUSCA_MS = 400;       // espera o usuário parar de digitar para pesquisar
+  var ICONE_LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>';
+  var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
+  var CAT_BUSCA = { category_id: '__busca__', category_name: 'Pesquisar', especial: 'busca' };
+  var CAT_FAV = { category_id: '__fav__', category_name: 'Favoritos', especial: 'fav' };
+
+  function comEspeciais(lista) { return [CAT_BUSCA, CAT_FAV].concat(lista || []); }
 
   var tipo = 'filmes';
   var cfg = CONFIG.filmes;
@@ -63,7 +75,10 @@
   var filaCapas = [];              // capas esperando a vez: { img, url, indice }
   var capasAtivas = 0;
 
-  var foco = 'cat';
+  var foco = 'cat';              // 'cat' | 'grade' | 'busca' (caixa de pesquisa)
+  var modoBusca = false;         // a grade está mostrando resultados de pesquisa
+  var timerBusca = null;
+  var msgVazio = 'Nenhum título nesta categoria.';
   var falhaCategorias = false;
   var idReq = 0;
 
@@ -85,7 +100,9 @@
   function trocarFoco(novo) {
     foco = novo;
     painelCats.classList.toggle('ativo', foco === 'cat');
-    painelGrade.classList.toggle('ativo', foco === 'grade');
+    painelGrade.classList.toggle('ativo', foco === 'grade' || foco === 'busca');
+    caixaBusca.classList.toggle('foco', foco === 'busca');
+    if (foco !== 'busca') { try { elBusca.blur(); } catch (e) { /* ignora */ } }
   }
 
   // ── Categorias ────────────────────────────────────────────────────
@@ -96,6 +113,13 @@
     liAplicada = null;
     categorias.forEach(function (c) {
       var li = document.createElement('li');
+      if (c.especial) {
+        li.className = 'especial ' + c.especial;
+        var icone = document.createElement('span');
+        icone.className = 'icone';
+        icone.innerHTML = c.especial === 'busca' ? ICONE_LUPA : ICONE_ESTRELA;
+        li.appendChild(icone);
+      }
       var nome = document.createElement('span');
       nome.className = 'nome';
       nome.textContent = c.category_name || '';
@@ -243,7 +267,7 @@
     filaCapas = [];
     esvaziar(grade);
     if (lista.length === 0) {
-      mensagem(grade, 'Nenhum título nesta categoria.');
+      mensagem(grade, msgVazio);
       return;
     }
     renderMais();
@@ -261,6 +285,13 @@
     var id = ++idReq;
     var abertura = idAbertura;
     tituloGrade.textContent = cat.category_name || cfg.titulo;
+
+    if (cat.especial === 'fav') {
+      msgVazio = 'Nenhum favorito ainda. Abra um título e escolha MINHA LISTA para ele aparecer aqui.';
+      aplicarItens(VLTV.dados.favoritosDe(tipo), focar);
+      return;
+    }
+    msgVazio = 'Nenhum título nesta categoria.';
 
     itens = [];
     var mostrouEsqueleto = false;
@@ -300,7 +331,7 @@
       var pedidos = [];
       ordem.forEach(function (i) {
         var cat = categorias[i];
-        if (cat) { pedidos.push({ chave: chaveItens(cat), buscar: buscarItens(cat) }); }
+        if (cat && !cat.especial) { pedidos.push({ chave: chaveItens(cat), buscar: buscarItens(cat) }); }
       });
       VLTV.sync.aquecer(pedidos);
     }, ESPERA_AQUECER_MS);
@@ -310,10 +341,82 @@
   function aplicarCategoria(idx, focar) {
     catAplicada = idx;
     marcarAplicada();
+    if (categorias[idx] && categorias[idx].especial === 'busca') {
+      abrirBusca(focar);
+      return;
+    }
+    fecharBusca();
     carregarItens(idx, focar);
   }
 
+  // ── Pesquisa (lupa) ───────────────────────────────────────────────
+  function palavraTipo() { return tipo === 'filmes' ? 'filme' : 'série'; }
+
+  function fecharBusca() {
+    modoBusca = false;
+    clearTimeout(timerBusca);
+    VLTV.indice.ouvir(tipo, null);
+    caixaBusca.classList.add('escondida');
+    statusBusca.classList.add('escondida');
+  }
+
+  function atualizarStatusBusca(feitas, total) {
+    if (feitas < 0) {
+      statusBusca.textContent = 'Não foi possível carregar todo o catálogo. Os resultados podem estar incompletos.';
+      statusBusca.classList.remove('escondida');
+    } else if (total > 0 && feitas < total) {
+      statusBusca.textContent = 'Carregando o catálogo para pesquisar... ' + feitas + ' de ' + total + ' categorias';
+      statusBusca.classList.remove('escondida');
+    } else {
+      statusBusca.classList.add('escondida');
+    }
+  }
+
+  function executarBusca() {
+    if (!modoBusca) { return; }
+    var texto = elBusca.value.replace(/^\s+|\s+$/g, '');
+    tituloGrade.textContent = 'Pesquisar ' + (tipo === 'filmes' ? 'filmes' : 'séries');
+    var prog = VLTV.indice.progresso(tipo);
+    if (texto === '') {
+      msgVazio = 'Digite o nome de ' + (tipo === 'filmes' ? 'um filme' : 'uma série') + ' para pesquisar.';
+      aplicarItens([], false);
+      return;
+    }
+    var achados = VLTV.indice.pesquisar(tipo, texto);
+    msgVazio = prog.completo ? ('Nenhum ' + palavraTipo() + ' encontrado para "' + texto + '".') : 'Procurando...';
+    aplicarItens(achados, false);
+  }
+
+  function agendarBusca() {
+    clearTimeout(timerBusca);
+    timerBusca = setTimeout(executarBusca, ESPERA_BUSCA_MS);
+  }
+
+  function abrirBusca(focar) {
+    modoBusca = true;
+    idReq++;                       // respostas atrasadas de categorias não podem sobrescrever a pesquisa
+    caixaBusca.classList.remove('escondida');
+    atualizarStatusBusca(VLTV.indice.progresso(tipo).feitas, VLTV.indice.progresso(tipo).total || 1);
+    VLTV.indice.ouvir(tipo, function (feitas, total) {
+      atualizarStatusBusca(feitas, total);
+      if (foco === 'busca') { agendarBusca(); }     // chegou mais catálogo: atualiza os resultados enquanto digita
+    });
+    VLTV.indice.preparar(tipo);
+    executarBusca();
+    if (focar) { focarBusca(); }
+  }
+
+  function focarBusca() {
+    trocarFoco('busca');
+    try { elBusca.focus(); } catch (e) { /* ignora */ }
+  }
+
   function irParaGrade() {
+    var c = categorias[catIdx];
+    if (c && c.especial === 'busca') {
+      if (modoBusca && catIdx === catAplicada) { focarBusca(); } else { aplicarCategoria(catIdx, true); }
+      return;
+    }
     if (catIdx === catAplicada && itens.length > 0) {
       trocarFoco('grade');     // já é a categoria da grade: só entra nela
     } else {
@@ -372,7 +475,11 @@
     }
     if (k === TECLA.DIR) {
       // Direita só entra na grade que já está aberta: não troca de categoria.
-      if (catAplicada >= 0 && itens.length > 0) { entrarNaGradeAberta(); }
+      if (modoBusca) {
+        catIdx = catAplicada;
+        marcarCategoria();
+        if (itens.length > 0) { trocarFoco('grade'); } else { focarBusca(); }
+      } else if (catAplicada >= 0 && itens.length > 0) { entrarNaGradeAberta(); }
       return true;
     }
     return false;
@@ -383,22 +490,51 @@
       if (itemIdx % COLUNAS === 0 || itens.length === 0) { voltarParaCategorias(); } else { moverItem(-1); }
     }
     else if (k === TECLA.DIR) { moverItem(1); }
-    else if (k === TECLA.CIMA) { moverItem(-COLUNAS); }
+    else if (k === TECLA.CIMA) {
+      if (modoBusca && itemIdx < COLUNAS) { focarBusca(); } else { moverItem(-COLUNAS); }
+    }
     else if (k === TECLA.BAIXO) { moverItem(COLUNAS); }
     else if (k === TECLA.ENTER) {
-      if (itens.length === 0) { carregarItens(catAplicada, true); } else { escolher(); }
+      if (itens.length === 0) { if (!modoBusca) { carregarItens(catAplicada, true); } } else { escolher(); }
     }
     else { return false; }
     return true;
   }
 
+  // Na caixa de pesquisa: OK abre o teclado da TV (deixa a TV cuidar), as letras pesquisam sozinhas.
+  function teclaBusca(k) {
+    if (k === TECLA.BAIXO) {
+      if (itens.length > 0) { trocarFoco('grade'); }
+      return true;
+    }
+    if (k === TECLA.ESQ) { voltarParaCategorias(); return true; }
+    if (k === TECLA.CIMA) { return true; }
+    return false;     // OK e as demais teclas seguem para o teclado da TV
+  }
+
   // Devolve true se a tecla foi usada por esta tela.
   function tecla(k) {
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (foco === 'grade') { voltarParaCategorias(); } else { sair(); }
+      if (foco === 'grade' || foco === 'busca') { voltarParaCategorias(); } else { sair(); }
       return true;
     }
-    return foco === 'cat' ? teclaCategorias(k) : teclaGrade(k);
+    if (foco === 'cat') { return teclaCategorias(k); }
+    if (foco === 'busca') { return teclaBusca(k); }
+    return teclaGrade(k);
+  }
+
+  elBusca.addEventListener('input', agendarBusca);
+
+  // Ao voltar dos detalhes: se a grade é a de Favoritos, atualiza (o título pode ter saído da lista).
+  function atualizarFavoritos() {
+    var c = categorias[catAplicada];
+    if (!c || c.especial !== 'fav') { return; }
+    var antigo = itemIdx;
+    aplicarItens(VLTV.dados.favoritosDe(tipo), false);
+    if (itens.length > 0) {
+      itemIdx = Math.min(antigo, itens.length - 1);
+      marcarItem();
+    }
   }
 
   // ── Entrada e saída da tela ───────────────────────────────────────
@@ -408,7 +544,7 @@
   function atualizarCategorias(nova) {
     var idDestaque = categorias[catIdx] ? categorias[catIdx].category_id : null;
     var idAberta = categorias[catAplicada] ? categorias[catAplicada].category_id : null;
-    categorias = nova;
+    categorias = comEspeciais(nova);
     renderCategorias();
     var novoDestaque = 0;
     var novaAberta = 0;
@@ -431,6 +567,9 @@
     catIdx = 0;
     catAplicada = -1;
     falhaCategorias = false;
+    fecharBusca();
+    elBusca.value = '';
+    msgVazio = 'Nenhum título nesta categoria.';
     idReq++;
     var abertura = ++idAbertura;
     clearTimeout(timerAquecer);
@@ -445,15 +584,13 @@
     VLTV.sync.obter(tipo + '|cats', cfg.categorias)
       .then(function (r) {
         if (abertura !== idAbertura) { return; }
-        categorias = r.dados;
-        if (categorias.length === 0) {
-          esvaziar(grade);
-          mensagem(listaCats, 'Nenhuma categoria encontrada.');
-          return;
-        }
+        categorias = comEspeciais(r.dados);
         renderCategorias();
+        // Abre em Favoritos se já tem algum; senão na primeira categoria de verdade.
+        var inicio = VLTV.dados.favoritosDe(tipo).length > 0 ? 1 : (categorias.length > 2 ? 2 : 1);
+        catIdx = inicio;
         marcarCategoria();
-        aplicarCategoria(0, false);
+        aplicarCategoria(inicio, false);
         // Categorias novas no painel: só entram se o usuário ainda não saiu do lugar.
         r.atualizacao.then(function (nova) {
           if (!nova || abertura !== idAbertura || foco !== 'cat' || catIdx !== catAplicada) { return; }
@@ -469,8 +606,9 @@
   }
 
   function sair() {
+    fecharBusca();
     if (acoes) { acoes.sair(); }
   }
 
-  VLTV.catalogo = { abrir: abrir, tecla: tecla };
+  VLTV.catalogo = { abrir: abrir, tecla: tecla, atualizarFavoritos: atualizarFavoritos };
 })();

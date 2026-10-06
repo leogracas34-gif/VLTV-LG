@@ -92,7 +92,7 @@
             <span id="bn-meta" class="bn-meta"></span>
             <span class="bn-botao">
               <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
-              <span>ASSISTIR</span>
+              <span id="bn-botao-txt">ASSISTIR</span>
             </span>
           </span>
           <span class="bn-poster"><img id="bn-poster" alt=""></span>
@@ -177,6 +177,11 @@
 
         <div id="cat-painel-grade" class="painel painel-grade">
           <h2 id="cat-grade-titulo"></h2>
+          <div id="cat-busca-caixa" class="busca-caixa escondida">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
+            <input id="cat-busca" type="text" placeholder="Digite o nome e aperte OK para abrir o teclado" autocomplete="off" autocapitalize="off" spellcheck="false">
+          </div>
+          <div id="cat-busca-status" class="busca-status escondida"></div>
           <ul id="cat-grade" class="grade"></ul>
         </div>
 
@@ -299,6 +304,7 @@
   <script src="js/creditos.js"></script>
   <script src="js/titulo.js"></script>
   <script src="js/tmdb.js"></script>
+  <script src="js/indice.js"></script>
   <script src="js/live.js"></script>
   <script src="js/catalogo.js"></script>
   <script src="js/detalhes.js"></script>

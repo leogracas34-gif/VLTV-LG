@@ -749,7 +749,7 @@
   }
 
   function alternarFav() {
-    VLTV.dados.alternarFavorito({ tipo: item.tipo, id: item.id, nome: item.nome, capa: item.capa });
+    VLTV.dados.alternarFavorito({ tipo: item.tipo, id: item.id, nome: item.nome, capa: item.capa, raw: item.raw });
     atualizarFav();
   }
 

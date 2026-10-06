@@ -11,8 +11,9 @@
   var TROCA_MS = 8000;
   var TIMEOUT_VPS_MS = 4000;
   var CATEGORIAS_FALLBACK = 3;
-  var ESPERA_TMDB_MS = 2500;
-  var CHAVE_CACHE = 'vltv_banner_cache';
+  var ESPERA_TMDB_MS = 4000;
+  var ESPERA_PRE_RESOLVER_MS = 6000;   // depois que o banner aparece, confere em segundo plano os títulos no seu painel
+  var CHAVE_CACHE = 'vltv_banner_cache2';   // 2: o guardado antigo tinha ids da VPS (abria outra série)
 
   function $(id) { return document.getElementById(id); }
 
@@ -24,6 +25,7 @@
   var elPoster = $('bn-poster');
   var elPontos = $('bn-pontos');
   var elConteudo = $('bn-conteudo');
+  var elBotaoTxt = $('bn-botao-txt');
 
   var slides = [];          // { tipo: 'filmes'|'series', raw, nome, capa, etiqueta, nota, ano }
   var atual = 0;
@@ -33,6 +35,8 @@
   var idCarga = 0;
   var abrirItem = null;     // função: (tipo, raw, lista) -> abre os detalhes
   var onMudou = null;       // avisa o app quando o banner passa a existir ou deixa de existir
+  var abrindo = false;      // procurando o título no painel depois do OK
+  var timerAviso = null;
 
   function dnsAtual() {
     var s = VLTV.sessao.ler();
@@ -65,6 +69,9 @@
       capa: capa,
       logo: null,
       fundo: null,
+      daVps: false,         // true = veio da VPS: o código (id) pode não ser o do seu painel
+      resolvido: false,     // true = já trocado pelo item do seu painel (com o id certo)
+      indisponivel: false,  // true = o seu painel não tem este título
       nota: isFinite(nota) && nota > 0 ? nota.toFixed(1) : '',
       ano: busca.ano || ''
     };
@@ -100,7 +107,7 @@
           saida.push(slideDe('series', series[topS[i].series_id], 'TOP 10 SÉRIES  •  #' + topS[i].rank));
         }
       }
-      return saida.filter(function (s) { return s !== null; });
+      return saida.filter(function (s) { return s !== null; }).map(function (s) { s.daVps = true; return s; });
     });
   }
 
@@ -157,7 +164,9 @@
 
   // Preenche slide.logo e slide.fundo (só com imagens que carregaram de verdade). Nunca rejeita.
   function preparar(s) {
-    var id = s.tipo === 'series' ? s.raw.series_id : s.raw.stream_id;
+    var idBruto = s.tipo === 'series' ? s.raw.series_id : s.raw.stream_id;
+    // Id da VPS não é o do painel: usa uma chave própria para não misturar logos de títulos diferentes.
+    var id = (s.daVps && !s.resolvido) ? 'vps' + idBruto : idBruto;
     var logo = VLTV.tmdb.logo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.logo = u; });
     var fundo = VLTV.tmdb.fundo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.fundo = u; });
     return Promise.all([logo, fundo]).catch(function () { return null; });
@@ -166,7 +175,8 @@
   // ── Tela ──────────────────────────────────────────────────────────
   function desenharPontos() {
     while (elPontos.firstChild) { elPontos.removeChild(elPontos.firstChild); }
-    slides.forEach(function (_, i) {
+    slides.forEach(function (sl, i) {
+      if (sl.indisponivel) { return; }
       var p = document.createElement('span');
       p.className = 'bn-ponto' + (i === atual ? ' sel' : '');
       elPontos.appendChild(p);
@@ -208,9 +218,14 @@
     desenharPontos();
   }
 
-  function mostrarSlide(i) {
+  function mostrarSlide(i, passo) {
     if (slides.length === 0) { return; }
     atual = (i + slides.length) % slides.length;
+    // Pula os títulos que o seu painel não tem (se todos faltarem, mostra mesmo assim).
+    var passoReal = passo || 1;
+    for (var t = 0; t < slides.length && slides[atual].indisponivel; t++) {
+      atual = (atual + passoReal + slides.length) % slides.length;
+    }
     var s = slides[atual];
 
     elConteudo.classList.add('troca');
@@ -226,23 +241,88 @@
     timer = null;
     if (slides.length > 1) {
       timer = setInterval(function () {
-        if (pendente) { slides = pendente; pendente = null; atual = -1; }
-        mostrarSlide(atual + 1);
+        if (pendente) {
+          slides = pendente;
+          pendente = null;
+          atual = -1;
+          var meuId = idCarga;
+          setTimeout(function () { if (meuId === idCarga) { preResolver(meuId); } }, 1500);
+        }
+        mostrarSlide(atual + 1, 1);
       }, TROCA_MS);
     }
   }
 
   function mover(passo) {
     if (slides.length < 2) { return; }
-    mostrarSlide(atual + passo);
+    mostrarSlide(atual + passo, passo);
     reiniciarTimer();
   }
 
+  // ── Achar o título no SEU painel ──────────────────────────────────
+  // Os destaques vêm da VPS e o id deles pode ser de outro painel: abrir direto mostrava OUTRA série.
+  // Aqui o título é procurado pelo nome no painel da conta e o item do painel (com o id certo) é que abre.
+  // Resolve com { ok: true|false, lista } (ok false = este painel não tem o título).
+  function resolverSlide(s) {
+    if (!s.daVps || s.resolvido || VLTV.m3u.ativo()) { return Promise.resolve({ ok: true, lista: null }); }
+    return VLTV.indice.achar(s.tipo, s.raw.name).then(function (r) {
+      if (!r) { s.indisponivel = true; return { ok: false, lista: null }; }
+      s.raw = r.raw;
+      s.resolvido = true;
+      s.indisponivel = false;
+      return { ok: true, lista: r.lista };
+    }, function () {
+      return { ok: true, lista: null };     // não deu para conferir (rede): abre como veio
+    });
+  }
+
+  function avisar(texto) {
+    clearTimeout(timerAviso);
+    var original = meta0;
+    elMeta.textContent = texto;
+    timerAviso = setTimeout(function () { elMeta.textContent = original; }, 3000);
+  }
+  var meta0 = '';
+
   function abrirAtual() {
     var s = slides[atual];
-    if (!s || !abrirItem) { return; }
-    var mesmos = slides.filter(function (x) { return x.tipo === s.tipo; }).map(function (x) { return x.raw; });
-    abrirItem(s.tipo, s.raw, mesmos);
+    if (!s || !abrirItem || abrindo) { return; }
+    abrindo = true;
+    var textoBotao = elBotaoTxt.textContent;
+    elBotaoTxt.textContent = 'ABRINDO...';
+    var meu = idCarga;
+
+    resolverSlide(s).then(function (r) {
+      abrindo = false;
+      elBotaoTxt.textContent = textoBotao;
+      if (meu !== idCarga || slides[atual] !== s) { return; }
+      if (!r.ok) {
+        meta0 = elMeta.textContent;
+        avisar('Este título não está disponível no seu servidor');
+        gravarCache(chaveCarregada, slides);
+        desenharPontos();
+        return;
+      }
+      if (s.resolvido) { gravarCache(chaveCarregada, slides); }
+      var mesmos = slides.filter(function (x) {
+        return x.tipo === s.tipo && !x.indisponivel && (x.resolvido || !x.daVps);
+      }).map(function (x) { return x.raw; });
+      abrirItem(s.tipo, s.raw, r.lista || mesmos);
+    });
+  }
+
+  // Em segundo plano, confere um por um os destaques no painel: quando o usuário apertar OK, já está pronto.
+  function preResolver(meu) {
+    var fila = slides.filter(function (x) { return x.daVps && !x.resolvido && !x.indisponivel; });
+    if (fila.length === 0 || VLTV.m3u.ativo()) { return; }
+    function proximo() {
+      if (meu !== idCarga) { return; }
+      var s = fila.shift();
+      if (!s) { gravarCache(chaveCarregada, slides); return; }
+      if (s.resolvido || s.indisponivel) { proximo(); return; }
+      resolverSlide(s).then(function () { setTimeout(proximo, 300); });
+    }
+    proximo();
   }
 
   // ── Guardado na TV ────────────────────────────────────────────────
@@ -259,6 +339,16 @@
     try { localStorage.setItem(CHAVE_CACHE, JSON.stringify({ chave: chave, slides: lista })); } catch (e) { /* ignora */ }
   }
 
+  // A lista nova aproveita o que já foi conferido no painel (para não procurar tudo de novo).
+  function herdar(nova, antigos) {
+    var mapa = {};
+    antigos.forEach(function (a) { if (a.resolvido) { mapa[a.tipo + '|' + a.nome] = a; } });
+    nova.forEach(function (n) {
+      var a = mapa[n.tipo + '|' + n.nome];
+      if (a && n.daVps) { n.raw = a.raw; n.resolvido = true; }
+    });
+  }
+
   // Mostra a lista agora (sem esperar nada) e liga a troca automática.
   function mostrar(lista) {
     slides = lista;
@@ -268,6 +358,8 @@
     desenhar(slides[0]);
     reiniciarTimer();
     if (onMudou) { onMudou(true); }
+    var meu = idCarga;
+    setTimeout(function () { if (meu === idCarga) { preResolver(meu); } }, ESPERA_PRE_RESOLVER_MS);
   }
 
   // ── Interface pública ─────────────────────────────────────────────
@@ -296,6 +388,7 @@
     var inicio = VLTV.m3u.ativo() ? porPainel() : porVps().then(function (l) { return l.length >= 3 ? l : porPainel(); });
     inicio.catch(function () { return []; }).then(function (lista) {
       if (meu !== idCarga || lista.length === 0) { return; }
+      herdar(lista, guardado);
       // Logo e fundo do TMDB de cada destaque chegam ANTES de entrarem na tela, para não trocar de
       // imagem na frente do usuário. Se demorar, entra sem eles.
       return Promise.race([

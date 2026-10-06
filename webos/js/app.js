@@ -149,7 +149,7 @@
   function abrirDetalhes(tipo, item, lista) {
     mostrarTela('detalhes');
     VLTV.detalhes.abrir(tipo, item, lista, {
-      sair: function () { mostrarTela('catalogo'); },
+      sair: function () { mostrarTela('catalogo'); VLTV.catalogo.atualizarFavoritos(); },
       reproduzir: function (itens, indice, inicioSeg) { tocar(itens, indice, 'detalhes', inicioSeg); }
     });
   }

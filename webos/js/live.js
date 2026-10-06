@@ -1,4 +1,6 @@
 // VLTV Play - webOS | TV ao vivo: categorias, canais, prévia e tela cheia.
+// A primeira categoria é "Favoritos". Cada canal tem uma estrela: seta para a direita chega nela, OK marca/desmarca
+// (a tecla amarela do controle faz o mesmo direto).
 (function () {
   'use strict';
 
@@ -7,11 +9,14 @@
   var ESPERA_REPRODUZIR_MS = 12000;
   var TAMANHO_LOTE = 150;
   var TEMPO_INFO_MS = 4000;
+  var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
+  var CAT_FAV = { category_id: '__fav__', category_name: 'Favoritos', especial: 'fav' };
+  var MSG_SEM_FAV = 'Nenhum canal favorito ainda. Em qualquer canal, aperte → e depois OK na estrela (ou a tecla amarela).';
 
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
     ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40,
-    PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428
+    PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428, AMARELO: 405
   };
 
   function $(id) { return document.getElementById(id); }
@@ -46,6 +51,7 @@
   var cacheCanais = {};
 
   var foco = 'cat';              // 'cat' ou 'canais'
+  var focoEstrela = false;       // cursor na estrela do canal (e não no nome)
   var cheio = false;
   var falhaCategorias = false;
   var focarAoCarregar = false;
@@ -85,7 +91,13 @@
 
   function trocarFoco(novo) {
     foco = novo;
+    if (foco !== 'canais') { definirEstrela(false); }
     atualizarFoco();
+  }
+
+  function definirEstrela(ligada) {
+    focoEstrela = ligada;
+    if (liSelCanal) { liSelCanal.classList.toggle('foco-estrela', ligada); }
   }
 
   function mostrarOverlay(texto, tipo) {
@@ -102,6 +114,13 @@
     liSelCat = null;
     categorias.forEach(function (c) {
       var li = document.createElement('li');
+      if (c.especial) {
+        li.className = 'especial ' + c.especial;
+        var icone = document.createElement('span');
+        icone.className = 'icone';
+        icone.innerHTML = ICONE_ESTRELA;
+        li.appendChild(icone);
+      }
       var nome = document.createElement('span');
       nome.className = 'nome';
       nome.textContent = c.category_name || '';
@@ -139,6 +158,10 @@
     nome.className = 'nome';
     nome.textContent = canal.name || '';
     li.appendChild(nome);
+    var estrela = document.createElement('span');
+    estrela.className = 'estrela' + (VLTV.dados.ehFavorito('canais', canal.stream_id) ? ' ativa' : '');
+    estrela.innerHTML = ICONE_ESTRELA;
+    li.appendChild(estrela);
     if (tocando && tocando.stream_id === canal.stream_id) {
       li.classList.add('tocando');
       liTocando = li;
@@ -159,10 +182,11 @@
 
   function marcarCanal() {
     while (renderizados < canais.length && renderizados <= canalIdx + 15) { renderMais(); }
-    if (liSelCanal) { liSelCanal.classList.remove('sel'); }
+    if (liSelCanal) { liSelCanal.classList.remove('sel'); liSelCanal.classList.remove('foco-estrela'); }
     liSelCanal = itensCanais[canalIdx] || null;
     if (liSelCanal) {
       liSelCanal.classList.add('sel');
+      if (focoEstrela && foco === 'canais') { liSelCanal.classList.add('foco-estrela'); }
       VLTV.rolar(liSelCanal);
     }
   }
@@ -203,6 +227,20 @@
     catCarregada = idx;
     marcarCarregada();
     tituloCanais.textContent = cat.category_name || 'Canais';
+    definirEstrela(false);
+
+    if (cat.especial === 'fav') {
+      var favs = VLTV.dados.favoritosDe('canais');
+      if (favs.length === 0) {
+        canais = [];
+        itensCanais = [];
+        liSelCanal = null;
+        mensagemLista(listaCanais, MSG_SEM_FAV);
+        return;
+      }
+      aplicarCanais(favs, focar);
+      return;
+    }
 
     if (cacheCanais[cat.category_id]) {
       aplicarCanais(cacheCanais[cat.category_id], focar);
@@ -239,6 +277,57 @@
   function voltarParaCategorias() {
     if (catCarregada >= 0) { catIdx = catCarregada; marcarCategoria(); }
     trocarFoco('cat');
+  }
+
+  // ── Favoritos (estrela) ───────────────────────────────────────────
+  function indiceDoCanal(lista, id) {
+    for (var i = 0; i < lista.length; i++) {
+      if (String(lista[i].stream_id) === String(id)) { return i; }
+    }
+    return -1;
+  }
+
+  // Refaz a lista de Favoritos na tela (um canal saiu dela), mantendo o cursor por perto.
+  function refazerFavoritos(idxManter) {
+    var favs = VLTV.dados.favoritosDe('canais');
+    var eraLista = (listaTocando === canais);
+    canais = favs;
+    renderizados = 0;
+    itensCanais = [];
+    liSelCanal = null;
+    liTocando = null;
+    esvaziar(listaCanais);
+    if (favs.length === 0) {
+      mensagemLista(listaCanais, MSG_SEM_FAV);
+      definirEstrela(false);
+      if (foco === 'canais') { trocarFoco('cat'); }
+      return;
+    }
+    if (eraLista && tocando) {
+      var p = indiceDoCanal(favs, tocando.stream_id);
+      if (p !== -1) { listaTocando = favs; idxTocando = p; }
+    }
+    canalIdx = Math.max(0, Math.min(idxManter, favs.length - 1));
+    renderMais();
+    marcarCanal();
+    marcarTocando();
+  }
+
+  function alternarFavoritoCanal() {
+    var canal = canais[canalIdx];
+    if (!canal) { return; }
+    var agora = VLTV.dados.alternarFavorito({
+      tipo: 'canais', id: canal.stream_id, nome: canal.name, capa: canal.stream_icon, raw: canal
+    });
+    var cat = categorias[catCarregada];
+    if (cat && cat.especial === 'fav') {
+      if (!agora) { refazerFavoritos(canalIdx); }
+      return;
+    }
+    if (liSelCanal) {
+      var est = liSelCanal.querySelector('.estrela');
+      if (est) { est.classList.toggle('ativa', agora); }
+    }
   }
 
   // ── Guia de programação (EPG) ─────────────────────────────────────
@@ -436,6 +525,15 @@
   }
 
   function teclaCanais(k) {
+    if (k === TECLA.AMARELO) { alternarFavoritoCanal(); return true; }
+    if (focoEstrela) {
+      if (k === TECLA.ENTER) { alternarFavoritoCanal(); return true; }
+      if (k === TECLA.ESQ) { definirEstrela(false); return true; }
+      if (k === TECLA.DIR) { return true; }
+    } else if (k === TECLA.DIR) {
+      if (canais.length > 0) { definirEstrela(true); }
+      return true;
+    }
     if (k === TECLA.ESQ) { voltarParaCategorias(); }
     else if (k === TECLA.CIMA) { mover(-1); }
     else if (k === TECLA.BAIXO) { mover(1); }
@@ -455,7 +553,9 @@
     if (cheio) { return teclaCheio(k); }
 
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (foco === 'canais') { voltarParaCategorias(); } else { sair(); }
+      if (focoEstrela) { definirEstrela(false); }
+      else if (foco === 'canais') { voltarParaCategorias(); }
+      else { sair(); }
       return true;
     }
     return foco === 'cat' ? teclaCategorias(k) : teclaCanais(k);
@@ -477,16 +577,21 @@
     mensagemLista(listaCanais, '');
     tituloCanais.textContent = 'Canais';
 
+    definirEstrela(false);
     VLTV.api.categoriasAoVivo()
       .then(function (lista) {
-        categorias = lista;
         if (lista.length === 0) {
+          categorias = [];
           mensagemLista(listaCats, 'Nenhuma categoria encontrada.');
           return;
         }
+        categorias = [CAT_FAV].concat(lista);
         renderCategorias();
+        // Abre em Favoritos se já tem algum canal marcado; senão na primeira categoria de verdade.
+        var inicio = VLTV.dados.favoritosDe('canais').length > 0 ? 0 : 1;
+        catIdx = inicio;
         marcarCategoria();
-        carregarCanais(0, false);
+        carregarCanais(inicio, false);
       })
       .catch(function () {
         falhaCategorias = true;

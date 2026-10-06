@@ -12,7 +12,7 @@
   var MAX_SUG = 12;             // quantas sugestões mostrar
   var MARGEM_ABAS_PX = 110;     // onde as abas ficam na tela depois de rolar a página
   var RESUME_MIN_FILME_S = 30;  // só oferece "continuar" depois de 30 s assistidos
-  var RESUME_MIN_EP_S = 10;
+  var RESUME_MIN_EP_S = 30;
 
   function $(id) { return document.getElementById(id); }
 

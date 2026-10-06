@@ -392,7 +392,7 @@ input:focus {
 
 .celula {
   margin: 0 14px 12px 0;
-  width: 146px;
+  width: 180px;
   border: 0;
   background: none;
 }
@@ -402,8 +402,8 @@ input:focus {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 210px;
-  font-size: 56px;
+  height: 258px;
+  font-size: 64px;
   color: var(--suave);
   background: var(--painel-2);
   border: 4px solid transparent;
@@ -437,9 +437,9 @@ input:focus {
 @keyframes pulsar { from { opacity: 0.45; } to { opacity: 1; } }
 
 .celula-nome {
-  height: 56px;
+  height: 64px;
   padding: 8px 2px 0;
-  font-size: 20px;
+  font-size: 23px;
   line-height: 1.2;
   display: -webkit-box;
   -webkit-line-clamp: 2;

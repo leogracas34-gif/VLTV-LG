@@ -35,13 +35,6 @@
   var elEstado = $('player-estado');
   var elDuracao = $('player-duracao');
   var elAviso = $('player-aviso');
-  var btnVolta = $('pb-volta');
-  var btnPlay = $('pb-play');
-  var btnAvanca = $('pb-avanca');
-  var btnProx = $('pb-prox');
-  var iconePlay = $('pb-icone-play');
-  var iconePause = $('pb-icone-pause');
-  var rotuloPlay = $('pb-rotulo-play');
   var cartao = $('player-proximo');
   var elAvisoTemporada = $('pp-temporada');
   var elContagem = $('pp-contagem');
@@ -68,10 +61,6 @@
   var puloAlvo = null;      // segundos; null = nenhum pulo pendente
   var puloUltimoMs = 0;
   var puloSequencia = 0;
-
-  // Foco dentro dos controles: 'barra' (esquerda/direita pulam) ou 'botoes'
-  var zona = 'barra';
-  var botaoIdx = 1;
 
   // Próximo episódio / créditos
   var contagemAtiva = false;
@@ -117,29 +106,6 @@
   function cartaoVisivel() { return !cartao.classList.contains('escondida'); }
 
   // ── Barra e botões ────────────────────────────────────────────────
-  function botoesAtivos() {
-    var lista = [btnVolta, btnPlay, btnAvanca];
-    if (temProximo()) { lista.push(btnProx); }
-    return lista;
-  }
-
-  function marcarBotoes() {
-    var lista = botoesAtivos();
-    [btnVolta, btnPlay, btnAvanca, btnProx].forEach(function (b) { b.classList.remove('foco'); });
-    if (zona === 'botoes') {
-      if (botaoIdx >= lista.length) { botaoIdx = lista.length - 1; }
-      lista[botaoIdx].classList.add('foco');
-    }
-    controles.classList.toggle('na-barra', zona === 'barra');
-  }
-
-  function atualizarBotaoPlay() {
-    var pausado = video.paused;
-    iconePlay.style.display = pausado ? '' : 'none';
-    iconePause.style.display = pausado ? 'none' : '';
-    rotuloPlay.textContent = pausado ? 'Reproduzir' : 'Pausar';
-  }
-
   function atualizarBarra() {
     var d = video.duration;
     var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
@@ -151,7 +117,6 @@
     elTempo.textContent = formatar(t);
     elDuracao.textContent = valida ? formatar(d) : '';
     elEstado.textContent = puloAlvo !== null ? 'Ir para ' + formatar(t) : (video.paused ? 'Pausado' : '');
-    atualizarBotaoPlay();
   }
 
   function agendarEsconder() {
@@ -160,8 +125,6 @@
     if (!video.paused) {
       timerControles = setTimeout(function () {
         controles.classList.add('escondida');
-        zona = 'barra';
-        marcarBotoes();
         ajustarCartao();
       }, TEMPO_CONTROLES_MS);
     }
@@ -169,7 +132,6 @@
 
   function mostrarControles() {
     atualizarBarra();
-    marcarBotoes();
     controles.classList.remove('escondida');
     ajustarCartao();
     agendarEsconder();
@@ -439,8 +401,6 @@
     timerPulo = null;
     puloAlvo = null;
     puloSequencia = 0;
-    zona = 'barra';
-    botaoIdx = 1;
     proximoLancado = false;
     esconderCartao();
     pararTimersProximo();
@@ -451,7 +411,6 @@
     elProgresso.style.width = '0%';
     elTempo.textContent = '0:00';
     elDuracao.textContent = '';
-    btnProx.style.display = temProximo() ? '' : 'none';
     mostrarControles();
     tentar();
   }
@@ -537,14 +496,6 @@
     mostrarControles();
   }
 
-  function ativarBotao() {
-    var b = botoesAtivos()[botaoIdx];
-    if (b === btnVolta) { pular(-10, true); }
-    else if (b === btnAvanca) { pular(10, true); }
-    else if (b === btnPlay) { alternarPausa(); }
-    else if (b === btnProx) { abrirProximo(true); }
-  }
-
   function tecla(k) {
     if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); return true; }
 
@@ -554,17 +505,7 @@
     if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S, true); return true; }
     if (k === TECLA.AVANCA) { pular(PULO_LONGO_S, true); return true; }
 
-    if (zona === 'botoes' && controlesVisiveis()) {
-      var qtd = botoesAtivos().length;
-      if (k === TECLA.ESQ) { botaoIdx = Math.max(0, botaoIdx - 1); marcarBotoes(); agendarEsconder(); }
-      else if (k === TECLA.DIR) { botaoIdx = Math.min(qtd - 1, botaoIdx + 1); marcarBotoes(); agendarEsconder(); }
-      else if (k === TECLA.CIMA) { zona = 'barra'; mostrarControles(); }
-      else if (k === TECLA.BAIXO) { mostrarControles(); }
-      else if (k === TECLA.ENTER) { ativarBotao(); }
-      return true;
-    }
-
-    // Foco na barra: esquerda/direita pulam, OK pausa, para baixo escolhe os botões.
+    // Esquerda/direita pulam, OK pausa/continua (ou abre o próximo episódio se o cartão estiver na tela).
     if (k === TECLA.ESQ) { pular(-10, false); }
     else if (k === TECLA.DIR) { pular(10, false); }
     else if (k === TECLA.ENTER) {
@@ -572,11 +513,7 @@
       if (cartaoVisivel()) { abrirProximo(true); }
       else { alternarPausa(); }
     }
-    else if (k === TECLA.BAIXO) {
-      if (controlesVisiveis()) { zona = 'botoes'; botaoIdx = 1; }
-      mostrarControles();
-    }
-    else if (k === TECLA.CIMA) { mostrarControles(); }
+    else if (k === TECLA.BAIXO || k === TECLA.CIMA) { mostrarControles(); }
     return true;
   }
 

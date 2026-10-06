@@ -283,9 +283,31 @@
     <section id="tela-player" class="tela escondida">
       <video id="player-video" autoplay playsinline></video>
       <div id="player-overlay" class="overlay escondida"></div>
-      <div id="player-controles" class="controles escondida">
+      <div id="player-aviso" class="player-aviso escondida"></div>
+
+      <!-- Próximo episódio (estilo Netflix): aparece perto do fim, com contagem regressiva -->
+      <div id="player-proximo" class="proximo escondida">
+        <div id="pp-temporada" class="pp-temporada escondida"></div>
+        <div id="pp-contagem" class="pp-contagem"></div>
+        <div id="pp-botao" class="pp-botao">
+          <div id="pp-fill" class="pp-fill"></div>
+          <span class="pp-icone">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M6 4l11 8-11 8z"/><rect x="18" y="4" width="2.6" height="16" rx="1"/></svg>
+          </span>
+          <span class="pp-textos">
+            <span class="pp-rotulo">Próximo episódio</span>
+            <span id="pp-titulo" class="pp-titulo"></span>
+          </span>
+        </div>
+        <div class="pp-dica">Aperte OK para assistir agora</div>
+      </div>
+
+      <div id="player-controles" class="controles na-barra escondida">
         <div id="player-titulo" class="ctrl-titulo"></div>
-        <div class="barra"><div id="player-progresso" class="barra-cheia"></div></div>
+        <div class="barra-wrap">
+          <div class="barra"><div id="player-progresso" class="barra-cheia"></div></div>
+          <div id="player-previa" class="barra-previa escondida"></div>
+        </div>
         <div class="tempos">
           <span id="player-tempo">0:00</span>
           <span id="player-estado"></span>

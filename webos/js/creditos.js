@@ -42,8 +42,23 @@
     try { window.localStorage.setItem(chaveLocal(serie), String(seg)); } catch (e) { /* ignora */ }
   }
 
+  // A VPS espera o id da série como número (no Android é Int); o painel às vezes manda texto.
+  function idNumero(serie) {
+    var n = parseInt(serie, 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // O Android guarda o servidor como "http://host/" (com a barra no final) e manda assim para a VPS.
+  // A TV guarda sem a barra; igualar aqui para as duas usarem a mesma marcação da série.
+  function dominio(dns) {
+    var d = String(dns || '').trim();
+    return d ? d.replace(/\/+$/, '') + '/' : '';
+  }
+
   // Resolve com o número de segundos (ou null). Nunca rejeita.
   function buscar(dns, serie) {
+    dns = dominio(dns);
+    serie = idNumero(serie);
     var base = VLTV.config.VPS_URL;
     if (!base || !dns || !serie) { return Promise.resolve(null); }
     var url = base + '/credits?domain=' + encodeURIComponent(dns) + '&series=' + encodeURIComponent(serie);
@@ -55,6 +70,8 @@
 
   // Envia a marcação para a VPS. Falha em silêncio (a cópia local já foi gravada).
   function enviar(dns, serie, seg) {
+    dns = dominio(dns);
+    serie = idNumero(serie);
     var base = VLTV.config.VPS_URL;
     if (!base || !dns || !serie || !valido(seg)) { return; }
     try {

@@ -415,6 +415,25 @@ input:focus {
   object-fit: cover;
 }
 
+/* Na grade do catálogo a capa aparece suavemente quando chega */
+.grade .capa img {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.grade .capa img.ok { opacity: 1; }
+
+/* Esqueleto: blocos que pulsam enquanto a lista chega (no lugar do texto "Carregando...") */
+.celula.esqueleto .capa,
+.celula.esqueleto .celula-nome {
+  background: var(--painel-2);
+  border-radius: 12px;
+  -webkit-animation: pulsar 1.2s ease-in-out infinite alternate;
+  animation: pulsar 1.2s ease-in-out infinite alternate;
+}
+.celula.esqueleto .celula-nome { height: 22px; margin-top: 12px; border-radius: 8px; }
+@-webkit-keyframes pulsar { from { opacity: 0.45; } to { opacity: 1; } }
+@keyframes pulsar { from { opacity: 0.45; } to { opacity: 1; } }
+
 .celula-nome {
   height: 56px;
   padding: 8px 2px 0;

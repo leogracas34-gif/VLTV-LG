@@ -1,10 +1,16 @@
 // VLTV Play - webOS | Catálogo de Filmes e Séries: categorias à esquerda, capas em grade à direita.
 // Navegar pelas categorias só move a seleção; a grade só muda quando o usuário aperta OK.
+// Categorias e títulos ficam guardados na TV (sync.js): da 2ª abertura em diante a tela já abre cheia
+// e o painel é conferido por trás. As capas carregam por prioridade: primeiro as que aparecem na tela.
 (function () {
   'use strict';
 
   var COLUNAS = 8;
   var TAMANHO_LOTE = 48;
+  var CAPAS_SIMULTANEAS = 6;       // capas baixando ao mesmo tempo (mais que isso engarrafa a rede da TV)
+  var ESPERA_CAPA_MS = 8000;       // capa que não chega em 8 s libera a vaga para a próxima
+  var ESPERA_AQUECER_MS = 700;     // parado numa categoria por esse tempo: já prepara ela e as vizinhas
+  var ESQUELETOS = 16;
 
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
@@ -51,7 +57,11 @@
   var celulas = [];
   var renderizados = 0;
   var celulaSel = null;
-  var cache = {};
+
+  var idAbertura = 0;              // cada abertura da tela tem a sua; respostas atrasadas são ignoradas
+  var timerAquecer = null;
+  var filaCapas = [];              // capas esperando a vez: { img, url, indice }
+  var capasAtivas = 0;
 
   var foco = 'cat';
   var falhaCategorias = false;
@@ -102,6 +112,7 @@
       liSelCat.classList.add('sel');
       VLTV.rolar(liSelCat);
     }
+    agendarAquecer();
   }
 
   // Sinaliza qual categoria está aberta na grade (fica marcada enquanto se navega pelas outras).
@@ -111,8 +122,69 @@
     if (liAplicada) { liAplicada.classList.add('aplicada'); }
   }
 
+  // ── Fila de capas (as da tela primeiro) ───────────────────────────
+  function linhaAtual() { return Math.floor(itemIdx / COLUNAS); }
+
+  // Quanto menor, mais urgente: a linha da seleção e as de baixo vêm antes das de cima.
+  function distancia(indice) {
+    var d = Math.floor(indice / COLUNAS) - linhaAtual();
+    return d >= 0 ? d : (-d) * 3;
+  }
+
+  function bombearCapas() {
+    while (capasAtivas < CAPAS_SIMULTANEAS && filaCapas.length > 0) {
+      var melhor = 0;
+      for (var i = 1; i < filaCapas.length; i++) {
+        if (distancia(filaCapas[i].indice) < distancia(filaCapas[melhor].indice)) { melhor = i; }
+      }
+      iniciarCapa(filaCapas.splice(melhor, 1)[0]);
+    }
+  }
+
+  function iniciarCapa(pedido) {
+    var img = pedido.img;
+    var liberada = false;
+    function liberar() {
+      if (liberada) { return; }
+      liberada = true;
+      clearTimeout(limite);
+      capasAtivas--;
+      bombearCapas();
+    }
+    var limite = setTimeout(liberar, ESPERA_CAPA_MS);
+    capasAtivas++;
+    img.onload = function () { img.classList.add('ok'); liberar(); };
+    img.onerror = function () {
+      if (img.parentNode) {
+        var capa = img.parentNode;
+        capa.removeChild(img);
+        capa.textContent = pedido.letra;
+      }
+      liberar();
+    };
+    img.src = pedido.url;
+  }
+
   // ── Grade de capas ────────────────────────────────────────────────
-  function criarCelula(item) {
+  function mostrarEsqueleto() {
+    esvaziar(grade);
+    celulas = [];
+    celulaSel = null;
+    filaCapas = [];
+    for (var i = 0; i < ESQUELETOS; i++) {
+      var li = document.createElement('li');
+      li.className = 'celula esqueleto';
+      var capa = document.createElement('div');
+      capa.className = 'capa';
+      var nome = document.createElement('div');
+      nome.className = 'celula-nome';
+      li.appendChild(capa);
+      li.appendChild(nome);
+      grade.appendChild(li);
+    }
+  }
+
+  function criarCelula(item, indice) {
     var li = document.createElement('li');
     li.className = 'celula';
 
@@ -124,12 +196,8 @@
     if (url) {
       var img = document.createElement('img');
       img.alt = '';
-      img.onerror = function () {
-        if (img.parentNode) { img.parentNode.removeChild(img); }
-        capa.textContent = nomeItem.charAt(0).toUpperCase();
-      };
-      img.src = url;
       capa.appendChild(img);
+      filaCapas.push({ img: img, url: url, indice: indice, letra: nomeItem.charAt(0).toUpperCase() });
     } else {
       capa.textContent = nomeItem.charAt(0).toUpperCase();
     }
@@ -147,11 +215,12 @@
   function renderMais() {
     var fim = Math.min(itens.length, renderizados + TAMANHO_LOTE);
     for (var i = renderizados; i < fim; i++) {
-      var c = criarCelula(itens[i]);
+      var c = criarCelula(itens[i], i);
       celulas.push(c);
       grade.appendChild(c);
     }
     renderizados = fim;
+    bombearCapas();
   }
 
   function marcarItem() {
@@ -162,6 +231,7 @@
       celulaSel.classList.add('sel');
       VLTV.rolar(celulaSel);
     }
+    bombearCapas();
   }
 
   function aplicarItens(lista, focar) {
@@ -170,6 +240,7 @@
     renderizados = 0;
     celulas = [];
     celulaSel = null;
+    filaCapas = [];
     esvaziar(grade);
     if (lista.length === 0) {
       mensagem(grade, 'Nenhum título nesta categoria.');
@@ -180,30 +251,59 @@
     if (focar) { trocarFoco('grade'); }
   }
 
+  function chaveItens(cat) { return tipo + '|itens|' + cat.category_id; }
+
+  function buscarItens(cat) { return function () { return cfg.itens(cat.category_id); }; }
+
   function carregarItens(idx, focar) {
     var cat = categorias[idx];
     if (!cat) { return; }
     var id = ++idReq;
+    var abertura = idAbertura;
     tituloGrade.textContent = cat.category_name || cfg.titulo;
 
-    if (cache[cat.category_id]) {
-      aplicarItens(cache[cat.category_id], focar);
-      return;
-    }
-
     itens = [];
-    mensagem(grade, 'Carregando...');
-    cfg.itens(cat.category_id)
-      .then(function (lista) {
-        if (id !== idReq) { return; }
-        cache[cat.category_id] = lista;
-        aplicarItens(lista, focar);
+    var mostrouEsqueleto = false;
+    // Se a lista não estiver guardada, mostra o esqueleto enquanto o painel responde.
+    var espera = setTimeout(function () {
+      if (id === idReq) { mostrarEsqueleto(); mostrouEsqueleto = true; }
+    }, 120);
+
+    VLTV.sync.obter(chaveItens(cat), buscarItens(cat))
+      .then(function (r) {
+        clearTimeout(espera);
+        if (id !== idReq || abertura !== idAbertura) { return; }
+        aplicarItens(r.dados, focar);
+        // O painel foi conferido por trás: se mudou algo, atualiza (só se o usuário não estiver na grade).
+        r.atualizacao.then(function (novo) {
+          if (!novo || id !== idReq || abertura !== idAbertura || foco !== 'cat' || catAplicada !== idx) { return; }
+          aplicarItens(novo, false);
+        });
       })
       .catch(function () {
-        if (id !== idReq) { return; }
+        clearTimeout(espera);
+        if (id !== idReq || abertura !== idAbertura) { return; }
         itens = [];
         mensagem(grade, 'Não foi possível carregar. Pressione OK para tentar de novo.');
       });
+  }
+
+  // ── Preparar o que vem a seguir ───────────────────────────────────
+  // Parado numa categoria, a TV já baixa (e guarda) a dela e as vizinhas: o OK fica instantâneo.
+  function agendarAquecer() {
+    clearTimeout(timerAquecer);
+    if (categorias.length === 0) { return; }
+    var abertura = idAbertura;
+    timerAquecer = setTimeout(function () {
+      if (abertura !== idAbertura) { return; }
+      var ordem = [catIdx, catIdx + 1, catIdx - 1, catIdx + 2];
+      var pedidos = [];
+      ordem.forEach(function (i) {
+        var cat = categorias[i];
+        if (cat) { pedidos.push({ chave: chaveItens(cat), buscar: buscarItens(cat) }); }
+      });
+      VLTV.sync.aquecer(pedidos);
+    }, ESPERA_AQUECER_MS);
   }
 
   // Abre na grade a categoria destacada.
@@ -304,37 +404,66 @@
   // ── Entrada e saída da tela ───────────────────────────────────────
   // tipoNovo: 'filmes' ou 'series'.
   // acoesNovas: { sair, abrirDetalhes(tipo, item, listaDaCategoria) }
+  // Troca a lista de categorias por uma versão nova sem tirar o usuário do lugar.
+  function atualizarCategorias(nova) {
+    var idDestaque = categorias[catIdx] ? categorias[catIdx].category_id : null;
+    var idAberta = categorias[catAplicada] ? categorias[catAplicada].category_id : null;
+    categorias = nova;
+    renderCategorias();
+    var novoDestaque = 0;
+    var novaAberta = 0;
+    categorias.forEach(function (c, i) {
+      if (c.category_id === idDestaque) { novoDestaque = i; }
+      if (c.category_id === idAberta) { novaAberta = i; }
+    });
+    catIdx = novoDestaque;
+    catAplicada = novaAberta;
+    marcarCategoria();
+    marcarAplicada();
+  }
+
   function abrir(tipoNovo, acoesNovas) {
     tipo = tipoNovo;
     cfg = CONFIG[tipo];
     acoes = acoesNovas;
-    cache = {};
     categorias = [];
     itens = [];
     catIdx = 0;
     catAplicada = -1;
     falhaCategorias = false;
     idReq++;
+    var abertura = ++idAbertura;
+    clearTimeout(timerAquecer);
+    filaCapas = [];
 
     tituloCats.textContent = cfg.titulo;
     tituloGrade.textContent = '';
     trocarFoco('cat');
     mensagem(listaCats, 'Carregando categorias...');
-    esvaziar(grade);
+    mostrarEsqueleto();
 
-    cfg.categorias()
-      .then(function (lista) {
-        categorias = lista;
-        if (lista.length === 0) {
+    VLTV.sync.obter(tipo + '|cats', cfg.categorias)
+      .then(function (r) {
+        if (abertura !== idAbertura) { return; }
+        categorias = r.dados;
+        if (categorias.length === 0) {
+          esvaziar(grade);
           mensagem(listaCats, 'Nenhuma categoria encontrada.');
           return;
         }
         renderCategorias();
         marcarCategoria();
         aplicarCategoria(0, false);
+        // Categorias novas no painel: só entram se o usuário ainda não saiu do lugar.
+        r.atualizacao.then(function (nova) {
+          if (!nova || abertura !== idAbertura || foco !== 'cat' || catIdx !== catAplicada) { return; }
+          atualizarCategorias(nova);
+        });
       })
       .catch(function () {
+        if (abertura !== idAbertura) { return; }
         falhaCategorias = true;
+        esvaziar(grade);
         mensagem(listaCats, 'Não foi possível carregar. Pressione OK para tentar de novo.');
       });
   }

@@ -67,6 +67,10 @@ VLTV.config = {
   // Quanto esperar (ms) pelo fundo do TMDB antes de usar a capa desfocada. Decide UMA vez, sem trocar depois.
   TMDB_FUNDO_ESPERA_MS: 1800,
 
+  // Cache do catálogo na TV: dentro desse tempo (ms) a TV nem confere o painel de novo.
+  // Fora dele ela mostra o que está guardado e confere por trás.
+  CACHE_VALIDADE_MS: 600000,
+
   // Lista M3U: tamanho máximo aceito (a TV tem pouca memória).
   M3U_MAX_BYTES: 60000000,
 

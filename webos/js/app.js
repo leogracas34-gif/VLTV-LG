@@ -602,6 +602,7 @@
       verificando = false;
       if (lic.estado === 'trial' || lic.estado === 'active') {
         VLTV.licenca.aplicarVisual();
+        VLTV.licenca.mostrarNoLogin();
         iniciarApp();
       } else {
         mostrarLicenca(lic);

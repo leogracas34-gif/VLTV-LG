@@ -142,7 +142,29 @@
     }).catch(function () { /* sem visual remoto: fica o padrão */ });
   }
 
+  function dataBr(s) {
+    var d = new Date(s * 1000);
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+  }
+
+  // Ex.: "Teste grátis: 5 dias (até 12/10/2026)" ou "Ativa até 07/10/2027"
+  function textoCurto() {
+    var e = estadoAtual;
+    if (!e) { return ''; }
+    if (e.estado === 'active') { return 'Ativa até ' + dataBr(e.expira_em); }
+    return 'Teste grátis: ' + e.dias + (e.dias === 1 ? ' dia' : ' dias') + ' (até ' + dataBr(e.expira_em) + ')';
+  }
+
+  // Linha pequena na tela de login: o código da TV e a situação da licença.
+  function mostrarNoLogin() {
+    var el = document.getElementById('login-licenca');
+    if (!el || !estadoAtual) { return; }
+    el.textContent = 'Código da TV: ' + estadoAtual.codigo + '  •  ' + textoCurto();
+  }
+
   VLTV.licenca = {
+    textoCurto: textoCurto,
+    mostrarNoLogin: mostrarNoLogin,
     verificar: verificar,
     estado: function () { return estadoAtual; },
     aplicarVisual: aplicarVisual

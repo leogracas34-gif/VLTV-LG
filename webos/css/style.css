@@ -1804,3 +1804,5 @@ input::placeholder { color: #5f5f6b; }
   background: var(--destaque); color: #fff; font-size: 26px; font-weight: 700; text-align: center;
   line-height: 44px; border-radius: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 24px;
 }
+
+.login-licenca { font-size: 24px; color: var(--suave); margin: -22px 0 26px; text-align: center; }

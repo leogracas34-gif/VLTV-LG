@@ -33,6 +33,10 @@
   var campoSenha = $('campo-senha');
   var campoM3u = $('campo-m3u');
   var btnEntrar = $('btn-entrar');
+  var btnOlho = $('btn-olho');
+  var telaConfirma = $('confirma-sair');
+  var btnSairNao = $('sair-nao');
+  var btnSairSim = $('sair-sim');
   var statusLogin = $('login-status');
   var tileLive = $('tile-live');
   var tileFilmes = $('tile-filmes');
@@ -61,6 +65,7 @@
     if (nome === 'licenca') { $('lic-btn').focus(); }
 
     if (nome === 'login') {
+      mostrarSenha(false);
       var lista = focaveis();
       (lista[1] || lista[0]).focus();
     }
@@ -383,7 +388,26 @@
     });
   }
 
+  // Pergunta antes de sair: o botão Sair só abre a janela; quem sai de verdade é sair().
+  function confirmando() { return !telaConfirma.classList.contains('escondida'); }
+  function pedirConfirmacaoSair() {
+    telaConfirma.classList.remove('escondida');
+    btnSairNao.focus();
+  }
+  function fecharConfirmacaoSair() {
+    telaConfirma.classList.add('escondida');
+    tileSair.focus();
+  }
+  function teclaConfirma(k) {
+    if (k === TECLA_ESQ) { btnSairNao.focus(); return true; }
+    if (k === TECLA_DIR) { btnSairSim.focus(); return true; }
+    if (k === TECLA_CIMA || k === TECLA_BAIXO) { return true; }
+    if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { fecharConfirmacaoSair(); return true; }
+    return false;   // OK: o clique do botão em foco resolve
+  }
+
   function sair() {
+    telaConfirma.classList.add('escondida');
     // Sair tira da TV a lista que estava em uso. Se sobrar outra, o app mostra a tela de listas.
     var ativa = VLTV.listas.idAtiva();
     if (ativa) { VLTV.listas.remover(ativa); }
@@ -410,6 +434,52 @@
     }
     return [].slice.call(telas[telaAtual].querySelectorAll('input, button:not([disabled])'));
   }
+
+  // Os campos ficam só-leitura: ao chegar neles com as setas o teclado NÃO abre.
+  // O OK libera a digitação (e aí a TV abre o teclado). Ao terminar, volta a ser só-leitura.
+  function campoDeTexto(el) { return !!el && el.tagName === 'INPUT' && telas.login.contains(el); }
+
+  function liberarDigitacao(el) {
+    el.removeAttribute('readonly');
+    el.blur();
+    el.focus();       // foco de novo, já editável: é isso que faz a TV abrir o teclado
+  }
+
+  function travarDigitacao(el) {
+    el.setAttribute('readonly', 'readonly');
+  }
+
+  // Terminou de digitar (Enter do teclado): vai para o próximo campo, ou entra se for o último.
+  function terminarCampo(el) {
+    var lista = focaveis().filter(campoDeTexto);
+    travarDigitacao(el);
+    var i = lista.indexOf(el);
+    if (i === -1 || i === lista.length - 1) {
+      el.focus();
+      entrar();
+    } else {
+      lista[i + 1].focus();   // só-leitura: o teclado não abre sozinho
+    }
+  }
+
+  function mostrarSenha(ver) {
+    campoSenha.type = ver ? 'text' : 'password';
+    $('olho-aberto').classList.toggle('escondida', ver);
+    $('olho-fechado').classList.toggle('escondida', !ver);
+    btnOlho.setAttribute('aria-label', ver ? 'Ocultar senha' : 'Mostrar senha');
+  }
+
+  [campoServidor, campoUsuario, campoSenha, campoM3u].forEach(function (el) {
+    // Se o teclado fechou sem Enter (voltar), o campo volta a ser só-leitura e mantém o foco.
+    el.addEventListener('blur', function () {
+      if (el.hasAttribute('readonly')) { return; }
+      setTimeout(function () {
+        travarDigitacao(el);
+        if (telaAtual === 'login' && (!document.activeElement || document.activeElement === document.body)) { el.focus(); }
+      }, 50);
+    });
+  });
+  btnOlho.addEventListener('click', function () { mostrarSenha(campoSenha.type === 'password'); });
 
   function moverFoco(passo) {
     var lista = focaveis();
@@ -485,6 +555,12 @@
       return;
     }
 
+    // Janela "Deseja sair?" fica por cima da Home.
+    if (confirmando()) {
+      if (teclaConfirma(k)) { e.preventDefault(); }
+      return;
+    }
+
     // Estas telas cuidam das próprias teclas.
     var tratador = TRATADORES[telaAtual];
     if (tratador) {
@@ -504,6 +580,25 @@
       e.preventDefault();
       navegarHome(k);
     } else if (telaAtual === 'login') {
+      var ativoLogin = document.activeElement;
+      // OK num campo: libera a digitação e abre o teclado. Enter do teclado: avança ou entra.
+      if (k === 13 && campoDeTexto(ativoLogin)) {
+        e.preventDefault();
+        if (ativoLogin.hasAttribute('readonly')) { liberarDigitacao(ativoLogin); } else { terminarCampo(ativoLogin); }
+        return;
+      }
+      // Olhinho: fica à direita da senha.
+      if (ativoLogin === campoSenha && k === TECLA_DIR && ativoLogin.hasAttribute('readonly') && visivel(btnOlho)) {
+        e.preventDefault();
+        btnOlho.focus();
+        return;
+      }
+      if (ativoLogin === btnOlho) {
+        e.preventDefault();
+        if (k === TECLA_ESQ || k === TECLA_CIMA) { campoSenha.focus(); }
+        else if (k === TECLA_BAIXO) { btnEntrar.focus(); }
+        return;
+      }
       var naAba = abas.indexOf(document.activeElement) !== -1;
       if (naAba && (k === TECLA_ESQ || k === TECLA_DIR)) {
         e.preventDefault();
@@ -537,7 +632,9 @@
     });
   }, function () { /* o layout é fixo */ });
   elBanner.addEventListener('click', function () { VLTV.banner.abrirAtual(); });
-  tileSair.addEventListener('click', sair);
+  tileSair.addEventListener('click', pedirConfirmacaoSair);
+  btnSairNao.addEventListener('click', fecharConfirmacaoSair);
+  btnSairSim.addEventListener('click', sair);
   btnListas.addEventListener('click', function () { abrirListas(); });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {

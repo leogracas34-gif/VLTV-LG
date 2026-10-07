@@ -159,7 +159,15 @@
   function mostrarNoLogin() {
     var el = document.getElementById('login-licenca');
     if (!el || !estadoAtual) { return; }
-    el.textContent = 'Código da TV: ' + estadoAtual.codigo + '  •  ' + textoCurto();
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    var rotulo = document.createElement('span');
+    rotulo.className = 'll-rotulo';
+    rotulo.textContent = 'Código da TV';
+    var cod = document.createElement('span');
+    cod.className = 'll-codigo';
+    cod.textContent = estadoAtual.codigo;
+    el.appendChild(rotulo);
+    el.appendChild(cod);
   }
 
   // Avisos do app da TV: licença do aplicativo e plano de canais, filmes e séries (dias restantes <= limite).

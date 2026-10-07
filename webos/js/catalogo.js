@@ -441,6 +441,15 @@
     }
   }
 
+  // OK na categoria: mostra os títulos na grade, mas o foco continua na lista de categorias.
+  // Para navegar pelos títulos, o usuário aperta para a direita.
+  function abrirSemFoco() {
+    var c = categorias[catIdx];
+    if (c && c.especial === 'busca') { irParaGrade(); return; }   // Pesquisar: OK leva para a caixa de busca
+    if (catIdx === catAplicada && itens.length > 0) { return; }   // já está aberta
+    aplicarCategoria(catIdx, false);
+  }
+
   // Passa para a grade sem mexer nela; o destaque volta para a categoria que está aberta.
   function entrarNaGradeAberta() {
     catIdx = catAplicada;
@@ -489,9 +498,9 @@
       // Só o OK abre a categoria destacada na grade.
       if (falhaCategorias) { abrir(tipo, acoes); }
       else if (categoriaTrancada(categorias[catIdx])) {
-        VLTV.parental.pedirSenha(function () { atualizarCadeados(); irParaGrade(); },
+        VLTV.parental.pedirSenha(function () { atualizarCadeados(); abrirSemFoco(); },
           { titulo: 'Categoria +18', sub: 'Digite a senha para abrir.' });
-      } else { irParaGrade(); }
+      } else { abrirSemFoco(); }
       return true;
     }
     if (k === TECLA.DIR) {

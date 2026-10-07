@@ -49,22 +49,28 @@
 
       <div class="campo" data-modos="xtream">
         <label for="campo-servidor">Servidor ou código de parceiro</label>
-        <input id="campo-servidor" type="text" placeholder="http://servidor.com:8080  ou  código" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="campo-servidor" type="text" placeholder="http://servidor.com:8080  ou  código" readonly autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
       <div class="campo" data-modos="usuario xtream">
         <label for="campo-usuario">Usuário</label>
-        <input id="campo-usuario" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="campo-usuario" type="text" readonly autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
       <div class="campo" data-modos="usuario xtream">
         <label for="campo-senha">Senha</label>
-        <input id="campo-senha" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="campo-linha">
+          <input id="campo-senha" type="password" readonly autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="btn-olho" type="button" class="btn-olho" aria-label="Mostrar senha">
+            <svg id="olho-aberto" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <svg id="olho-fechado" class="escondida" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2.4"/></svg>
+          </button>
+        </div>
       </div>
 
       <div class="campo" data-modos="m3u">
         <label for="campo-m3u">Endereço da lista M3U</label>
-        <input id="campo-m3u" type="text" placeholder="http://servidor.com/lista.m3u" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="campo-m3u" type="text" placeholder="http://servidor.com/lista.m3u" readonly autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
       <button id="btn-entrar" type="button" class="botao">Entrar</button>
@@ -131,6 +137,18 @@
         <button id="btn-sair" type="button" class="btn-discreto">Sair</button>
       </footer>
     </section>
+
+    <!-- Confirmar saída -->
+    <div id="confirma-sair" class="confirma escondida">
+      <div class="confirma-caixa">
+        <h2>Deseja sair?</h2>
+        <p>A lista que está em uso será removida desta TV.</p>
+        <div class="confirma-botoes">
+          <button id="sair-nao" type="button" class="botao-conf">Cancelar</button>
+          <button id="sair-sim" type="button" class="botao-conf perigo">Sair</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Minhas listas -->
     <section id="tela-listas" class="tela tela-topo escondida">

@@ -23,11 +23,12 @@ html, body {
   overflow: hidden;
   /* Fundo de todo o app: brilho roxo no canto, vermelho discreto embaixo, escuro no resto */
   background:
-    radial-gradient(1400px 800px at 8% -10%, rgba(229, 9, 20, 0.26), rgba(229, 9, 20, 0) 62%),
-    radial-gradient(1100px 700px at 108% 112%, rgba(229, 9, 20, 0.12), rgba(229, 9, 20, 0) 60%),
-    linear-gradient(115deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0) 38%),
-    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%),
-    var(--fundo);
+    radial-gradient(1300px 760px at 10% -8%, rgba(229, 9, 20, 0.30), rgba(229, 9, 20, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(70, 90, 200, 0.18), rgba(70, 90, 200, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(229, 9, 20, 0.12), rgba(229, 9, 20, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #101018 0%, #09090d 100%);
   color: var(--texto);
   font-family: "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
   font-size: 32px;
@@ -1805,7 +1806,14 @@ input::placeholder { color: #5f5f6b; }
   line-height: 44px; border-radius: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 24px;
 }
 
-.login-licenca { font-size: 24px; color: var(--suave); margin: -22px 0 26px; text-align: center; }
+.login-licenca {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-align: right;
+}
+.ll-rotulo { display: block; font-size: 22px; color: var(--suave); letter-spacing: 1px; }
+.ll-codigo { display: block; margin-top: 4px; font-size: 40px; font-weight: 800; letter-spacing: 4px; color: var(--texto); }
 
 /* TV ao vivo: a borda dos dois quadros fica parada; só a cor do item marcado mostra onde está o foco */
 #painel-cats.ativo, #painel-canais.ativo { border-color: var(--borda); }
@@ -1818,3 +1826,63 @@ input::placeholder { color: #5f5f6b; }
   border-bottom: 5px solid var(--destaque);
   padding-bottom: 2px;
 }
+
+
+/* ── Login: campo da senha com olhinho ────────────────── */
+.campo-linha { display: flex; align-items: center; }
+.campo-linha input { flex: 1; width: auto; }
+.btn-olho {
+  width: 80px;
+  height: 80px;
+  margin-left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--suave);
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+.btn-olho:focus {
+  color: #fff;
+  background: var(--destaque);
+  border-color: #fff;
+  box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5);
+}
+
+/* ── Confirmar saída ──────────────────────────────────── */
+.confirma {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+}
+.confirma-caixa {
+  width: 880px;
+  padding: 56px 60px 52px;
+  text-align: center;
+  background: var(--painel);
+  border: 3px solid var(--borda);
+  border-radius: 20px;
+}
+.confirma-caixa h2 { font-size: 52px; margin-bottom: 18px; }
+.confirma-caixa p { font-size: 30px; color: var(--suave); margin-bottom: 44px; }
+.confirma-botoes { display: flex; justify-content: center; }
+.botao-conf {
+  width: 340px;
+  height: 92px;
+  font-size: 36px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--painel-2);
+  border: 3px solid var(--borda);
+  border-radius: 14px;
+  outline: none;
+}
+.botao-conf + .botao-conf { margin-left: 28px; }
+.botao-conf.perigo { background: var(--destaque); border-color: transparent; }
+.botao-conf:focus { border-color: #fff; box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5); }

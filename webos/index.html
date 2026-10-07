@@ -22,6 +22,20 @@
       <p id="incompativel-msg" class="msg-suave"></p>
     </section>
 
+    <!-- Tela de licença: teste vencido, bloqueio ou sem conexão -->
+    <section id="tela-licenca" class="tela escondida">
+      <div class="logo">VLTV <span>PLAY</span></div>
+      <h1 id="lic-titulo">Ative o seu VLTV Play</h1>
+      <p id="lic-msg" class="msg-suave"></p>
+      <div id="lic-codigo-box" class="lic-codigo-box">
+        <div class="lic-rotulo">Código desta TV</div>
+        <div id="lic-codigo" class="lic-codigo">--------</div>
+      </div>
+      <p id="lic-site" class="msg-suave"></p>
+      <p id="lic-preco" class="lic-preco"></p>
+      <button id="lic-btn" type="button" class="botao">Já ativei — verificar</button>
+    </section>
+
     <!-- Tela de login -->
     <section id="tela-login" class="tela escondida">
       <div class="logo">VLTV <span>PLAY</span></div>
@@ -58,6 +72,8 @@
     </section>
 
     <!-- Tela inicial (Home) -->
+    <div id="faixa-campanha" class="faixa-campanha escondida"></div>
+
     <section id="tela-home" class="tela tela-topo escondida">
       <header class="topo">
         <div class="logo-pequeno">VLTV <span>PLAY</span></div>
@@ -343,6 +359,7 @@
   <script src="js/dns.js"></script>
   <script src="js/xtream.js"></script>
   <script src="js/parceiro.js"></script>
+  <script src="js/licenca.js"></script>
   <script src="js/m3u.js"></script>
   <script src="js/api.js"></script>
   <script src="js/armazem.js"></script>

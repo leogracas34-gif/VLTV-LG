@@ -128,6 +128,13 @@
       linha('Status', 'Ativo', 'ok');
     }
 
+    var lic = VLTV.licenca && VLTV.licenca.estado();
+    if (lic) {
+      linha('Licença', lic.estado === 'active' ? 'Ativa' : 'Teste grátis', lic.estado === 'active' ? 'ok' : '');
+      linha('Licença válida até', dataBr(lic.expira_em) + ' (' + lic.dias + (lic.dias === 1 ? ' dia' : ' dias') + ')');
+      linha('Código da TV (ativação)', lic.codigo);
+    }
+
     if (VLTV.parceiroNome) { linha('Parceiro', VLTV.parceiroNome); }
     if (sessao && sessao.user) { linha('Usuário', sessao.user); }
     linha('Endereço MAC', mac || 'Indisponível nesta TV');

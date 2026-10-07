@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  var COLUNAS = 7;   // 7 por linha: capas maiores, boas de ver de longe
+  var COLUNAS = 6;   // 6 por linha, capas grandes que preenchem a largura do painel (6 x 220 = 1320 de 1338 úteis)
   var TAMANHO_LOTE = 48;
   var CAPAS_SIMULTANEAS = 6;       // capas baixando ao mesmo tempo (mais que isso engarrafa a rede da TV)
   var ESPERA_CAPA_MS = 8000;       // capa que não chega em 8 s libera a vaga para a próxima

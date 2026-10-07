@@ -43,6 +43,9 @@ VLTV.config = {
   MIN_WEBOS_SDK: 4,
   MIN_CHROME: 53,
 
+  // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
+  LICENCA_URL: 'https://api.vltvplay.tech',
+
   // Servidor de parceiros (código de parceiro). Troque pelo endereço onde você publicar
   // o servidor da pasta vps-parceiros.
   PARCEIRO_URL: 'https://api.vltvplay.tech/parceiro/resolver',

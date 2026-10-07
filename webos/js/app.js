@@ -14,6 +14,7 @@
   var telas = {
     carregando: $('tela-carregando'),
     incompativel: $('tela-incompativel'),
+    licenca: $('tela-licenca'),
     login: $('tela-login'),
     home: $('tela-home'),
     listas: $('tela-listas'),
@@ -55,6 +56,9 @@
       telas[n].classList.toggle('escondida', n !== nome);
     });
     telaAtual = nome;
+    var faixa = $('faixa-campanha');
+    if (faixa) { faixa.style.visibility = nome === 'home' ? 'visible' : 'hidden'; }
+    if (nome === 'licenca') { $('lic-btn').focus(); }
 
     if (nome === 'login') {
       var lista = focaveis();
@@ -447,6 +451,10 @@
   }
 
   var TRATADORES = {
+    licenca: function (k) {
+      if (k === 13) { verificarLicenca(); return true; }
+      return false;
+    },
     listas: function (k) { return VLTV.listasTela.tecla(k); },
     config: function (k) { return VLTV.ajustes.tecla(k); },
     live: function (k) { return VLTV.live.tecla(k); },
@@ -524,7 +532,7 @@
   });
 
   // ── Início ────────────────────────────────────────────────────────
-  function iniciar() {
+  function iniciarApp() {
     if (!VLTV.platform.compativel) {
       $('incompativel-msg').textContent = VLTV.platform.motivo;
       mostrarTela('incompativel');
@@ -562,6 +570,49 @@
       }
       concluir(res, ctx);
     });
+  }
+
+  // ── Licença: antes de tudo, a TV confere com a VPS se o teste/ativação está valendo ──
+  function mostrarLicenca(lic) {
+    var cfg = VLTV.config;
+    var v = VLTV.visual || {};
+    var sem = lic.estado === 'erro';
+    $('lic-titulo').textContent = lic.estado === 'blocked' ? 'Aparelho bloqueado'
+      : sem ? 'Sem conexão com o servidor'
+      : 'Seu teste grátis terminou';
+    $('lic-msg').textContent = lic.estado === 'blocked'
+      ? 'Este aparelho foi bloqueado. Fale com o suporte informando o código abaixo.'
+      : sem ? (lic.texto || 'Conecte a TV à internet e aperte OK para tentar de novo.')
+      : 'Para continuar assistindo, ative a licença anual desta TV.';
+    $('lic-codigo-box').classList.toggle('escondida', sem);
+    $('lic-codigo').textContent = lic.codigo || '';
+    $('lic-site').textContent = sem || lic.estado === 'blocked' ? '' : 'No celular ou computador, acesse ' + (lic.pagar_url || 'vltvplay.tech/ativar') + ' e informe o código.';
+    $('lic-preco').textContent = sem || lic.estado === 'blocked' ? '' : (v.preco_texto || 'R$ 20,00 por 12 meses');
+    $('lic-btn').textContent = sem ? 'Tentar novamente' : 'Já ativei — verificar';
+    mostrarTela('licenca');
+  }
+
+  var verificando = false;
+  function verificarLicenca() {
+    if (verificando) { return; }
+    verificando = true;
+    $('carregando-msg').textContent = 'Verificando licença...';
+    mostrarTela('carregando');
+    VLTV.licenca.verificar().then(function (lic) {
+      verificando = false;
+      if (lic.estado === 'trial' || lic.estado === 'active') {
+        VLTV.licenca.aplicarVisual();
+        iniciarApp();
+      } else {
+        mostrarLicenca(lic);
+      }
+    });
+  }
+  $('lic-btn').addEventListener('click', verificarLicenca);
+
+  function iniciar() {
+    if (!VLTV.platform.compativel) { iniciarApp(); return; }
+    verificarLicenca();
   }
 
   iniciar();

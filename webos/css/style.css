@@ -1800,10 +1800,14 @@ input::placeholder { color: #5f5f6b; }
 }
 .lic-preco { font-size: 36px; font-weight: 700; color: var(--ok); margin: 6px 0 26px; }
 #tela-licenca h1 { margin-bottom: 18px; }
+/* Aviso de campanha: discreto, centralizado, só do tamanho do texto (fundo escuro; a cor da campanha vira só um detalhe) */
 .faixa-campanha {
-  position: absolute; top: 12px; left: 360px; right: 360px; height: 44px; z-index: 5;
-  background: var(--destaque); color: #fff; font-size: 26px; font-weight: 700; text-align: center;
-  line-height: 44px; border-radius: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 24px;
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;
+  max-width: 900px; height: 34px; line-height: 34px; padding: 0 22px;
+  background: rgba(255, 255, 255, 0.07); color: var(--suave);
+  border: 1px solid var(--borda); border-left: 4px solid var(--aviso-cor, var(--destaque-claro));
+  border-radius: 17px; font-size: 20px; font-weight: 600; letter-spacing: 0.5px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .login-licenca {

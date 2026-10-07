@@ -74,7 +74,7 @@
   }
 
   function guardar(j, id) {
-    estadoAtual = { estado: j.estado, vitalicio: !!j.vitalicio, codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url };
+    estadoAtual = { estado: j.estado, vitalicio: !!j.vitalicio || (j.expira_em - agoraS() > 10 * 365 * 86400), codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url };
     gravar(CH_CACHE, JSON.stringify({ e: estadoAtual, token: j.token, id: id, em: agoraS() }));
   }
 
@@ -162,7 +162,34 @@
     el.textContent = 'Código da TV: ' + estadoAtual.codigo + '  •  ' + textoCurto();
   }
 
+  // Avisos do app da TV: licença do aplicativo e plano de canais, filmes e séries (dias restantes <= limite).
+  function diasAte(seg) {
+    return Math.ceil((seg * 1000 - new Date().getTime()) / 86400000);
+  }
+  function avisos(expPlano) {
+    var lista = [];
+    var limite = VLTV.config.AVISO_VENCIMENTO_DIAS;
+    var e = estadoAtual;
+    if (e && !e.vitalicio && e.expira_em) {
+      var d = diasAte(e.expira_em);
+      if (d <= limite && d >= 0) {
+        var quando = d === 0 ? 'hoje' : d === 1 ? 'amanhã' : 'em ' + d + ' dias';
+        lista.push(e.estado === 'trial' ? 'Seu teste grátis do aplicativo termina ' + quando : 'A licença do aplicativo vence ' + quando);
+      }
+    }
+    var n = parseInt(expPlano, 10);
+    if (!isNaN(n) && n > 0) {
+      var p = diasAte(n);
+      if (p < 0) { lista.push('O plano de canais, filmes e séries venceu. Fale com o seu provedor.'); }
+      else if (p <= limite) {
+        lista.push('O plano de canais, filmes e séries vence ' + (p === 0 ? 'hoje' : p === 1 ? 'amanhã' : 'em ' + p + ' dias'));
+      }
+    }
+    return lista;
+  }
+
   VLTV.licenca = {
+    avisos: avisos,
     textoCurto: textoCurto,
     mostrarNoLogin: mostrarNoLogin,
     verificar: verificar,

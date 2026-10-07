@@ -102,18 +102,23 @@
     return dia + '/' + mes + '/' + d.getFullYear();
   }
 
+  var DIAS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   function atualizarHora() {
     var d = new Date();
     elHora.textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    // Embaixo da hora: só a data de hoje (os vencimentos aparecem como aviso, quando estiverem perto).
+    $('home-vencimento').textContent = DIAS_SEMANA[d.getDay()] + ', ' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
   }
   setInterval(atualizarHora, 15000);
 
   function mostrarHome(ctx, info) {
     VLTV.conta = info || null;
     var ehLista = ctx.modo === 'm3u';
-    $('home-vencimento').textContent = ehLista
-      ? VLTV.m3u.total() + ' itens'
-      : 'Vence em ' + dataVencimento(info && info.exp_date);
+    atualizarHora();
+    var avisos = VLTV.licenca.avisos(ehLista ? 0 : (info && info.exp_date));
+    var elAviso = $('home-aviso');
+    elAviso.textContent = avisos.join('  •  ');
+    elAviso.classList.toggle('escondida', avisos.length === 0);
 
     VLTV.parceiroNome = nomeParceiro;
 

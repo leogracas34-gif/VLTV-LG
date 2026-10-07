@@ -46,6 +46,9 @@ VLTV.config = {
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',
 
+  // Quantos dias antes do vencimento a TV começa a avisar (licença do app e plano de canais).
+  AVISO_VENCIMENTO_DIAS: 7,
+
   // Servidor de parceiros (código de parceiro). Troque pelo endereço onde você publicar
   // o servidor da pasta vps-parceiros.
   PARCEIRO_URL: 'https://api.vltvplay.tech/parceiro/resolver',

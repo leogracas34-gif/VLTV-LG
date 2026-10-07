@@ -1809,3 +1809,5 @@ input::placeholder { color: #5f5f6b; }
 
 /* TV ao vivo: a borda dos dois quadros fica parada; só a cor do item marcado mostra onde está o foco */
 #painel-cats.ativo, #painel-canais.ativo { border-color: var(--borda); }
+
+.home-aviso { margin-top: 8px; font-size: 22px; line-height: 1.3; color: #ffb020; max-width: 640px; text-align: right; }

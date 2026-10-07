@@ -115,17 +115,17 @@
     if (info && info.exp_date !== undefined) {
       var dias = diasRestantes(info.exp_date);
       var ativo = String(info.status || 'Active').toLowerCase() === 'active' && (dias === null || dias >= 0);
-      linha('Status', ativo ? 'Ativo' : 'Expirado', ativo ? 'ok' : 'erro');
+      linha('Canais, filmes e séries', ativo ? 'Ativo' : 'Expirado', ativo ? 'ok' : 'erro');
       if (info.exp_date) {
         var quando = dataBr(info.exp_date);
-        linha('Validade', quando + (dias !== null && dias >= 0 ? ' (' + dias + (dias === 1 ? ' dia' : ' dias') + ')' : ''));
+        linha('Plano de canais, filmes e séries vence em', quando + (dias !== null && dias >= 0 ? ' (' + dias + (dias === 1 ? ' dia' : ' dias') + ')' : ''));
       } else {
-        linha('Validade', 'Sem vencimento');
+        linha('Plano de canais, filmes e séries vence em', 'Sem vencimento');
       }
     } else if (sessao && sessao.modo === 'm3u') {
-      linha('Status', 'Lista M3U', 'ok');
+      linha('Canais, filmes e séries', 'Lista M3U', 'ok');
     } else {
-      linha('Status', 'Ativo', 'ok');
+      linha('Canais, filmes e séries', 'Ativo', 'ok');
     }
 
     if (VLTV.parceiroNome) { linha('Parceiro', VLTV.parceiroNome); }
@@ -139,7 +139,7 @@
     var lic = VLTV.licenca && VLTV.licenca.estado();
     if (lic) {
       linha('Código da TV (ativação)', lic.codigo);
-      linha('Licença', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : '');
+      linha('Licença do aplicativo', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : '');
     }
   }
 

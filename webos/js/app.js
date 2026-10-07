@@ -586,37 +586,69 @@
   }
 
   // ── Licença: antes de tudo, a TV confere com a VPS se o teste/ativação está valendo ──
+  // Enquanto a tela de ativação está aberta, a TV confere sozinha (a cada 20 s) se o pagamento já foi liberado.
+  var pollLicenca = null;
+  function pararPollLicenca() {
+    if (pollLicenca) { clearInterval(pollLicenca); pollLicenca = null; }
+  }
+  function liberarApp() {
+    pararPollLicenca();
+    VLTV.licenca.aplicarVisual();
+    iniciarApp();
+    VLTV.licenca.mostrarNoLogin();
+  }
+  function iniciarPollLicenca() {
+    pararPollLicenca();
+    pollLicenca = setInterval(function () {
+      if (telaAtual !== 'licenca') { pararPollLicenca(); return; }
+      VLTV.licenca.verificar().then(function (lic) {
+        if (telaAtual !== 'licenca') { return; }
+        if (lic.estado === 'trial' || lic.estado === 'active') { liberarApp(); }
+      });
+    }, 20000);
+  }
+
+  // Sem valores na tela (regra das lojas): só o código da TV e o endereço do site, onde o cliente vê os planos e paga.
   function mostrarLicenca(lic) {
-    var cfg = VLTV.config;
-    var v = VLTV.visual || {};
     var sem = lic.estado === 'erro';
-    $('lic-titulo').textContent = lic.estado === 'blocked' ? 'Aparelho bloqueado'
+    var bloqueado = lic.estado === 'blocked';
+    $('lic-titulo').textContent = bloqueado ? 'Aparelho bloqueado'
       : sem ? 'Sem conexão com o servidor'
       : 'Seu teste grátis terminou';
-    $('lic-msg').textContent = lic.estado === 'blocked'
+    $('lic-msg').textContent = bloqueado
       ? 'Este aparelho foi bloqueado. Fale com o suporte informando o código abaixo.'
       : sem ? (lic.texto || 'Conecte a TV à internet e aperte OK para tentar de novo.')
-      : 'Para continuar assistindo, ative a licença anual desta TV.';
+      : 'Para continuar assistindo, ative a licença desta TV.';
     $('lic-codigo-box').classList.toggle('escondida', sem);
     $('lic-codigo').textContent = lic.codigo || '';
-    $('lic-site').textContent = sem || lic.estado === 'blocked' ? '' : 'No celular ou computador, acesse ' + (lic.pagar_url || 'vltvplay.tech/ativar') + ' e informe o código.';
-    $('lic-preco').textContent = sem || lic.estado === 'blocked' ? '' : (v.preco_texto || 'Anual: R$ 20,00 por 12 meses') + (v.preco_vitalicio_texto ? '   •   ' + v.preco_vitalicio_texto : '');
+
+    var site = $('lic-site');
+    while (site.firstChild) { site.removeChild(site.firstChild); }
+    if (!sem && !bloqueado) {
+      site.appendChild(document.createTextNode('No celular ou computador, acesse '));
+      var link = document.createElement('span');
+      link.className = 'lic-site-url';
+      link.textContent = lic.pagar_url || 'vltvplay.tech/ativar';
+      site.appendChild(link);
+      site.appendChild(document.createTextNode(' e informe o código.'));
+    }
+    $('lic-preco').textContent = '';
     $('lic-btn').textContent = sem ? 'Tentar novamente' : 'Já ativei — verificar';
     mostrarTela('licenca');
+    iniciarPollLicenca();
   }
 
   var verificando = false;
   function verificarLicenca() {
     if (verificando) { return; }
     verificando = true;
+    pararPollLicenca();
     $('carregando-msg').textContent = 'Verificando licença...';
     mostrarTela('carregando');
     VLTV.licenca.verificar().then(function (lic) {
       verificando = false;
       if (lic.estado === 'trial' || lic.estado === 'active') {
-        VLTV.licenca.aplicarVisual();
-        VLTV.licenca.mostrarNoLogin();
-        iniciarApp();
+        liberarApp();
       } else {
         mostrarLicenca(lic);
       }

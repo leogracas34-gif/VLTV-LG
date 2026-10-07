@@ -323,6 +323,14 @@
     VLTV.listasTela.abrir({
       usar: usarLista,
       adicionar: adicionarLista,
+      // Removeu a lista que estava em uso: encerra a sessão e vai para as outras listas (ou para o login).
+      removeuAtiva: function () {
+        VLTV.sessao.limpar();
+        VLTV.m3u.limpar();
+        nomeParceiro = '';
+        adicionando = false;
+        if (VLTV.listas.todas().length > 0) { abrirListas('Escolha uma lista para entrar.'); } else { mostrarLogin(); }
+      },
       sair: function () {
         if (VLTV.sessao.ler()) { mostrarTela('home'); } else { mostrarLogin(); }
       }
@@ -587,7 +595,7 @@
     $('lic-codigo-box').classList.toggle('escondida', sem);
     $('lic-codigo').textContent = lic.codigo || '';
     $('lic-site').textContent = sem || lic.estado === 'blocked' ? '' : 'No celular ou computador, acesse ' + (lic.pagar_url || 'vltvplay.tech/ativar') + ' e informe o código.';
-    $('lic-preco').textContent = sem || lic.estado === 'blocked' ? '' : (v.preco_texto || 'R$ 20,00 por 12 meses');
+    $('lic-preco').textContent = sem || lic.estado === 'blocked' ? '' : (v.preco_texto || 'Anual: R$ 20,00 por 12 meses') + (v.preco_vitalicio_texto ? '   •   ' + v.preco_vitalicio_texto : '');
     $('lic-btn').textContent = sem ? 'Tentar novamente' : 'Já ativei — verificar';
     mostrarTela('licenca');
   }

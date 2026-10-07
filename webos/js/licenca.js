@@ -74,7 +74,7 @@
   }
 
   function guardar(j, id) {
-    estadoAtual = { estado: j.estado, codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url };
+    estadoAtual = { estado: j.estado, vitalicio: !!j.vitalicio, codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url };
     gravar(CH_CACHE, JSON.stringify({ e: estadoAtual, token: j.token, id: id, em: agoraS() }));
   }
 
@@ -151,7 +151,7 @@
   function textoCurto() {
     var e = estadoAtual;
     if (!e) { return ''; }
-    if (e.estado === 'active') { return 'Ativa até ' + dataBr(e.expira_em); }
+    if (e.estado === 'active') { return e.vitalicio ? 'Vitalícia (sem vencimento)' : 'Ativa até ' + dataBr(e.expira_em); }
     return 'Teste grátis: ' + e.dias + (e.dias === 1 ? ' dia' : ' dias') + ' (até ' + dataBr(e.expira_em) + ')';
   }
 

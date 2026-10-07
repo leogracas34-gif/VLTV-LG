@@ -222,19 +222,17 @@
     }
     var e = linhas[idx];
     if (col === 1) {
-      if (e.id === idAtiva()) {
-        mensagem('Esta é a lista em uso. Para tirar ela, use o botão Sair na tela inicial.', 'erro');
-        return;
-      }
+      var emUso = e.id === idAtiva();
       if (confirmando !== e.id) {
         confirmando = e.id;
-        mensagem('Aperte OK de novo para remover esta lista.', '');
+        mensagem(emUso ? 'Esta lista está em uso. Aperte OK de novo para remover e sair dela.' : 'Aperte OK de novo para remover esta lista.', '');
         desenharLista();
         return;
       }
       remover(e.id);
       confirmando = '';
       col = 0;
+      if (emUso && acoes && acoes.removeuAtiva) { acoes.removeuAtiva(); return; }
       mensagem('Lista removida.', 'ok');
       desenharLista();
       return;

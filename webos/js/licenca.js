@@ -136,7 +136,8 @@
         var ate = v.aviso_ate ? new Date(v.aviso_ate + 'T23:59:59') : null;
         var vale = v.aviso_texto && (!ate || ate.getTime() >= new Date().getTime());
         faixa.textContent = vale ? ((v.aviso_titulo ? v.aviso_titulo + ' — ' : '') + v.aviso_texto) : '';
-        faixa.style.background = cor(v.aviso_cor) ? v.aviso_cor : '';
+        // a cor da campanha vira só o detalhe lateral da faixa (o fundo fica discreto, escuro)
+        faixa.style.setProperty('--aviso-cor', cor(v.aviso_cor) ? v.aviso_cor : '');
         faixa.classList.toggle('escondida', !vale);
       }
     }).catch(function () { /* sem visual remoto: fica o padrão */ });

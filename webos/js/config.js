@@ -55,7 +55,7 @@ VLTV.config = {
   //   POST {VPS_URL}/credits  { domain, series, remaining_sec }  (cabeçalho x-app-key)
   // Atenção: o servidor precisa liberar CORS (Access-Control-Allow-Origin e, para o POST,
   // Access-Control-Allow-Headers: Content-Type, x-app-key), senão a TV só usa o valor salvo nela.
-  VPS_URL: 'http://51.222.26.119:3344',
+  VPS_URL: 'https://api.vltvplay.tech',
   VPS_APP_KEY: 'L468983c@',
 
   // TMDB (logos no lugar do nome na tela de detalhes). A chave NÃO fica no código: o GitHub Actions

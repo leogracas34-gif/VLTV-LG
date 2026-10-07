@@ -181,22 +181,30 @@ input:focus {
   justify-content: flex-end;
   text-align: left;
   color: var(--texto);
-  background: var(--painel);
-  border: 3px solid var(--borda);
+  background: linear-gradient(135deg, #b30f1f 0%, #5a0c2a 55%, #17101f 100%);
+  border: 3px solid rgba(255, 75, 85, 0.45);
   border-radius: 22px;
   outline: none;
   transition: transform 0.15s ease;
 }
 
 .tile-titulo { font-size: 46px; font-weight: 700; }
-.tile-sub { margin-top: 12px; font-size: 28px; color: var(--suave); }
+.tile-sub { margin-top: 12px; font-size: 28px; color: rgba(255, 255, 255, 0.82); }
+
+/* Cada botão tem o seu degradê, todos nas cores do app (vermelho, vinho e azul-roxo). */
+#tile-live { background: linear-gradient(135deg, #d4101f 0%, #7a0b22 55%, #1a0f1c 100%); }
+#tile-filmes { background: linear-gradient(135deg, #b8123f 0%, #4a1560 55%, #14122a 100%); }
+#tile-series { background: linear-gradient(135deg, #4a5fd0 0%, #6a1450 55%, #16102a 100%); }
 
 .tile:focus {
-  background: var(--painel-2);
+  background: linear-gradient(135deg, #ff2a38 0%, #a81230 55%, #2a1228 100%);
   border-color: #fff;
   box-shadow: 0 0 0 8px rgba(229, 9, 20, 0.5);
   transform: scale(1.05);
 }
+#tile-live:focus { background: linear-gradient(135deg, #ff2a38 0%, #a81230 55%, #2a1228 100%); }
+#tile-filmes:focus { background: linear-gradient(135deg, #e0185a 0%, #6a1d86 55%, #221840 100%); }
+#tile-series:focus { background: linear-gradient(135deg, #6a80ff 0%, #8e1c6c 55%, #241a42 100%); }
 
 .tile[disabled] { opacity: 0.4; }
 

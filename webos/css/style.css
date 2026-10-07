@@ -1820,7 +1820,11 @@ input::placeholder { color: #5f5f6b; }
 .ll-codigo { display: block; margin-top: 4px; font-size: 40px; font-weight: 800; letter-spacing: 4px; color: var(--texto); }
 
 /* TV ao vivo: a borda dos dois quadros fica parada; só a cor do item marcado mostra onde está o foco */
-#painel-cats.ativo, #painel-canais.ativo { border-color: var(--borda); }
+#painel-cats, #painel-canais { border-color: var(--destaque-claro); }   /* borda colorida fixa nos dois quadros; só o item marcado mostra o foco */
+
+/* Filmes e Séries: as duas bordas (categorias e capas) ficam coloridas e paradas;
+   o que mostra onde está o foco é só o item marcado (cursor), igual já era. */
+#cat-painel-cats, #cat-painel-grade { border-color: var(--destaque-claro); }
 
 .home-aviso { margin-top: 8px; font-size: 22px; line-height: 1.3; color: #ffb020; max-width: 640px; text-align: right; }
 

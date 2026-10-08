@@ -6,34 +6,10 @@ VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
   VERSAO: '1.0.0',
 
-  // Arquivo com a lista de DNS, hospedado na sua VPS (o mesmo que o app Android usa).
-  DNS_CONFIG_URL: 'https://vltvplay.tech/dns_config.json',
-
-  // Lista de emergência: só vale se a VPS não responder e o aparelho
-  // nunca tiver baixado a lista (mesma lista embutida no app Android).
-  DNS_FALLBACK: [
-    'http://fibercdn.sbs',
-    'http://ranos.sbs',
-    'http://cmdtv.casa',
-    'http://cmdtv.pro',
-    'http://cmdtv.sbs',
-    'http://cmdtv.top',
-    'http://cmdbr.life',
-    'http://supertv.red',
-    'http://kodexk.click',
-    'http://maisplaytech.space',
-    'http://pthdtv.sbs',
-    'http://pthdtv.top',
-    'http://cdnsec.cyou',
-    'http://fx12.sbs',
-    'http://anotaai.lol',
-    'http://brtx.beauty',
-    'http://fuiali.vip',
-    'http://dogshow.club',
-    'http://cdnsec.click',
-    'http://sivimcdn.click',
-    'http://cybertronplay.space'
-  ],
+  // Gateway (DNS mascarado): o app fala SÓ com este endereço. Os DNS reais dos servidores
+  // ficam escondidos na VPS (arquivo origens.json) e nunca chegam ao app.
+  // Para trocar o nome (ex: tv.vltvplay.tech), mude aqui, em VPS_URL e no nginx da VPS.
+  GATEWAY_URL: 'https://tv.vltvplay.tech',
 
   // Banner de destaques na Home. false = só os três botões grandes (sem banner).
   BANNER_ATIVO: true,
@@ -58,7 +34,8 @@ VLTV.config = {
   //   POST {VPS_URL}/credits  { domain, series, remaining_sec }  (cabeçalho x-app-key)
   // Atenção: o servidor precisa liberar CORS (Access-Control-Allow-Origin e, para o POST,
   // Access-Control-Allow-Headers: Content-Type, x-app-key), senão a TV só usa o valor salvo nela.
-  VPS_URL: 'https://api.vltvplay.tech',
+  // Passa pelo gateway, que troca o "painel:ID" pelo DNS real antes de falar com o backend.
+  VPS_URL: 'https://tv.vltvplay.tech',
   VPS_APP_KEY: 'L468983c@',
 
   // TMDB (logos no lugar do nome na tela de detalhes). A chave NÃO fica no código: o GitHub Actions
@@ -81,7 +58,6 @@ VLTV.config = {
   M3U_MAX_BYTES: 60000000,
 
   // Tempos de espera (milissegundos).
-  DNS_CONFIG_TIMEOUT_MS: 5000,
   LOGIN_TIMEOUT_MS: 8000,
   PARCEIRO_TIMEOUT_MS: 8000,
   M3U_TIMEOUT_MS: 45000

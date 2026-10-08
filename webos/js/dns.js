@@ -1,13 +1,10 @@
-// VLTV Play - webOS | Lista de DNS vinda da VPS.
-// Ordem de prioridade: lista baixada agora -> última lista salva no aparelho -> lista de emergência.
+// VLTV Play - webOS | Endereço do servidor (gateway).
+// O app não conhece mais nenhum DNS de servidor: só o endereço do gateway da VPS.
 (function () {
   'use strict';
 
-  var CHAVE_CACHE = 'vltv_dns_lista';
-  var listaAtual = null;
-
   // fetch com tempo limite (aborta se o servidor não responder).
-  function fetchComTimeout(url, ms) {
+  function fetchComTimeout(url, ms, opcoesExtras) {
     // AbortController só existe no Chrome 66+ (webOS 5). Em TV mais antiga,
     // o tempo limite é feito com uma corrida entre o fetch e um temporizador.
     var controle = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -19,6 +16,7 @@
       }, ms);
     });
     var opcoes = { cache: 'no-store' };
+    if (opcoesExtras) { for (var k in opcoesExtras) { opcoes[k] = opcoesExtras[k]; } }
     if (controle) { opcoes.signal = controle.signal; }
     return Promise.race([fetch(url, opcoes), limite]).then(
       function (r) { clearTimeout(timer); return r; },
@@ -33,73 +31,15 @@
     return u.replace(/\/+$/, '');
   }
 
-  function limparLista(arr) {
-    var vistos = {};
-    var saida = [];
-    for (var i = 0; i < arr.length; i++) {
-      var u = normalizar(arr[i]);
-      if (u && !vistos[u]) { vistos[u] = true; saida.push(u); }
-    }
-    return saida;
-  }
+  function gateway() { return normalizar(VLTV.config.GATEWAY_URL); }
 
-  // Aceita {"dns":[...]}, {"servers":[...]} ou {"servidores":[{"laminas":[{"dns":[...]}]}]}.
-  function lerJson(obj) {
-    var arr = obj && (obj.dns || obj.servers);
-    if (Array.isArray(arr)) { return limparLista(arr); }
-    if (obj && Array.isArray(obj.servidores)) {
-      var todos = [];
-      obj.servidores.forEach(function (s) {
-        (s.laminas || []).forEach(function (l) {
-          (l.dns || []).forEach(function (d) { todos.push(d); });
-        });
-      });
-      return limparLista(todos);
-    }
-    return [];
-  }
+  // Lista antiga de DNS que versões anteriores guardavam na TV: apaga, não é mais usada.
+  try { localStorage.removeItem('vltv_dns_lista'); } catch (e) { /* ignora */ }
 
-  function lerCache() {
-    try {
-      var bruto = localStorage.getItem(CHAVE_CACHE);
-      if (!bruto) { return []; }
-      var arr = JSON.parse(bruto);
-      return Array.isArray(arr) ? limparLista(arr) : [];
-    } catch (e) { return []; }
-  }
-
-  function salvarCache(lista) {
-    try { localStorage.setItem(CHAVE_CACHE, JSON.stringify(lista)); } catch (e) { /* ignora */ }
-  }
-
-  // Baixa a lista mais recente da VPS. Nunca falha: se der erro, usa cache ou emergência.
-  function atualizar() {
-    var cfg = VLTV.config;
-    return fetchComTimeout(cfg.DNS_CONFIG_URL, cfg.DNS_CONFIG_TIMEOUT_MS)
-      .then(function (r) {
-        if (!r.ok) { throw new Error('HTTP ' + r.status); }
-        return r.json();
-      })
-      .then(function (json) {
-        var lista = lerJson(json);
-        if (lista.length === 0) { throw new Error('lista vazia'); }
-        salvarCache(lista);
-        listaAtual = lista;
-        return lista;
-      })
-      .catch(function () {
-        var cache = lerCache();
-        listaAtual = cache.length > 0 ? cache : limparLista(cfg.DNS_FALLBACK);
-        return listaAtual;
-      });
-  }
-
-  function lista() {
-    if (listaAtual && listaAtual.length > 0) { return listaAtual.slice(); }
-    var cache = lerCache();
-    return cache.length > 0 ? cache : limparLista(VLTV.config.DNS_FALLBACK);
-  }
+  // Mantida para o resto do app: agora a "lista" é só o gateway.
+  function atualizar() { return Promise.resolve([gateway()]); }
+  function lista() { return [gateway()]; }
 
   VLTV.http = { fetchComTimeout: fetchComTimeout };
-  VLTV.dns = { atualizar: atualizar, lista: lista, normalizar: normalizar };
+  VLTV.dns = { atualizar: atualizar, lista: lista, normalizar: normalizar, gateway: gateway };
 })();

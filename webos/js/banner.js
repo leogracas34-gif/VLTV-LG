@@ -39,8 +39,7 @@
   var timerAviso = null;
 
   function dnsAtual() {
-    var s = VLTV.sessao.ler();
-    return s ? s.dns : '';
+    return VLTV.sessao.dominio();
   }
 
   function pegarVps(caminho) {

@@ -213,8 +213,7 @@
 
   // ── Créditos aprendidos (VPS) ─────────────────────────────────────
   function dnsAtual() {
-    var s = VLTV.sessao && VLTV.sessao.ler();
-    return s && s.dns ? s.dns : '';
+    return (VLTV.sessao && VLTV.sessao.dominio()) || '';
   }
 
   // Chamado a cada episódio novo: só vale para série com id estável (o 1º episódio da série inteira).

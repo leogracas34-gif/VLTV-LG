@@ -182,7 +182,12 @@
       rem.textContent = confirmando === e.id ? 'Confirmar?' : 'Remover';
       li.appendChild(rem);
 
-      li.addEventListener('click', function () { idx = lis.indexOf(li); col = 0; zona = 'lista'; ativar(); });
+      li.addEventListener('click', function (e) {
+        idx = lis.indexOf(li);
+        col = dentroDe(e.target, 'lst-rem', li) ? 1 : 0;   // clicou em "Remover": mesmo efeito do OK na coluna da direita
+        zona = 'lista';
+        ativar();
+      });
       elLista.appendChild(li);
       lis.push(li);
     });
@@ -269,6 +274,68 @@
     } else { return false; }
     return true;
   }
+
+  // ── Cursor do controle (Magic Remote) ────────────────────────────
+  // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
+  // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
+  var ptX = -1;
+  var ptY = -1;
+  function cursorAndou(e) {
+    if (e.clientX === ptX && e.clientY === ptY) { return false; }
+    ptX = e.clientX;
+    ptY = e.clientY;
+    return true;
+  }
+  // Acha o filho direto de "pai" que contém o elemento tocado.
+  function filhoDe(pai, el) {
+    while (el && el.parentNode !== pai) { el = el.parentNode; }
+    return el || null;
+  }
+  function dentroDe(el, classe, limite) {
+    while (el && el !== limite) {
+      if (el.classList && el.classList.contains(classe)) { return true; }
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  elLista.addEventListener('mousemove', function (e) {
+    if (ocupado || !cursorAndou(e)) { return; }
+    var li = filhoDe(elLista, e.target);
+    var i = li ? lis.indexOf(li) : -1;
+    if (i < 0) { return; }
+    var c = (ehLinhaDeLista(i) && dentroDe(e.target, 'lst-rem', li)) ? 1 : 0;
+    if (zona === 'lista' && i === idx && c === col) { return; }
+    var mudouLinha = (i !== idx);
+    zona = 'lista';
+    idx = i;
+    col = c;
+    if (mudouLinha) { confirmando = ''; desenharLista(); } else { marcar(); }
+  });
+
+  elAbas.addEventListener('mousemove', function (e) {
+    if (ocupado || !cursorAndou(e)) { return; }
+    var b = filhoDe(elAbas, e.target);
+    var i = b ? Array.prototype.indexOf.call(elAbas.children, b) : -1;
+    if (i < 0 || (zona === 'abas' && i === filtro)) { return; }
+    zona = 'abas';
+    filtro = i;
+    idx = 0;
+    col = 0;
+    confirmando = '';
+    desenharLista();
+  });
+  elAbas.addEventListener('click', function (e) {
+    var b = filhoDe(elAbas, e.target);
+    var i = b ? Array.prototype.indexOf.call(elAbas.children, b) : -1;
+    if (ocupado || i < 0) { return; }
+    zona = 'abas';
+    filtro = i;
+    idx = 0;
+    col = 0;
+    confirmando = '';
+    desenharLista();
+  });
 
   // callbacks: { usar(entrada), adicionar(grupo), sair() }
   function abrir(callbacks, aviso) {

@@ -32,11 +32,12 @@ VLTV.config = {
   // Backend da VPS (o mesmo HomeApiClient do Android). Créditos aprendidos do botão "Próximo episódio":
   //   GET  {VPS_URL}/credits?domain=DNS&series=ID_DO_1o_EPISODIO  ->  { remaining_sec: N }
   //   POST {VPS_URL}/credits  { domain, series, remaining_sec }  (cabeçalho x-app-key)
+  // A chave NÃO fica no código: o GitHub Actions troca o texto marcado abaixo pelo Secret VPS_APP_KEY ao gerar o .ipk.
   // Atenção: o servidor precisa liberar CORS (Access-Control-Allow-Origin e, para o POST,
   // Access-Control-Allow-Headers: Content-Type, x-app-key), senão a TV só usa o valor salvo nela.
   // Passa pelo gateway, que troca o "painel:ID" pelo DNS real antes de falar com o backend.
   VPS_URL: 'https://tv.vltvplay.tech',
-  VPS_APP_KEY: 'L468983c@',
+  VPS_APP_KEY: '__VPS_APP_KEY__',
 
   // TMDB (logos no lugar do nome na tela de detalhes). A chave NÃO fica no código: o GitHub Actions
   // troca o texto abaixo pelo Secret TMDB_API_KEY na hora de gerar o .ipk (veja build-webos.yml).

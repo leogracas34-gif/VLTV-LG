@@ -66,8 +66,9 @@
 
     if (nome === 'login') {
       mostrarSenha(false);
-      var lista = focaveis();
-      (lista[1] || lista[0]).focus();
+      // Login recém-aberto: nada fica com foco nem destacado até mexer no controle.
+      if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); }
+      telas.login.classList.add('sem-foco');
     }
     if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
@@ -554,6 +555,12 @@
     detalhes: function (k) { return VLTV.detalhes.tecla(k); },
     player: function (k) { return VLTV.player.tecla(k); }
   };
+
+  // Mexeu no controle (setas, OK ou cursor): o destaque do login passa a aparecer.
+  function revelarFocoLogin() { telas.login.classList.remove('sem-foco'); }
+  document.addEventListener('keydown', revelarFocoLogin, true);
+  document.addEventListener('mousemove', revelarFocoLogin, true);
+  document.addEventListener('click', revelarFocoLogin, true);
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;

@@ -101,7 +101,8 @@ input {
   outline: none;
 }
 
-input:focus {
+input:focus,
+.campo input:hover {
   border-color: var(--destaque-claro);
   box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.35);
 }
@@ -119,7 +120,8 @@ input:focus {
   outline: none;
 }
 
-.botao:focus {
+.botao:focus,
+.botao:not([disabled]):hover {
   border-color: #fff;
   box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5);
 }
@@ -196,15 +198,19 @@ input:focus {
 #tile-filmes { background: linear-gradient(135deg, #b8123f 0%, #4a1560 55%, #14122a 100%); }
 #tile-series { background: linear-gradient(135deg, #4a5fd0 0%, #6a1450 55%, #16102a 100%); }
 
-.tile:focus {
+.tile:focus,
+.tile:not([disabled]):hover {
   background: linear-gradient(135deg, #ff2a38 0%, #a81230 55%, #2a1228 100%);
   border-color: #fff;
   box-shadow: 0 0 0 8px rgba(229, 9, 20, 0.5);
   transform: scale(1.05);
 }
-#tile-live:focus { background: linear-gradient(135deg, #ff2a38 0%, #a81230 55%, #2a1228 100%); }
-#tile-filmes:focus { background: linear-gradient(135deg, #e0185a 0%, #6a1d86 55%, #221840 100%); }
-#tile-series:focus { background: linear-gradient(135deg, #6a80ff 0%, #8e1c6c 55%, #241a42 100%); }
+#tile-live:focus,
+#tile-live:not([disabled]):hover { background: linear-gradient(135deg, #ff2a38 0%, #a81230 55%, #2a1228 100%); }
+#tile-filmes:focus,
+#tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #e0185a 0%, #6a1d86 55%, #221840 100%); }
+#tile-series:focus,
+#tile-series:not([disabled]):hover { background: linear-gradient(135deg, #6a80ff 0%, #8e1c6c 55%, #241a42 100%); }
 
 .tile[disabled] { opacity: 0.4; }
 
@@ -582,7 +588,8 @@ input::placeholder { color: #5f5f6b; }
   border-color: var(--destaque-claro);
 }
 
-.aba:focus {
+.aba:focus,
+.aba:hover {
   color: #fff;
   background: var(--destaque);
   border-color: #fff;
@@ -607,7 +614,8 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 50%;
   outline: none;
 }
-.btn-engrenagem:focus {
+.btn-engrenagem:focus,
+.btn-engrenagem:hover {
   color: #fff;
   background: var(--destaque);
   border-color: #fff;
@@ -629,7 +637,8 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 12px;
   outline: none;
 }
-.btn-discreto:focus {
+.btn-discreto:focus,
+.btn-discreto:hover {
   color: #fff;
   background: var(--painel-2);
   border-color: #fff;
@@ -1326,7 +1335,8 @@ input::placeholder { color: #5f5f6b; }
 .tela-topo.com-banner .tiles > * + * { margin-left: 24px; }
 .tela-topo.com-banner .tile-titulo { font-size: 40px; }
 .tela-topo.com-banner .tile-sub { margin-top: 6px; font-size: 25px; }
-.tela-topo.com-banner .tile:focus { transform: scale(1.03); }
+.tela-topo.com-banner .tile:focus,
+.tela-topo.com-banner .tile:not([disabled]):hover { transform: scale(1.03); }
 
 .banner {
   position: relative;
@@ -1371,7 +1381,8 @@ input::placeholder { color: #5f5f6b; }
 .banner.vazio .bn-conteudo,
 .banner.vazio .bn-pontos { display: none; }
 
-.banner:focus {
+.banner:focus,
+.banner:hover {
   border-color: #fff;
   box-shadow: 0 0 0 8px rgba(229, 9, 20, 0.5);
 }
@@ -1860,7 +1871,8 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 14px;
   outline: none;
 }
-.btn-olho:focus {
+.btn-olho:focus,
+.btn-olho:hover {
   color: #fff;
   background: var(--destaque);
   border-color: #fff;
@@ -1901,4 +1913,5 @@ input::placeholder { color: #5f5f6b; }
 }
 .botao-conf + .botao-conf { margin-left: 28px; }
 .botao-conf.perigo { background: var(--destaque); border-color: transparent; }
-.botao-conf:focus { border-color: #fff; box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5); }
+.botao-conf:focus,
+.botao-conf:hover { border-color: #fff; box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5); }

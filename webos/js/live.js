@@ -279,22 +279,25 @@
       });
   }
 
-  // Seta para a direita: volta para a lista de canais que já está na tela (não carrega nada).
+  // Seta para a direita: entra na lista de canais que já está na tela (não troca de categoria nem carrega nada).
   function irParaCanais() {
-    if (canais.length > 0) { trocarFoco('canais'); }
+    if (canais.length === 0) { return; }
+    if (catCarregada >= 0) { catIdx = catCarregada; marcarCategoria(); }
+    trocarFoco('canais');
   }
 
-  // OK: só agora carrega os canais da categoria marcada.
+  // OK: carrega os canais da categoria marcada, mas o foco continua nas categorias (igual Filmes e Séries).
+  // Para navegar pelos canais, o usuário aperta para a direita.
   function escolherCategoria() {
     if (categoriaTrancada(categorias[catIdx])) {
       VLTV.parental.pedirSenha(function () {
         atualizarCadeados();
-        carregarCanais(catIdx, true);
+        carregarCanais(catIdx, false);
       }, { titulo: 'Categoria +18', sub: 'Digite a senha para abrir.' });
       return;
     }
-    if (catIdx === catCarregada && canais.length > 0) { trocarFoco('canais'); return; }
-    carregarCanais(catIdx, true);
+    if (catIdx === catCarregada && canais.length > 0) { return; }   // já está aberta
+    carregarCanais(catIdx, false);
   }
 
   // Voltando para as categorias, o cursor volta para a que está com os canais na tela.
@@ -371,7 +374,7 @@
   function carregarEpg(canal) {
     var id = ++idEpg;
     if (canal.url) { return; }   // lista M3U: sem guia de programação
-    VLTV.api.epgCurto(canal.stream_id, 6)
+    VLTV.api.epgCurto(canal.stream_id, 8)
       .then(function (lista) {
         if (id !== idEpg) { return; }
         var atual = lista[0];
@@ -381,7 +384,9 @@
           : 'Sem informação de programação.';
         infoDesc.textContent = atual && atual.descricao ? atual.descricao : '';
         esvaziar(infoProximos);
-        lista.slice(1, 5).forEach(function (p) {
+        // Preenche a coluna: sem descrição sobra espaço, então cabem mais programas.
+        var quantos = atual && atual.descricao ? 5 : 7;
+        lista.slice(1, 1 + quantos).forEach(function (p) {
           if (!p.titulo) { return; }
           var linha = document.createElement('div');
           var h = document.createElement('span');

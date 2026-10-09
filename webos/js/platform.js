@@ -81,13 +81,29 @@
   // ── Cursor e roda do controle (Magic Remote) ─────────────────────
   // VLTV.cursor.andou(e): o cursor andou de verdade? Ignora o tremido da mão, a lista rolando por baixo
   // dele e o leve movimento que o controle faz ao apertar um botão (ex.: Voltar com o cursor sobre uma capa).
+  // Depois de apertar qualquer tecla, o app entra em "modo teclado": o cursor só volta a mandar no foco
+  // quando se afasta bem do ponto onde estava quando a tecla foi apertada.
   var LIMIAR_CURSOR_PX = 10;
-  var QUIETO_APOS_TECLA_MS = 600;
+  var LIMIAR_APOS_TECLA_PX = 40;
+  var QUIETO_APOS_TECLA_MS = 800;
   var cursorRefX = -1000;
   var cursorRefY = -1000;
+  var cursorUltimoX = -1000;
+  var cursorUltimoY = -1000;
   var cursorQuietoAte = 0;
+  var modoTeclado = false;
+
+  // Guarda sempre a última posição do cursor, mesmo nos movimentos que o app ignora.
+  document.addEventListener('mousemove', function (e) {
+    cursorUltimoX = e.clientX;
+    cursorUltimoY = e.clientY;
+  }, true);
+
   document.addEventListener('keydown', function () {
     cursorQuietoAte = new Date().getTime() + QUIETO_APOS_TECLA_MS;
+    cursorRefX = cursorUltimoX;
+    cursorRefY = cursorUltimoY;
+    modoTeclado = true;
   }, true);
 
   VLTV.cursor = {
@@ -95,9 +111,11 @@
       if (new Date().getTime() < cursorQuietoAte) { return false; }
       var dx = e.clientX - cursorRefX;
       var dy = e.clientY - cursorRefY;
-      if (dx * dx + dy * dy < LIMIAR_CURSOR_PX * LIMIAR_CURSOR_PX) { return false; }
+      var limiar = modoTeclado ? LIMIAR_APOS_TECLA_PX : LIMIAR_CURSOR_PX;
+      if (dx * dx + dy * dy < limiar * limiar) { return false; }
       cursorRefX = e.clientX;
       cursorRefY = e.clientY;
+      modoTeclado = false;
       return true;
     }
   };

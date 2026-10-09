@@ -577,6 +577,86 @@
     return true;
   }
 
+  // ── Cursor do controle (Magic Remote) ────────────────────────────
+  // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
+  // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
+  var ptX = -1;
+  var ptY = -1;
+  function cursorAndou(e) {
+    if (e.clientX === ptX && e.clientY === ptY) { return false; }
+    ptX = e.clientX;
+    ptY = e.clientY;
+    return true;
+  }
+  // Acha o filho direto de "pai" que contém o elemento tocado.
+  function filhoDe(pai, el) {
+    while (el && el.parentNode !== pai) { el = el.parentNode; }
+    return el || null;
+  }
+  function dentroDe(el, classe, limite) {
+    while (el && el !== limite) {
+      if (el.classList && el.classList.contains(classe)) { return true; }
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  function indiceCategoria(e) {
+    var li = filhoDe(listaCats, e.target);
+    return li ? itensCats.indexOf(li) : -1;
+  }
+  function indiceCanal(e) {
+    var li = filhoDe(listaCanais, e.target);
+    return li ? itensCanais.indexOf(li) : -1;
+  }
+
+  listaCats.addEventListener('mousemove', function (e) {
+    if (cheio || !cursorAndou(e)) { return; }
+    var i = indiceCategoria(e);
+    if (i < 0 || (foco === 'cat' && i === catIdx)) { return; }
+    if (foco !== 'cat') { voltarParaCategorias(); }
+    catIdx = i;
+    marcarCategoria();
+  });
+  listaCats.addEventListener('click', function (e) {
+    if (cheio) { return; }
+    var i = indiceCategoria(e);
+    if (i < 0) { return; }
+    if (foco !== 'cat') { voltarParaCategorias(); }
+    catIdx = i;
+    marcarCategoria();
+    teclaCategorias(TECLA.ENTER);      // abre a categoria, igual ao OK
+  });
+
+  listaCanais.addEventListener('mousemove', function (e) {
+    if (cheio || !cursorAndou(e)) { return; }
+    var i = indiceCanal(e);
+    if (i < 0) { return; }
+    var naEstrela = dentroDe(e.target, 'estrela', itensCanais[i]);
+    if (foco === 'canais' && i === canalIdx && naEstrela === focoEstrela) { return; }
+    if (foco !== 'canais') { irParaCanais(); }
+    canalIdx = i;
+    marcarCanal();
+    definirEstrela(naEstrela);
+  });
+  listaCanais.addEventListener('click', function (e) {
+    if (cheio) { return; }
+    var i = indiceCanal(e);
+    if (i < 0) { return; }
+    var naEstrela = dentroDe(e.target, 'estrela', itensCanais[i]);
+    if (foco !== 'canais') { irParaCanais(); }
+    canalIdx = i;
+    marcarCanal();
+    definirEstrela(naEstrela);
+    teclaCanais(TECLA.ENTER);          // na estrela: favorita; no canal: toca (ou abre em tela cheia se já está tocando)
+  });
+
+  // Tela cheia: clicar na imagem mostra/esconde as informações (igual ao OK).
+  caixaPlayer.addEventListener('click', function () {
+    if (cheio) { teclaCheio(TECLA.ENTER); }
+    else if (tocando) { entrarCheio(); }
+  });
+
   // Devolve true se a tecla foi usada por esta tela.
   function tecla(k) {
     if (cheio) { return teclaCheio(k); }

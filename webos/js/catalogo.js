@@ -553,6 +553,76 @@
     return teclaGrade(k);
   }
 
+  // ── Cursor do controle (Magic Remote) ────────────────────────────
+  // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
+  // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
+  var ptX = -1;
+  var ptY = -1;
+  function cursorAndou(e) {
+    if (e.clientX === ptX && e.clientY === ptY) { return false; }
+    ptX = e.clientX;
+    ptY = e.clientY;
+    return true;
+  }
+  // Acha o filho direto de "pai" que contém o elemento tocado.
+  function filhoDe(pai, el) {
+    while (el && el.parentNode !== pai) { el = el.parentNode; }
+    return el || null;
+  }
+  function dentroDe(el, classe, limite) {
+    while (el && el !== limite) {
+      if (el.classList && el.classList.contains(classe)) { return true; }
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  function indiceCategoria(e) {
+    var li = filhoDe(listaCats, e.target);
+    return li ? itensCats.indexOf(li) : -1;
+  }
+  function indiceCelula(e) {
+    var li = filhoDe(grade, e.target);
+    return li ? celulas.indexOf(li) : -1;
+  }
+
+  listaCats.addEventListener('mousemove', function (e) {
+    if (!cursorAndou(e)) { return; }
+    var i = indiceCategoria(e);
+    if (i < 0 || (foco === 'cat' && i === catIdx)) { return; }
+    if (foco !== 'cat') { trocarFoco('cat'); }
+    catIdx = i;
+    marcarCategoria();
+  });
+  listaCats.addEventListener('click', function (e) {
+    var i = indiceCategoria(e);
+    if (i < 0) { return; }
+    if (foco !== 'cat') { trocarFoco('cat'); }
+    catIdx = i;
+    marcarCategoria();
+    teclaCategorias(TECLA.ENTER);      // abre a categoria, igual ao OK
+  });
+
+  grade.addEventListener('mousemove', function (e) {
+    if (!cursorAndou(e)) { return; }
+    var i = indiceCelula(e);
+    if (i < 0 || (foco === 'grade' && i === itemIdx)) { return; }
+    if (foco !== 'grade') { trocarFoco('grade'); }
+    itemIdx = i;
+    marcarItem();
+  });
+  grade.addEventListener('click', function (e) {
+    var i = indiceCelula(e);
+    if (i < 0) { return; }
+    if (foco !== 'grade') { trocarFoco('grade'); }
+    itemIdx = i;
+    marcarItem();
+    escolher();                        // abre os detalhes, igual ao OK
+  });
+
+  // Clicar na caixa de pesquisa abre o teclado da TV.
+  caixaBusca.addEventListener('click', function () { focarBusca(); });
+
   elBusca.addEventListener('input', agendarBusca);
 
   // Ao voltar dos detalhes: se a grade é a de Favoritos, atualiza (o título pode ter saído da lista).

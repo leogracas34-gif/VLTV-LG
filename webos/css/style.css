@@ -234,8 +234,8 @@ input:focus {
   border: 3px solid var(--borda);
   border-radius: 18px;
 }
-#painel-cats { width: 420px; }
-#painel-canais { width: 440px; }
+#painel-cats { width: 380px; }
+#painel-canais { width: 420px; }
 .painel.ativo { border-color: var(--destaque-claro); }
 
 .painel h2 {
@@ -303,12 +303,12 @@ input:focus {
   border-color: #fff;
 }
 
-.coluna-player { width: 880px; }
+.coluna-player { width: 940px; height: 960px; overflow: hidden; }
 
 .player {
   position: relative;
-  width: 880px;
-  height: 495px;
+  width: 940px;
+  height: 529px;
   background: #000;
   border-radius: 14px;
   overflow: hidden;

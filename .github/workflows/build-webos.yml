@@ -38,6 +38,28 @@ jobs:
             echo "Chave do TMDB aplicada (${#CHAVE} caracteres)."
           fi
 
+      - name: Colocar a chave do app no config.js (Secret VPS_APP_KEY)
+        env:
+          VPS_APP_KEY: ${{ secrets.VPS_APP_KEY }}
+        run: |
+          ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)
+          PASTA=$(dirname "$ARQUIVO")
+          CONFIG="$PASTA/js/config.js" node - <<'JS'
+          const fs = require('fs');
+          const arquivo = process.env.CONFIG;
+          const chave = String(process.env.VPS_APP_KEY || '').trim();
+          let texto = fs.readFileSync(arquivo, 'utf8');
+          if (!chave) {
+            console.log('::warning::Secret VPS_APP_KEY vazio ou não encontrado. O app funciona, mas não envia os créditos aprendidos.');
+          } else {
+            const seguro = chave.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            texto = texto.split('__VPS_APP_KEY__').join(seguro);
+            if (texto.indexOf('__VPS_APP_KEY__') >= 0) { console.log('ERRO: não consegui trocar a chave no config.js'); process.exit(1); }
+            fs.writeFileSync(arquivo, texto);
+            console.log('Chave do app aplicada (' + chave.length + ' caracteres).');
+          }
+          JS
+
       - name: Gerar o .ipk
         run: |
           ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)

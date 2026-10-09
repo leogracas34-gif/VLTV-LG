@@ -278,14 +278,7 @@
   // ── Cursor do controle (Magic Remote) ────────────────────────────
   // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
   // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
-  var ptX = -1;
-  var ptY = -1;
-  function cursorAndou(e) {
-    if (e.clientX === ptX && e.clientY === ptY) { return false; }
-    ptX = e.clientX;
-    ptY = e.clientY;
-    return true;
-  }
+  function cursorAndou(e) { return VLTV.cursor.andou(e); }
   // Acha o filho direto de "pai" que contém o elemento tocado.
   function filhoDe(pai, el) {
     while (el && el.parentNode !== pai) { el = el.parentNode; }

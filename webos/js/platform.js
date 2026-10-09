@@ -78,5 +78,55 @@
     else { el.scrollIntoView(false); }
   };
 
+  // ── Cursor e roda do controle (Magic Remote) ─────────────────────
+  // VLTV.cursor.andou(e): o cursor andou de verdade? Ignora o tremido da mão, a lista rolando por baixo
+  // dele e o leve movimento que o controle faz ao apertar um botão (ex.: Voltar com o cursor sobre uma capa).
+  var LIMIAR_CURSOR_PX = 10;
+  var QUIETO_APOS_TECLA_MS = 600;
+  var cursorRefX = -1000;
+  var cursorRefY = -1000;
+  var cursorQuietoAte = 0;
+  document.addEventListener('keydown', function () {
+    cursorQuietoAte = new Date().getTime() + QUIETO_APOS_TECLA_MS;
+  }, true);
+
+  VLTV.cursor = {
+    andou: function (e) {
+      if (new Date().getTime() < cursorQuietoAte) { return false; }
+      var dx = e.clientX - cursorRefX;
+      var dy = e.clientY - cursorRefY;
+      if (dx * dx + dy * dy < LIMIAR_CURSOR_PX * LIMIAR_CURSOR_PX) { return false; }
+      cursorRefX = e.clientX;
+      cursorRefY = e.clientY;
+      return true;
+    }
+  };
+
+  // Roda do controle: chama tratador(sentido, e), sentido = +1 (para baixo) ou -1 (para cima).
+  VLTV.aoRodar = function (el, tratador) {
+    el.addEventListener('wheel', function (e) {
+      var d = e.deltaY;
+      if (!d && e.wheelDelta) { d = -e.wheelDelta; }
+      if (!d) { return; }
+      e.preventDefault();
+      tratador(d > 0 ? 1 : -1, e, Math.abs(d));
+    }, false);
+  };
+
+  // Rola uma lista (overflow hidden) com a roda. Devolve true se andou.
+  VLTV.rolarRoda = function (lista, sentido, intensidade) {
+    var passo = Math.max(90, Math.min(240, intensidade || 120));
+    var antes = lista.scrollTop;
+    lista.scrollTop = antes + sentido * passo;
+    return lista.scrollTop !== antes;
+  };
+
+  // Elemento (filho direto de "pai") que está sob o ponto da tela, ou null.
+  VLTV.filhoNoPonto = function (pai, x, y) {
+    var el = document.elementFromPoint(x, y);
+    while (el && el.parentNode !== pai) { el = el.parentNode; }
+    return el || null;
+  };
+
   VLTV.platform = detectar();
 })();

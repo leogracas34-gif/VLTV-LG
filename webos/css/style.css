@@ -309,15 +309,17 @@ input:focus,
   border-color: #fff;
 }
 
-.coluna-player { width: 940px; height: 960px; overflow: hidden; }
+.coluna-player { width: 940px; height: 960px; }
 
+/* Importante (webOS): o vídeo é desenhado direto pelo hardware da TV. Se algum elemento em volta
+   recorta (overflow: hidden) ou arredonda (border-radius), a imagem fica preta e só o som toca.
+   Por isso a mini tela fica sem recorte nem cantos arredondados. */
 .player {
   position: relative;
   width: 940px;
   height: 529px;
   background: #000;
-  border-radius: 14px;
-  overflow: hidden;
+  border: 2px solid var(--borda);
 }
 
 .player video {
@@ -333,7 +335,7 @@ input:focus,
   width: 1920px;
   height: 1080px;
   z-index: 50;
-  border-radius: 0;
+  border: 0;
 }
 
 .overlay {
@@ -360,7 +362,7 @@ input:focus,
 .info-cheio .info-nome { font-size: 52px; }
 .info-cheio .info-linha { font-size: 34px; }
 
-.info { padding: 16px 8px; }
+.info { padding: 16px 8px; max-height: 431px; overflow: hidden; }
 .info-nome { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
 .info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
 .info-agora { color: var(--destaque-claro); font-weight: 700; }
@@ -719,6 +721,7 @@ input::placeholder { color: #5f5f6b; }
   transition: opacity 0.3s ease;
 }
 .det-grad-rolado.ativo { opacity: 1; }
+.det-fundo, .det-grad, .det-grad-rolado { pointer-events: none; }
 
 .det-janela {
   position: absolute;
@@ -1146,6 +1149,7 @@ input::placeholder { color: #5f5f6b; }
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 2;
+  pointer-events: none;
 }
 .det-fade-topo.ativo { opacity: 1; }
 

@@ -580,14 +580,7 @@
   // ── Cursor do controle (Magic Remote) ────────────────────────────
   // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
   // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
-  var ptX = -1;
-  var ptY = -1;
-  function cursorAndou(e) {
-    if (e.clientX === ptX && e.clientY === ptY) { return false; }
-    ptX = e.clientX;
-    ptY = e.clientY;
-    return true;
-  }
+  function cursorAndou(e) { return VLTV.cursor.andou(e); }
   // Acha o filho direto de "pai" que contém o elemento tocado.
   function filhoDe(pai, el) {
     while (el && el.parentNode !== pai) { el = el.parentNode; }
@@ -649,6 +642,42 @@
     marcarCanal();
     definirEstrela(naEstrela);
     teclaCanais(TECLA.ENTER);          // na estrela: favorita; no canal: toca (ou abre em tela cheia se já está tocando)
+  });
+
+  // Roda do controle: arrasta a lista para cima/baixo e o destaque acompanha o cursor.
+  function completarCanais() {
+    while (renderizados < canais.length && listaCanais.scrollTop + listaCanais.clientHeight > listaCanais.scrollHeight - 700) { renderMais(); }
+  }
+
+  VLTV.aoRodar(listaCats, function (sentido, e, forca) {
+    if (cheio) { return; }
+    VLTV.rolarRoda(listaCats, sentido, forca);
+    var li = VLTV.filhoNoPonto(listaCats, e.clientX, e.clientY);
+    var i = li ? itensCats.indexOf(li) : -1;
+    if (i >= 0 && !(foco === 'cat' && i === catIdx)) {
+      if (foco !== 'cat') { voltarParaCategorias(); }
+      catIdx = i;
+      if (liSelCat) { liSelCat.classList.remove('sel'); }
+      liSelCat = itensCats[catIdx];
+      if (liSelCat) { liSelCat.classList.add('sel'); }
+    }
+  });
+
+  VLTV.aoRodar(listaCanais, function (sentido, e, forca) {
+    if (cheio || canais.length === 0) { return; }
+    if (sentido > 0) { completarCanais(); }
+    VLTV.rolarRoda(listaCanais, sentido, forca);
+    completarCanais();
+    var li = VLTV.filhoNoPonto(listaCanais, e.clientX, e.clientY);
+    var i = li ? itensCanais.indexOf(li) : -1;
+    if (i >= 0 && !(foco === 'canais' && i === canalIdx && !focoEstrela)) {
+      if (foco !== 'canais') { irParaCanais(); }
+      canalIdx = i;
+      if (liSelCanal) { liSelCanal.classList.remove('sel'); liSelCanal.classList.remove('foco-estrela'); }
+      liSelCanal = itensCanais[canalIdx] || null;
+      definirEstrela(false);
+      if (liSelCanal) { liSelCanal.classList.add('sel'); }
+    }
   });
 
   // Tela cheia: clicar na imagem mostra/esconde as informações (igual ao OK).

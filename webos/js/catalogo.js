@@ -556,14 +556,7 @@
   // ── Cursor do controle (Magic Remote) ────────────────────────────
   // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
   // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
-  var ptX = -1;
-  var ptY = -1;
-  function cursorAndou(e) {
-    if (e.clientX === ptX && e.clientY === ptY) { return false; }
-    ptX = e.clientX;
-    ptY = e.clientY;
-    return true;
-  }
+  function cursorAndou(e) { return VLTV.cursor.andou(e); }
   // Acha o filho direto de "pai" que contém o elemento tocado.
   function filhoDe(pai, el) {
     while (el && el.parentNode !== pai) { el = el.parentNode; }
@@ -618,6 +611,41 @@
     itemIdx = i;
     marcarItem();
     escolher();                        // abre os detalhes, igual ao OK
+  });
+
+  // Roda do controle: arrasta a lista/grade para cima ou para baixo e o destaque acompanha o cursor.
+  function completarGrade() {
+    while (renderizados < itens.length && grade.scrollTop + grade.clientHeight > grade.scrollHeight - 900) { renderMais(); }
+  }
+
+  VLTV.aoRodar(listaCats, function (sentido, e, forca) {
+    VLTV.rolarRoda(listaCats, sentido, forca);
+    var li = VLTV.filhoNoPonto(listaCats, e.clientX, e.clientY);
+    var i = li ? itensCats.indexOf(li) : -1;
+    if (i < 0 || (foco === 'cat' && i === catIdx)) { return; }
+    if (foco !== 'cat') { trocarFoco('cat'); }
+    catIdx = i;
+    if (liSelCat) { liSelCat.classList.remove('sel'); }
+    liSelCat = itensCats[catIdx];
+    if (liSelCat) { liSelCat.classList.add('sel'); }
+    agendarAquecer();
+  });
+
+  VLTV.aoRodar(grade, function (sentido, e, forca) {
+    if (celulas.length === 0) { return; }
+    if (sentido > 0) { completarGrade(); }
+    VLTV.rolarRoda(grade, sentido, forca);
+    completarGrade();
+    var li = VLTV.filhoNoPonto(grade, e.clientX, e.clientY);
+    var i = li ? celulas.indexOf(li) : -1;
+    if (i >= 0 && !(foco === 'grade' && i === itemIdx)) {
+      if (foco !== 'grade') { trocarFoco('grade'); }
+      itemIdx = i;
+      if (celulaSel) { celulaSel.classList.remove('sel'); }
+      celulaSel = celulas[itemIdx];
+      if (celulaSel) { celulaSel.classList.add('sel'); }
+    }
+    bombearCapas();      // as capas da parte que apareceu passam na frente da fila
   });
 
   // Clicar na caixa de pesquisa abre o teclado da TV.

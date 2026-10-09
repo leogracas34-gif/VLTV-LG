@@ -1017,5 +1017,93 @@
     marcarFoco();
   }
 
+  // ── Cursor e roda do controle (Magic Remote) ─────────────────────
+  // Passar o cursor destaca (acende) o item, igual às setas; o clique faz o mesmo que o OK;
+  // a roda sobe/desce a página como as setas para cima/baixo.
+  var elTela = $('tela-detalhes');
+
+  function contem(el, alvo) { return !!el && !!alvo && (el === alvo || el.contains(alvo)); }
+
+  // O que está sob o cursor: { zona, secIdx, abaIdx, epIdx, sugIdx } ou null.
+  function alvoDoCursor(t) {
+    if (popupAberto) {
+      for (var p = 0; p < itensPopup.length; p++) {
+        if (contem(itensPopup[p], t)) { return { popup: p }; }
+      }
+      return null;
+    }
+    if (contem(elPlay, t)) { return { zona: 'play' }; }
+    var botoes = botoesSec();
+    for (var b = 0; b < botoes.length; b++) {
+      if (contem(botoes[b], t)) { return { zona: 'sec', secIdx: b }; }
+    }
+    for (var a = 0; a < abas.length; a++) {
+      if (contem(abas[a].el, t)) { return { zona: 'abas', abaIdx: a }; }
+    }
+    if (abaAtual().id === 'eps') {
+      if (contem(elTemp, t)) { return { zona: 'temp' }; }
+      for (var e = 0; e < itensEps.length; e++) {
+        if (contem(itensEps[e], t)) { return { zona: 'lista', epIdx: e }; }
+      }
+    } else if (abaAtual().id === 'sug') {
+      for (var g = 0; g < itensSug.length; g++) {
+        if (contem(itensSug[g], t)) { return { zona: 'lista', sugIdx: g }; }
+      }
+    }
+    return null;
+  }
+
+  function aplicarAlvo(alvoCursor) {
+    if (alvoCursor.popup !== undefined) { popupIdx = alvoCursor.popup; marcarPopup(); return; }
+    zona = alvoCursor.zona;
+    if (alvoCursor.secIdx !== undefined) { secIdx = alvoCursor.secIdx; }
+    if (alvoCursor.epIdx !== undefined) { epIdx = alvoCursor.epIdx; }
+    if (alvoCursor.sugIdx !== undefined) { sugIdx = alvoCursor.sugIdx; }
+    if (alvoCursor.abaIdx !== undefined && alvoCursor.abaIdx !== abaIdx) {
+      abaIdx = alvoCursor.abaIdx;
+      marcarAbas();
+      mostrarSecao();
+    }
+    marcarFoco();
+  }
+
+  function mesmoAlvo(alvoCursor) {
+    if (alvoCursor.popup !== undefined) { return popupAberto && popupIdx === alvoCursor.popup; }
+    if (popupAberto || zona !== alvoCursor.zona) { return false; }
+    if (alvoCursor.secIdx !== undefined && secIdx !== alvoCursor.secIdx) { return false; }
+    if (alvoCursor.abaIdx !== undefined && abaIdx !== alvoCursor.abaIdx) { return false; }
+    if (alvoCursor.epIdx !== undefined && epIdx !== alvoCursor.epIdx) { return false; }
+    if (alvoCursor.sugIdx !== undefined && sugIdx !== alvoCursor.sugIdx) { return false; }
+    return true;
+  }
+
+  elTela.addEventListener('mousemove', function (e) {
+    if (!item || !VLTV.cursor.andou(e)) { return; }
+    var alvoCursor = alvoDoCursor(e.target);
+    if (!alvoCursor || mesmoAlvo(alvoCursor)) { return; }
+    aplicarAlvo(alvoCursor);
+  });
+
+  elTela.addEventListener('click', function (e) {
+    if (!item) { return; }
+    var alvoCursor = alvoDoCursor(e.target);
+    if (!alvoCursor) {
+      if (popupAberto && !contem(elPopupJanela, e.target)) { fecharPopup(); }   // clicou fora da janela de temporadas
+      return;
+    }
+    if (!mesmoAlvo(alvoCursor)) { aplicarAlvo(alvoCursor); }
+    if (alvoCursor.zona === 'abas') { return; }          // clicar na aba só a escolhe
+    tecla(TECLA.ENTER);                                   // o resto: igual ao OK
+  });
+
+  // Roda: sobe/desce como as setas (no máximo uma vez a cada 110 ms, para não correr demais).
+  var ultimaRoda = 0;
+  VLTV.aoRodar(elTela, function (sentido) {
+    var agora = new Date().getTime();
+    if (agora - ultimaRoda < 110) { return; }
+    ultimaRoda = agora;
+    tecla(sentido > 0 ? TECLA.BAIXO : TECLA.CIMA);
+  });
+
   VLTV.detalhes = { abrir: abrir, tecla: tecla, voltou: voltou };
 })();

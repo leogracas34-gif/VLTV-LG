@@ -470,13 +470,22 @@
   }
 
   [campoServidor, campoUsuario, campoSenha, campoM3u].forEach(function (el) {
+    var timerTrava = null;
+    // Voltou o foco (é o que acontece ao abrir o teclado): cancela o travamento pendente.
+    el.addEventListener('focus', function () { clearTimeout(timerTrava); });
     // Se o teclado fechou sem Enter (voltar), o campo volta a ser só-leitura e mantém o foco.
     el.addEventListener('blur', function () {
       if (el.hasAttribute('readonly')) { return; }
-      setTimeout(function () {
+      clearTimeout(timerTrava);
+      timerTrava = setTimeout(function () {
+        if (document.activeElement === el) { return; }   // o campo já está com o foco de novo: não trava
         travarDigitacao(el);
         if (telaAtual === 'login' && (!document.activeElement || document.activeElement === document.body)) { el.focus(); }
       }, 50);
+    });
+    // Cursor do controle (Magic Remote): o clique no campo libera a digitação e abre o teclado.
+    el.addEventListener('click', function () {
+      if (telaAtual === 'login' && el.hasAttribute('readonly')) { liberarDigitacao(el); }
     });
   });
   btnOlho.addEventListener('click', function () { mostrarSenha(campoSenha.type === 'password'); });

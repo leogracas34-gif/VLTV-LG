@@ -596,6 +596,12 @@ input::placeholder { color: #5f5f6b; }
   box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5);
 }
 
+/* Login recém-aberto: a aba escolhida não parece selecionada até mexer no controle (os campos já mostram o modo). */
+#tela-login.sem-foco .aba.ativa {
+  color: var(--suave);
+  border-color: var(--borda);
+}
+
 /* ── Home: topo, relógio, engrenagem e rodapé ────────── */
 
 .topo-direita { display: flex; align-items: flex-start; }

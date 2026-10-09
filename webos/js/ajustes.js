@@ -347,5 +347,77 @@
     marcar();
   }
 
+  // ── Cursor do controle (Magic Remote) ────────────────────────────
+  // Passar o cursor destaca o item (igual às setas) e o clique faz o mesmo que o OK.
+  // Só reage se o cursor andou de verdade: a lista rolando sozinha embaixo dele não muda a seleção.
+  var ptX = -1;
+  var ptY = -1;
+  function cursorAndou(e) {
+    if (e.clientX === ptX && e.clientY === ptY) { return false; }
+    ptX = e.clientX;
+    ptY = e.clientY;
+    return true;
+  }
+  // Acha o filho direto de "pai" que contém o elemento tocado.
+  function filhoDe(pai, el) {
+    while (el && el.parentNode !== pai) { el = el.parentNode; }
+    return el || null;
+  }
+  function dentroDe(el, classe, limite) {
+    while (el && el !== limite) {
+      if (el.classList && el.classList.contains(classe)) { return true; }
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  function indiceMenu(e) {
+    var li = filhoDe(menu, e.target);
+    return li ? lis.indexOf(li) : -1;
+  }
+
+  // Linha de opção do Controle parental sob o cursor (só vale com a janela da direita aberta).
+  function indiceOpcao(e) {
+    if (foco !== 'dir') { return -1; }
+    var l = filhoDe(conteudo, e.target);
+    if (!l || !l.classList.contains('cfg-linha')) { return -1; }
+    var i = Array.prototype.indexOf.call(conteudo.children, l);
+    return i < dirItens.length ? i : -1;
+  }
+
+  menu.addEventListener('mousemove', function (e) {
+    if (!cursorAndou(e)) { return; }
+    var i = indiceMenu(e);
+    if (i < 0 || (i === idx && foco === 'menu')) { return; }
+    idx = i;
+    foco = 'menu';
+    marcar();
+  });
+  menu.addEventListener('click', function (e) {
+    var i = indiceMenu(e);
+    if (i < 0) { return; }
+    idx = i;
+    foco = 'menu';
+    marcar();
+    tecla(TECLA.ENTER);       // mesmo efeito do OK no item
+  });
+
+  conteudo.addEventListener('mousemove', function (e) {
+    if (!cursorAndou(e)) { return; }
+    var i = indiceOpcao(e);
+    if (i < 0 || i === dirIdx) { return; }
+    dirIdx = i;
+    desenharParental();
+  });
+  conteudo.addEventListener('click', function (e) {
+    var i = indiceOpcao(e);
+    if (i >= 0) {
+      dirIdx = i;
+      teclaDireita(TECLA.ENTER);
+    } else if (foco === 'menu' && ITENS[idx].id === 'parental') {
+      abrirParental();        // clicar no texto do Controle parental também pede a senha
+    }
+  });
+
   VLTV.ajustes = { abrir: abrir, tecla: tecla };
 })();

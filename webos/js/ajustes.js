@@ -1,4 +1,4 @@
-// VLTV Play - webOS | Configurações: informação geral, limpar cache e recarregar o app.
+// VLTV Play - webOS | Configurações: informação geral, controle parental, limpar cache, atualizar e sobre o app.
 (function () {
   'use strict';
 
@@ -15,7 +15,8 @@
     { id: 'info', nome: 'Informação geral' },
     { id: 'parental', nome: 'Controle parental' },
     { id: 'cache', nome: 'Limpar cache' },
-    { id: 'recarregar', nome: 'Atualizar o aplicativo' }
+    { id: 'recarregar', nome: 'Atualizar o aplicativo' },
+    { id: 'sobre', nome: 'Sobre o aplicativo' }
   ];
 
   var idx = 0;
@@ -157,12 +158,48 @@
         texto('Bloqueia canais, filmes e séries adultos (+18) com uma senha de 4 dígitos. A senha padrão é 0000: crie a sua e escolha uma pergunta secreta para recuperar. Pressione OK para abrir (pede a senha).');
       }
     } else if (item.id === 'cache') {
-      esvaziar(conteudo);
-      texto('Apaga a lista de servidores guardada e os dados temporários. Seu login continua salvo. Pressione OK para limpar.');
+      desenharCache();
+    } else if (item.id === 'recarregar') {
+      desenharAtualizar();
     } else {
-      esvaziar(conteudo);
-      texto('Reinicia o aplicativo e carrega tudo de novo. Pressione OK para atualizar.');
+      desenharSobre();
     }
+  }
+
+  // ── Limpar cache ──
+  function desenharCache() {
+    esvaziar(conteudo);
+    linha('O que será apagado', 'Lista de servidores, banner e logos guardados');
+    linha('O que continua salvo', 'Login, favoritos e "continuar assistindo"');
+    linha('Depois de limpar', 'O aplicativo reinicia sozinho');
+    texto('Use quando algo estiver desatualizado ou lento. Pressione OK para limpar.');
+  }
+
+  // ── Atualizar o aplicativo ──
+  function desenharAtualizar() {
+    esvaziar(conteudo);
+    linha('Versão instalada', VLTV.config.VERSAO);
+    var lic = VLTV.licenca && VLTV.licenca.estado();
+    if (lic) { linha('Licença do aplicativo', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : ''); }
+    linha('Seu login e seus favoritos', 'Continuam salvos', 'ok');
+    texto('Reinicia o aplicativo e carrega tudo de novo (lista, categorias e licença). Novas versões do aplicativo chegam pela loja de aplicativos da LG. Pressione OK para atualizar.');
+  }
+
+  // ── Sobre o aplicativo ──
+  function desenharSobre() {
+    esvaziar(conteudo);
+    var cfg = VLTV.config;
+    linha('Aplicativo', 'VLTV Play');
+    linha('Tipo', 'Reprodutor de mídia');
+    linha('Versão', cfg.VERSAO);
+    var lic = VLTV.licenca && VLTV.licenca.estado();
+    if (lic) {
+      linha('Código da TV', lic.codigo);
+      linha('Licença', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : '');
+    }
+    if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
+    if (cfg.SUPORTE) { linha('Suporte', cfg.SUPORTE); }
+    texto('O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.');
   }
 
   // ── Controle parental ─────────────────────────────────────────────

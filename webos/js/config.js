@@ -7,7 +7,7 @@ VLTV.config = {
   VERSAO: '1.0.0',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
-  SUPORTE: '',
+  SUPORTE: 'leandro_gracas@yahoo.com.br',
 
   // Gateway (DNS mascarado): o app fala SÓ com este endereço. Os DNS reais dos servidores
   // ficam escondidos na VPS (arquivo origens.json) e nunca chegam ao app.

@@ -5,8 +5,11 @@
   "type": "web",
   "main": "index.html",
   "title": "VLTV Play",
+  "appDescription": "Seu player de TV, filmes e séries",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
+  "iconColor": "#0a0a0c",
+  "splashBackground": "splash.png",
   "resolution": "1920x1080",
   "disableBackHistoryAPI": true,
   "requiredACG": []

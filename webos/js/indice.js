@@ -25,6 +25,8 @@
 
   var donoAtual = '';
   var estados = {};
+  var pausado = false;           // vídeo tocando: o preparo em segundo plano espera, para não competir com a rede
+  var aquecidoPara = '';         // conta que já teve o preparo automático agendado
 
   // Banner e pesquisa nunca mostram conteúdo adulto (mesma regra do controle parental).
   function adulta(nome) {
@@ -86,7 +88,8 @@
 
   // Passa pelas categorias (3 por vez). aoLista(lista, categoria) a cada uma que chega.
   // parar(): se devolver true, para de pegar as próximas.
-  function percorrer(tipo, aoLista, parar) {
+  // quieto: preparo em segundo plano; espera enquanto um vídeo toca.
+  function percorrer(tipo, aoLista, parar, quieto) {
     return categorias(tipo).then(function (cats) {
       return new Promise(function (resolve) {
         var i = 0;
@@ -95,6 +98,7 @@
         function terminar() { if (!fim) { fim = true; resolve(); } }
         function proxima() {
           if (fim) { return; }
+          if (quieto && pausado) { setTimeout(proxima, 1500); return; }
           if (parar && parar()) { terminar(); return; }
           if (i >= cats.length) { if (ativos === 0) { terminar(); } return; }
           var cat = cats[i++];
@@ -113,7 +117,7 @@
 
   // ── Pesquisa ──────────────────────────────────────────────────────
   // Começa (uma vez só) a juntar todas as categorias num índice. Pode ser chamada várias vezes.
-  function preparar(tipo) {
+  function preparar(tipo, quieto) {
     var e = estado(tipo);
     if (e.promessa) { return e.promessa; }
     var campo = FONTES[tipo].campoId;
@@ -129,7 +133,7 @@
         });
         e.feitas++;
         if (e.ouvinte) { e.ouvinte(e.feitas, e.total); }
-      });
+      }, null, !!quieto);
     }).then(function () {
       e.completo = true;
       if (e.ouvinte) { e.ouvinte(e.total, e.total); }
@@ -139,6 +143,21 @@
     });
     return e.promessa;
   }
+
+  // Deixa a pesquisa pronta antes de o usuário pedir: depois que a Home abre, a TV monta sozinha, em
+  // segundo plano, o índice de Filmes e depois o de Séries. Quando a lupa é aberta, já está tudo na memória.
+  function aquecer() {
+    var d = dono();
+    if (!d || d === aquecidoPara) { return; }
+    aquecidoPara = d;
+    setTimeout(function () {
+      try {
+        preparar('filmes', true).then(function () { return preparar('series', true); });
+      } catch (e) { /* a pesquisa tenta de novo quando for aberta */ }
+    }, 3000);
+  }
+
+  function pausar(sim) { pausado = !!sim; }
 
   // fn(feitas, total) é chamada quando chega mais uma categoria (-1 = falhou). null para parar de ouvir.
   function ouvir(tipo, fn) { estado(tipo).ouvinte = fn; }
@@ -198,5 +217,5 @@
     });
   }
 
-  VLTV.indice = { preparar: preparar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar };
+  VLTV.indice = { preparar: preparar, aquecer: aquecer, pausar: pausar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar };
 })();

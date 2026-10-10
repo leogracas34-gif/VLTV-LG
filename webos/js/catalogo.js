@@ -45,7 +45,7 @@
     }
   };
 
-  var ESPERA_BUSCA_MS = 400;       // espera o usuário parar de digitar para pesquisar
+  var ESPERA_BUSCA_MS = 120;       // espera o usuário parar de digitar para pesquisar
   var ICONE_LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>';
   var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
   var CAT_BUSCA = { category_id: '__busca__', category_name: 'Pesquisar', especial: 'busca' };
@@ -378,11 +378,10 @@
   }
 
   function atualizarStatusBusca(feitas, total) {
+    // Carregar em segundo plano é silencioso: o usuário não vê "carregando catálogo" nem contagem.
+    // Só avisa se a conexão falhou de vez (os resultados podem estar incompletos).
     if (feitas < 0) {
-      statusBusca.textContent = 'Não foi possível carregar todo o catálogo. Os resultados podem estar incompletos.';
-      statusBusca.classList.remove('escondida');
-    } else if (total > 0 && feitas < total) {
-      statusBusca.textContent = 'Carregando o catálogo para pesquisar... ' + feitas + ' de ' + total + ' categorias';
+      statusBusca.textContent = 'Sem conexão com o catálogo. Alguns títulos podem não aparecer.';
       statusBusca.classList.remove('escondida');
     } else {
       statusBusca.classList.add('escondida');
@@ -400,7 +399,7 @@
       return;
     }
     var achados = VLTV.indice.pesquisar(tipo, texto);
-    msgVazio = prog.completo ? ('Nenhum ' + palavraTipo() + ' encontrado para "' + texto + '".') : 'Procurando...';
+    msgVazio = prog.completo ? ('Nenhum ' + palavraTipo() + ' encontrado para "' + texto + '".') : ('Nenhum ' + palavraTipo() + ' encontrado até agora para "' + texto + '".');
     aplicarItens(achados, false);
   }
 

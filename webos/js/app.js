@@ -70,6 +70,8 @@
       if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); }
       telas.login.classList.add('sem-foco');
     }
+    VLTV.indice.pausar(nome === 'player');           // vídeo tocando: o preparo da pesquisa espera
+    if (nome === 'home') { VLTV.indice.aquecer(); }  // deixa a pesquisa de Filmes e Séries pronta em segundo plano
     if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') {

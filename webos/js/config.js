@@ -62,7 +62,7 @@ VLTV.config = {
   M3U_MAX_BYTES: 60000000,
 
   // Tempos de espera (milissegundos).
-  LOGIN_TIMEOUT_MS: 8000,
+  LOGIN_TIMEOUT_MS: 15000,
   PARCEIRO_TIMEOUT_MS: 8000,
   M3U_TIMEOUT_MS: 45000
 };

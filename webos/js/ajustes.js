@@ -169,7 +169,7 @@
   // ── Limpar cache ──
   function desenharCache() {
     esvaziar(conteudo);
-    linha('O que será apagado', 'Lista de servidores, banner e logos guardados');
+    linha('O que será apagado', 'Listas, banner e logos guardados');
     linha('O que continua salvo', 'Login, favoritos e "continuar assistindo"');
     linha('Depois de limpar', 'O aplicativo reinicia sozinho');
     texto('Use quando algo estiver desatualizado ou lento. Pressione OK para limpar.');

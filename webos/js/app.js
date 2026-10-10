@@ -686,10 +686,24 @@
     };
 
     $('carregando-msg').textContent = ctx.modo === 'm3u' ? 'Carregando a lista...' : 'Entrando...';
+    entrarComSalva(ctx, 0);
+  }
+
+  // Ao ligar a TV a internet costuma demorar alguns segundos para voltar. Em vez de cair na tela de
+  // login (com a senha vazia), o app espera e tenta de novo sozinho, até ~1 minuto, e só então desiste.
+  var MAX_TENTATIVAS_INICIO = 6;
+  function entrarComSalva(ctx, tentativa) {
     autenticar(ctx).then(function (res) {
+      if (res.estado === 'erro' && tentativa < MAX_TENTATIVAS_INICIO) {
+        $('carregando-msg').textContent = 'Entrando, aguarde...';
+        setTimeout(function () { entrarComSalva(ctx, tentativa + 1); }, 3000 + tentativa * 2000);
+        return;
+      }
       if (res.estado === 'erro') {
-        // Sem internet: mantém o login salvo e deixa tentar de novo.
+        // Sem internet mesmo depois das tentativas: mantém o login salvo, com a senha já preenchida
+        // (é só apertar Entrar quando a internet voltar).
         preencherCampos(ctx);
+        campoSenha.value = ctx.pass || '';
         mostrarTela('login');
         mensagemLogin(textoErro(res, ctx.modo), 'erro');
         return;

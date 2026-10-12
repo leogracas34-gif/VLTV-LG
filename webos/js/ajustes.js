@@ -199,6 +199,7 @@
     }
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
     if (cfg.SUPORTE) { linha('Suporte', cfg.SUPORTE); }
+    if (cfg.SUPORTE_WHATSAPP) { linha('WhatsApp', cfg.SUPORTE_WHATSAPP); }
     texto('O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.');
   }
 

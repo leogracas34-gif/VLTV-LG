@@ -183,7 +183,12 @@
   }
 
   // ── Mensagens ─────────────────────────────────────────────────────
-  function textoExpirado(teste) {
+  function textoExpirado(teste, modo) {
+    if (modo && modo !== 'usuario') {
+      return teste
+        ? 'O teste desta lista terminou. Entre em contato com o fornecedor do serviço.'
+        : 'Esta lista venceu. Entre em contato com o fornecedor do serviço para renovar.';
+    }
     return teste
       ? 'Seu teste expirou. Entre em contato com o suporte para assinar o VLTV Play.'
       : 'Sua assinatura expirou. Entre em contato com o suporte para renovar.';
@@ -191,8 +196,8 @@
 
   function textoErro(res, modo) {
     switch (res.estado) {
-      case 'expirado': return textoExpirado(res.teste);
-      case 'invalido': return 'Usuário ou senha incorretos.';
+      case 'expirado': return textoExpirado(res.teste, modo);
+      case 'invalido': return 'Usuário ou senha incorretos. Se a lista venceu, fale com o fornecedor do serviço.';
       case 'codigo_invalido': return 'Código de parceiro inválido. Confira com o seu provedor.';
       case 'suspenso': return 'Este código de parceiro está suspenso. Fale com o seu provedor.';
       case 'limite': return 'Muitas tentativas. Aguarde um minuto e tente de novo.';
@@ -201,7 +206,7 @@
       default:
         return modo === 'm3u'
           ? 'Não foi possível baixar a lista. Confira o endereço e a internet da TV.'
-          : 'Não foi possível conectar. Verifique a internet da TV e tente de novo.';
+          : 'Não foi possível entrar. Verifique a internet da TV. Se continuar assim, a lista pode ter vencido: fale com o fornecedor do serviço.';
     }
   }
 
@@ -546,6 +551,11 @@
   }
 
   var TRATADORES = {
+    carregando: function (k) {
+      if (k === 13 && $('carregando-dica').textContent) { cancelarEntrada(); return true; }
+      if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { fecharApp(); return true; }
+      return false;
+    },
     licenca: function (k) {
       if (k === 13) { verificarLicenca(); return true; }
       return false;
@@ -693,25 +703,44 @@
 
   // Ao ligar a TV a internet costuma demorar alguns segundos para voltar. Em vez de cair na tela de
   // login (com a senha vazia), o app espera e tenta de novo sozinho, até ~1 minuto, e só então desiste.
-  var MAX_TENTATIVAS_INICIO = 6;
-  function entrarComSalva(ctx, tentativa) {
+  var MAX_TENTATIVAS_INICIO = 5;
+  var entradaId = 0;   // muda quando o usuário cancela a entrada automática
+  function dicaCarregando(texto) {
+    var d = $('carregando-dica');
+    if (d) { d.textContent = texto || ''; }
+  }
+  function entrarComSalva(ctx, tentativa, id) {
+    if (id === undefined) { entradaId++; id = entradaId; dicaCarregando(''); }
     autenticar(ctx).then(function (res) {
+      if (id !== entradaId) { return; }   // cancelado pelo usuário
       if (res.estado === 'erro' && tentativa < MAX_TENTATIVAS_INICIO) {
-        $('carregando-msg').textContent = 'Entrando, aguarde...';
-        setTimeout(function () { entrarComSalva(ctx, tentativa + 1); }, 3000 + tentativa * 2000);
+        $('carregando-msg').textContent = ctx.modo === 'm3u'
+          ? 'Não foi possível carregar a lista. Tentando de novo...'
+          : 'Não foi possível conectar à lista. Tentando de novo...';
+        dicaCarregando('Aperte OK para ver as suas listas.');
+        setTimeout(function () { entrarComSalva(ctx, tentativa + 1, id); }, 3000 + tentativa * 2000);
         return;
       }
+      dicaCarregando('');
       if (res.estado === 'erro') {
-        // Sem internet mesmo depois das tentativas: mantém o login salvo, com a senha já preenchida
+        // Sem resposta mesmo depois das tentativas: mantém o login salvo, com a senha já preenchida
         // (é só apertar Entrar quando a internet voltar).
         preencherCampos(ctx);
         campoSenha.value = ctx.pass || '';
+        definirModo(ctx.modo);
         mostrarTela('login');
         mensagemLogin(textoErro(res, ctx.modo), 'erro');
         return;
       }
       concluir(res, ctx);
     });
+  }
+
+  // OK na tela de entrada: desiste de esperar e abre as listas (ou o login).
+  function cancelarEntrada() {
+    entradaId++;
+    dicaCarregando('');
+    if (VLTV.listas.todas().length > 0) { abrirListas('Escolha uma lista para entrar.'); } else { mostrarLogin(); }
   }
 
   // ── Licença: antes de tudo, a TV confere com a VPS se o teste/ativação está valendo ──

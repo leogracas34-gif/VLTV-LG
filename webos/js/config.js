@@ -9,6 +9,9 @@ VLTV.config = {
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
 
+  // WhatsApp de suporte mostrado em Configurações > Sobre (ex: '+55 11 99999-9999'). Vazio = não mostra.
+  SUPORTE_WHATSAPP: '',
+
   // Gateway (DNS mascarado): o app fala SÓ com este endereço. Os DNS reais dos servidores
   // ficam escondidos na VPS (arquivo origens.json) e nunca chegam ao app.
   // Para trocar o nome (ex: tv.vltvplay.tech), mude aqui, em VPS_URL e no nginx da VPS.

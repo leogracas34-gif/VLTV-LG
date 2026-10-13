@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=1920, height=1080, initial-scale=1">
   <title>VLTV Play</title>
+  <script>
+    // Pacote 1280x720 (TVs Full HD): o layout é feito em 1920x1080, então encolhe tudo na mesma proporção.
+    // No pacote 1920x1080 a janela já tem 1920 de largura e nada muda.
+    (function () {
+      var w = window.innerWidth;
+      if (w && w < 1900) { document.documentElement.style.zoom = String(w / 1920); }
+    })();
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>

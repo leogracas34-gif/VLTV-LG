@@ -622,8 +622,9 @@
         return;
       }
       if (ativoLogin === btnOlho) {
-        e.preventDefault();
-        if (k === TECLA_ESQ || k === TECLA_CIMA) { campoSenha.focus(); }
+        e.preventDefault();   // (isso também cancela o clique do OK, por isso o OK é tratado aqui)
+        if (k === 13) { mostrarSenha(campoSenha.type === 'password'); }
+        else if (k === TECLA_ESQ || k === TECLA_CIMA) { campoSenha.focus(); }
         else if (k === TECLA_BAIXO) { btnEntrar.focus(); }
         return;
       }

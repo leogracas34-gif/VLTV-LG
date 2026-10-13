@@ -735,14 +735,24 @@
     VLTV.parental.checarReproducao({ raw: item.raw, info: info, tipo: item.tipo }, depois);
   }
 
+  // Guarda o título na aba "Continuar assistindo" das telas de Filmes e Séries (só aparece se houver o que continuar).
+  function marcarContinuar() {
+    VLTV.dados.registrarContinuar({
+      tipo: item.tipo, id: item.id, nome: item.nome, capa: item.capa, raw: item.raw,
+      chaves: item.tipo === 'series' ? plano.map(function (e) { return e.chave; }) : null
+    });
+  }
+
   function tocarPrincipal(doInicio) {
     if (item.tipo === 'series') {
       if (!alvo) { return; }
       comSenha(function () {
+        marcarContinuar();
         acoes.reproduzir(plano, alvo.indice, (!doInicio && alvo.continuar) ? alvo.pos : 0);
       });
     } else {
       comSenha(function () {
+        marcarContinuar();
         acoes.reproduzir([itemFilme()], 0, (!doInicio && alvo && alvo.continuar) ? alvo.pos : 0);
       });
     }
@@ -754,7 +764,7 @@
     var i = t.inicio + epIdx;
     var p = plano[i] ? VLTV.dados.progresso(plano[i].chave) : null;
     var inicio = (p && !p.fim && p.pos > RESUME_MIN_FILME_S) ? p.pos : 0;
-    comSenha(function () { acoes.reproduzir(plano, i, inicio); });
+    comSenha(function () { marcarContinuar(); acoes.reproduzir(plano, i, inicio); });
   }
 
   function alternarFav() {

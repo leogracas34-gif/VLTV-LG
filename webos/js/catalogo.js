@@ -50,8 +50,16 @@
   var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
   var CAT_BUSCA = { category_id: '__busca__', category_name: 'Pesquisar', especial: 'busca' };
   var CAT_FAV = { category_id: '__fav__', category_name: 'Favoritos', especial: 'fav' };
+  var CAT_CONT = { category_id: '__cont__', category_name: 'Continuar assistindo', especial: 'cont' };
+  var ICONE_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><path d="M7 4.5v15l12-7.5z"/></svg>';
 
-  function comEspeciais(lista) { return [CAT_BUSCA, CAT_FAV].concat(lista || []); }
+  // Pesquisar e Favoritos sempre aparecem. "Continuar assistindo" fica logo abaixo de Favoritos,
+  // mas só existe quando há algo para continuar.
+  function comEspeciais(lista) {
+    var topo = [CAT_BUSCA, CAT_FAV];
+    if (VLTV.dados.continuarDe(tipo).length > 0) { topo.push(CAT_CONT); }
+    return topo.concat(lista || []);
+  }
 
   var tipo = 'filmes';
   var cfg = CONFIG.filmes;
@@ -117,7 +125,7 @@
         li.className = 'especial ' + c.especial;
         var icone = document.createElement('span');
         icone.className = 'icone';
-        icone.innerHTML = c.especial === 'busca' ? ICONE_LUPA : ICONE_ESTRELA;
+        icone.innerHTML = c.especial === 'busca' ? ICONE_LUPA : (c.especial === 'cont' ? ICONE_PLAY : ICONE_ESTRELA);
         li.appendChild(icone);
       }
       var nome = document.createElement('span');
@@ -306,6 +314,11 @@
     if (cat.especial === 'fav') {
       msgVazio = 'Nenhum favorito ainda. Abra um título e escolha MINHA LISTA para ele aparecer aqui.';
       aplicarItens(VLTV.dados.favoritosDe(tipo), focar);
+      return;
+    }
+    if (cat.especial === 'cont') {
+      msgVazio = 'Nada para continuar assistindo.';
+      aplicarItens(VLTV.dados.continuarDe(tipo), focar);
       return;
     }
     msgVazio = 'Nenhum título nesta categoria.';
@@ -652,12 +665,39 @@
 
   elBusca.addEventListener('input', agendarBusca);
 
-  // Ao voltar dos detalhes: se a grade é a de Favoritos, atualiza (o título pode ter saído da lista).
+  // Ao voltar dos detalhes (ou do vídeo): "Continuar assistindo" aparece ou some conforme o progresso novo.
+  function sincronizarContinuar() {
+    if (categorias.length === 0 || falhaCategorias) { return; }
+    var tem = VLTV.dados.continuarDe(tipo).length > 0;
+    var pos = -1;
+    categorias.forEach(function (c, i) { if (c.especial === 'cont') { pos = i; } });
+    if (tem === (pos !== -1)) { return; }     // nada mudou
+
+    var idDestaque = categorias[catIdx] ? categorias[catIdx].category_id : null;
+    var idAberta = categorias[catAplicada] ? categorias[catAplicada].category_id : null;
+    if (tem) { categorias.splice(2, 0, CAT_CONT); } else { categorias.splice(pos, 1); }
+    renderCategorias();
+
+    var novoDestaque = 1;      // se a categoria sumiu, o cursor cai em Favoritos
+    var novaAberta = 1;
+    categorias.forEach(function (c, i) {
+      if (c.category_id === idDestaque) { novoDestaque = i; }
+      if (c.category_id === idAberta) { novaAberta = i; }
+    });
+    catIdx = novoDestaque;
+    catAplicada = novaAberta;
+    marcarCategoria();
+    marcarAplicada();
+    if (idAberta === CAT_CONT.category_id && !tem) { aplicarCategoria(1, false); }   // a grade aberta era a que sumiu
+  }
+
+  // Ao voltar dos detalhes: se a grade é a de Favoritos ou de Continuar assistindo, atualiza (o título pode ter saído da lista).
   function atualizarFavoritos() {
+    sincronizarContinuar();
     var c = categorias[catAplicada];
-    if (!c || c.especial !== 'fav') { return; }
+    if (!c || (c.especial !== 'fav' && c.especial !== 'cont')) { return; }
     var antigo = itemIdx;
-    aplicarItens(VLTV.dados.favoritosDe(tipo), false);
+    aplicarItens(c.especial === 'cont' ? VLTV.dados.continuarDe(tipo) : VLTV.dados.favoritosDe(tipo), false);
     if (itens.length > 0) {
       itemIdx = Math.min(antigo, itens.length - 1);
       marcarItem();
@@ -714,7 +754,9 @@
         categorias = comEspeciais(VLTV.parental.filtrarCategorias(tipo, r.dados));
         renderCategorias();
         // Abre em Favoritos se já tem algum; senão na primeira categoria de verdade (que não esteja bloqueada).
-        var inicio = VLTV.dados.favoritosDe(tipo).length > 0 ? 1 : (categorias.length > 2 ? 2 : 1);
+        var primeira = 1;
+        while (primeira < categorias.length && categorias[primeira].especial) { primeira++; }   // pula Pesquisar, Favoritos e Continuar
+        var inicio = VLTV.dados.favoritosDe(tipo).length > 0 ? 1 : (primeira < categorias.length ? primeira : 1);
         while (inicio < categorias.length - 1 && categoriaTrancada(categorias[inicio])) { inicio++; }
         if (categoriaTrancada(categorias[inicio])) { inicio = 1; }
         catIdx = inicio;

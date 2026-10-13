@@ -60,7 +60,7 @@ jobs:
           }
           JS
 
-      - name: Gerar o .ipk
+      - name: Gerar os .ipk (1920x1080 e 1280x720)
         run: |
           ARQUIVO=$(find . -name appinfo.json -not -path '*/node_modules/*' | head -n 1)
           if [ -z "$ARQUIVO" ]; then
@@ -69,12 +69,29 @@ jobs:
           fi
           PASTA=$(dirname "$ARQUIVO")
           echo "App encontrado em: $PASTA"
-          mkdir -p saida
-          ares-package "$PASTA" --outdir saida
-          ls -la saida
 
-      - name: Guardar o .ipk
+          # Pacote 1: 1920x1080 (TVs UHD) - o appinfo.json do jeito que está no repositório
+          mkdir -p saida/1920x1080
+          ares-package "$PASTA" --outdir saida/1920x1080
+
+          # Pacote 2: 1280x720 (TVs Full HD) - mesma pasta, só troca a resolução no appinfo.json
+          rm -rf /tmp/app720
+          cp -r "$PASTA" /tmp/app720
+          sed -i 's|"resolution": *"[0-9]*x[0-9]*"|"resolution": "1280x720"|' /tmp/app720/appinfo.json
+          grep '"resolution"' /tmp/app720/appinfo.json | grep -q '1280x720' || { echo "ERRO: não consegui trocar a resolução"; exit 1; }
+          mkdir -p saida/1280x720
+          ares-package /tmp/app720 --outdir saida/1280x720
+
+          ls -laR saida
+
+      - name: Guardar o .ipk 1920x1080
         uses: actions/upload-artifact@v4
         with:
-          name: vltv-webos-ipk
-          path: saida/*.ipk
+          name: vltv-webos-ipk-1920x1080
+          path: saida/1920x1080/*.ipk
+
+      - name: Guardar o .ipk 1280x720
+        uses: actions/upload-artifact@v4
+        with:
+          name: vltv-webos-ipk-1280x720
+          path: saida/1280x720/*.ipk

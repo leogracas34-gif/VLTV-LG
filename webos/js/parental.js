@@ -71,6 +71,21 @@
     try { localStorage.setItem(CHAVE, JSON.stringify(ler())); } catch (e) { /* ignora */ }
   }
 
+  // Cadeado só pode existir com o bloqueio ATIVADO. Em vez de depender de cada tela (Canais, Filmes, Séries)
+  // ter desenhado a lista no momento certo, uma regra global esconde o cadeado quando está desativado.
+  // Assim o cadeado nunca aparece com o controle parental desligado, mesmo numa lista já desenhada.
+  var estiloVisual = null;
+  function aplicarVisual() {
+    try {
+      if (!estiloVisual) {
+        estiloVisual = document.createElement('style');
+        estiloVisual.textContent = 'html.parental-off .lista li .cadeado { display: none !important; }';
+        document.head.appendChild(estiloVisual);
+      }
+      document.documentElement.classList.toggle('parental-off', !ler().ativo);
+    } catch (e) { /* ignora */ }
+  }
+
   // Hash simples (FNV-1a): a senha não fica escrita às claras na TV.
   function hash(texto) {
     var h = 2166136261;
@@ -105,7 +120,7 @@
   function temPergunta() { var e = ler(); return e.perg !== null && !!e.resp; }
   function perguntaAtual() { var e = ler(); return e.perg !== null ? PERGUNTAS[e.perg] || '' : ''; }
 
-  function definirAtivo(v) { ler().ativo = !!v; gravar(); }
+  function definirAtivo(v) { ler().ativo = !!v; gravar(); aplicarVisual(); }
   function definirModo(m) { ler().modo = m === 'ocultar' ? 'ocultar' : 'senha'; gravar(); }
 
   function bloqueando() { return ler().ativo && !liberado; }
@@ -459,6 +474,8 @@
     marcarFoco();
     return true;
   }
+
+  aplicarVisual();   // estado salvo (ativado/desativado) já vale desde a abertura do app
 
   VLTV.parental = {
     PERGUNTAS: PERGUNTAS,

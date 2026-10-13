@@ -61,7 +61,7 @@
   // "raw" é o item do painel (só os campos úteis): com ele o favorito abre direto, sem buscar de novo.
   var CAMPOS_RAW = ['stream_id', 'series_id', 'name', 'stream_icon', 'cover', 'container_extension', 'rating',
                     'plot', 'genre', 'releaseDate', 'release_date', 'releasedate', 'backdrop_path', 'cast',
-                    'director', 'category_id', 'url', 'num', 'epg_channel_id'];
+                    'director', 'category_id', 'url', 'num', 'epg_channel_id', 'is_adult'];
 
   function enxugar(raw) {
     if (!raw || typeof raw !== 'object') { return null; }
@@ -109,8 +109,68 @@
     return agora;
   }
 
+  // ── Continuar assistindo ──────────────────────────────────────────
+  // Mesmo padrão dos favoritos: guarda o item do painel ("raw") para abrir direto, sem buscar de novo.
+  // O registro é feito quando o usuário dá o play (tela de detalhes); quem decide se ainda tem o que
+  // continuar é o progresso salvo (o mesmo que a tela de detalhes usa para o botão CONTINUAR).
+  var MAX_CONTINUAR = 60;
+  var MIN_RETOMAR_S = 30;       // igual à tela de detalhes: só conta como "em andamento" depois de 30 s
+
+  function listaContinuar() { return ler(chave('cont'), []); }
+
+  // reg: { tipo: 'filmes' | 'series', id, nome, capa, raw, chaves }
+  // chaves (só séries): chave de todos os episódios, em ordem ('e' + id), para achar o último visto.
+  function registrarContinuar(reg) {
+    if (!reg || (reg.tipo !== 'filmes' && reg.tipo !== 'series')) { return; }
+    if (reg.id === undefined || reg.id === null) { return; }
+    var lista = listaContinuar();
+    var i = indiceFavorito(lista, reg.tipo, reg.id);
+    if (i !== -1) { lista.splice(i, 1); }
+    lista.push({
+      tipo: reg.tipo, id: reg.id, nome: reg.nome, capa: reg.capa,
+      raw: enxugar(reg.raw), chaves: reg.tipo === 'series' ? (reg.chaves || []) : null
+    });
+    while (lista.length > MAX_CONTINUAR) { lista.shift(); }
+    gravar(chave('cont'), lista);
+  }
+
+  // Títulos de um tipo que ainda têm algo para continuar, do visto por último para o mais antigo:
+  // lista de itens do painel (igual favoritosDe).
+  //  - filme: parou no meio (nem começou, nem terminou);
+  //  - série: o último episódio visto parou no meio, ou terminou e ainda existe um próximo episódio.
+  function continuarDe(tipo) {
+    var prog = ler(chave('prog'), {});     // lê o progresso uma vez só (séries podem ter centenas de episódios)
+    var achados = [];
+    listaContinuar().forEach(function (f) {
+      if (f.tipo !== tipo) { return; }
+      var quando = 0;
+      if (tipo === 'filmes') {
+        var p = prog['f' + f.id];
+        if (!p || p.fim || !(p.pos > MIN_RETOMAR_S) || !(p.dur > 0)) { return; }
+        quando = p.t || 0;
+      } else {
+        var chaves = Array.isArray(f.chaves) ? f.chaves : [];
+        var melhor = -1;
+        chaves.forEach(function (c, i) {
+          var pe = prog[c];
+          if (pe && pe.t && (melhor === -1 || pe.t > prog[chaves[melhor]].t)) { melhor = i; }
+        });
+        if (melhor === -1) { return; }
+        var ult = prog[chaves[melhor]];
+        var emAndamento = !ult.fim && ult.pos > MIN_RETOMAR_S;
+        if (!emAndamento && !(ult.fim && melhor + 1 < chaves.length)) { return; }
+        quando = ult.t || 0;
+      }
+      achados.push({ t: quando, raw: rawDe(f) });
+    });
+    achados.sort(function (a, b) { return b.t - a.t; });
+    return achados.map(function (a) { return a.raw; });
+  }
+
   VLTV.dados = {
     progresso: progresso,
+    registrarContinuar: registrarContinuar,
+    continuarDe: continuarDe,
     salvarProgresso: salvarProgresso,
     favoritos: favoritos,
     favoritosDe: favoritosDe,

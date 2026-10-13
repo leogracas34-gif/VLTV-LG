@@ -50,6 +50,7 @@
 
   var modoAtual = 'usuario';
   var nomeParceiro = '';
+  var bloqueioAtual = null;  // { lic, msg }: a lista que tentou entrar não tem licença (não é de parceiro)
   var entrando = false;
   var adicionando = false;   // o login foi aberto por "Adicionar nova lista" (a lista em uso continua valendo)
   var trocando = false;      // trocando de lista
@@ -260,6 +261,16 @@
   // Leva para a tela certa depois do login.
   function concluir(res, ctx) {
     if (res.estado === 'ok') {
+      // Código de parceiro válido = aplicativo ativo (sem teste, sem vencimento).
+      // Qualquer outra lista só entra se a licença da TV estiver valendo (teste ou ativa).
+      var ehParceiro = ctx.modo === 'parceiro';
+      VLTV.licenca.definirParceiro(ehParceiro);
+      var licTv = VLTV.licenca.estado();
+      if (!ehParceiro && licTv && licTv.estado === 'expired') {
+        bloquearSemLicenca(licTv, '');
+        return;
+      }
+      bloqueioAtual = null;
       nomeParceiro = res.nome || '';
       var dados = {
         modo: ctx.modo,
@@ -276,6 +287,21 @@
       adicionando = false;
       mostrarHome(ctx, res.info);
       return;
+    }
+
+    // Código de parceiro apagado ou suspenso no painel: a lista deixa de ser ativa.
+    // Se a TV não tem licença própria, o aplicativo bloqueia e pede a ativação.
+    if (ctx.modo === 'parceiro' && (res.estado === 'codigo_invalido' || res.estado === 'suspenso')) {
+      VLTV.licenca.definirParceiro(false);
+      var licSemParceiro = VLTV.licenca.estado();
+      if (licSemParceiro && licSemParceiro.estado === 'expired') {
+        if (!adicionando) {
+          VLTV.sessao.limpar();
+          VLTV.m3u.limpar();
+        }
+        bloquearSemLicenca(licSemParceiro, 'O código de parceiro desta lista não está mais ativo. Para continuar, ative a licença desta TV.');
+        return;
+      }
     }
 
     // Se o login foi aberto por "Adicionar nova lista", a lista que já estava em uso continua valendo.
@@ -350,6 +376,7 @@
         if (VLTV.listas.todas().length > 0) { abrirListas('Escolha uma lista para entrar.'); } else { mostrarLogin(); }
       },
       sair: function () {
+        if (bloqueioAtual) { mostrarLicenca(bloqueioAtual.lic, bloqueioAtual.msg); return; }
         if (VLTV.sessao.ler()) { mostrarTela('home'); } else { mostrarLogin(); }
       }
     }, aviso);
@@ -557,7 +584,16 @@
       return false;
     },
     licenca: function (k) {
-      if (k === 13) { verificarLicenca(); return true; }
+      var btnOutra = $('lic-listas');
+      var temOutra = !btnOutra.classList.contains('escondida');
+      if (temOutra && (k === TECLA_CIMA || k === TECLA_BAIXO)) {
+        (document.activeElement === btnOutra ? $('lic-btn') : btnOutra).focus();
+        return true;
+      }
+      if (k === 13) {
+        if (temOutra && document.activeElement === btnOutra) { usarOutraLista(); } else { verificarLicenca(); }
+        return true;
+      }
       return false;
     },
     listas: function (k) { return VLTV.listasTela.tecla(k); },
@@ -752,6 +788,7 @@
   }
   function liberarApp() {
     pararPollLicenca();
+    bloqueioAtual = null;
     VLTV.licenca.aplicarVisual();
     iniciarApp();
     VLTV.licenca.mostrarNoLogin();
@@ -767,17 +804,27 @@
     }, 20000);
   }
 
+  // Lista sem direito de uso (não é de parceiro e a TV não tem licença): mostra a tela de ativação.
+  function bloquearSemLicenca(lic, msg) {
+    bloqueioAtual = { lic: lic, msg: msg || '' };
+    mostrarLicenca(lic, msg);
+  }
+
+  function usarOutraLista() {
+    if (VLTV.listas.todas().length > 0) { abrirListas('Escolha uma lista para entrar.'); } else { mostrarLogin(); }
+  }
+
   // Sem valores na tela (regra das lojas): só o código da TV e o endereço do site, onde o cliente vê os planos e paga.
-  function mostrarLicenca(lic) {
+  function mostrarLicenca(lic, msgExtra) {
     var sem = lic.estado === 'erro';
     var bloqueado = lic.estado === 'blocked';
     $('lic-titulo').textContent = bloqueado ? 'Aparelho bloqueado'
       : sem ? 'Sem conexão com o servidor'
-      : 'Seu teste grátis terminou';
+      : 'Ative o seu VLTV Play';
     $('lic-msg').textContent = bloqueado
       ? 'Este aparelho foi bloqueado. Fale com o suporte informando o código abaixo.'
       : sem ? (lic.texto || 'Conecte a TV à internet e aperte OK para tentar de novo.')
-      : 'Para continuar assistindo, ative a licença desta TV.';
+      : (msgExtra || 'Para continuar assistindo, ative a licença desta TV.');
     $('lic-codigo-box').classList.toggle('escondida', sem);
     $('lic-codigo').textContent = lic.codigo || '';
 
@@ -793,6 +840,7 @@
     }
     $('lic-preco').textContent = '';
     $('lic-btn').textContent = sem ? 'Tentar novamente' : 'Já ativei — verificar';
+    $('lic-listas').classList.toggle('escondida', !bloqueioAtual || sem || bloqueado);
     mostrarTela('licenca');
     iniciarPollLicenca();
   }
@@ -806,14 +854,15 @@
     mostrarTela('carregando');
     VLTV.licenca.verificar().then(function (lic) {
       verificando = false;
-      if (lic.estado === 'trial' || lic.estado === 'active') {
-        liberarApp();
+      if (lic.estado === 'trial' || lic.estado === 'active' || lic.estado === 'expired') {
+        liberarApp();   // expirada: o app abre, mas só listas de parceiro entram (o portão fica em concluir)
       } else {
         mostrarLicenca(lic);
       }
     });
   }
   $('lic-btn').addEventListener('click', verificarLicenca);
+  $('lic-listas').addEventListener('click', usarOutraLista);
 
   function iniciar() {
     if (!VLTV.platform.compativel) { iniciarApp(); return; }

@@ -8,6 +8,10 @@
   var TOLERANCIA_OFFLINE_S = 3 * 86400;   // sem internet: vale o último estado por até 3 dias
 
   var estadoAtual = null;
+  // Lista de código de parceiro em uso: o app fica "Ativo" sem teste, sem vencimento e sem vitalício.
+  var ehParceiro = false;
+  function definirParceiro(v) { ehParceiro = !!v; }
+  function ehAtivo() { return ehParceiro || !!(estadoAtual && estadoAtual.estado === 'active'); }
 
   function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignora */ } }
@@ -151,6 +155,7 @@
   // Ex.: "Teste grátis: 5 dias (até 12/10/2026)" ou "Ativa até 07/10/2027"
   function textoCurto() {
     var e = estadoAtual;
+    if (ehParceiro) { return 'Ativo'; }
     if (!e) { return ''; }
     if (e.estado === 'active') { return e.vitalicio ? 'Vitalícia (sem vencimento)' : 'Ativa até ' + dataBr(e.expira_em); }
     return 'Teste grátis: ' + e.dias + (e.dias === 1 ? ' dia' : ' dias') + ' (até ' + dataBr(e.expira_em) + ')';
@@ -179,7 +184,7 @@
     var lista = [];
     var limite = VLTV.config.AVISO_VENCIMENTO_DIAS;
     var e = estadoAtual;
-    if (e && !e.vitalicio && e.expira_em) {
+    if (e && !ehParceiro && !e.vitalicio && e.expira_em) {
       var d = diasAte(e.expira_em);
       if (d <= limite && d >= 0) {
         var quando = d === 0 ? 'hoje' : d === 1 ? 'amanhã' : 'em ' + d + ' dias';
@@ -198,6 +203,9 @@
   }
 
   VLTV.licenca = {
+    definirParceiro: definirParceiro,
+    ehAtivo: ehAtivo,
+    ehParceiro: function () { return ehParceiro; },
     avisos: avisos,
     textoCurto: textoCurto,
     mostrarNoLogin: mostrarNoLogin,

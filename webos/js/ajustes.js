@@ -140,7 +140,7 @@
     var lic = VLTV.licenca && VLTV.licenca.estado();
     if (lic) {
       linha('Código da TV (ativação)', lic.codigo);
-      linha('Licença do aplicativo', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : '');
+      linha('Licença do aplicativo', VLTV.licenca.textoCurto(), VLTV.licenca.ehAtivo() ? 'ok' : '');
     }
   }
 
@@ -180,7 +180,7 @@
     esvaziar(conteudo);
     linha('Versão instalada', VLTV.config.VERSAO);
     var lic = VLTV.licenca && VLTV.licenca.estado();
-    if (lic) { linha('Licença do aplicativo', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : ''); }
+    if (lic) { linha('Licença do aplicativo', VLTV.licenca.textoCurto(), VLTV.licenca.ehAtivo() ? 'ok' : ''); }
     linha('Seu login e seus favoritos', 'Continuam salvos', 'ok');
     texto('Reinicia o aplicativo e carrega tudo de novo (lista, categorias e licença). Novas versões do aplicativo chegam pela loja de aplicativos da LG. Pressione OK para atualizar.');
   }
@@ -195,7 +195,7 @@
     var lic = VLTV.licenca && VLTV.licenca.estado();
     if (lic) {
       linha('Código da TV', lic.codigo);
-      linha('Licença', VLTV.licenca.textoCurto(), lic.estado === 'active' ? 'ok' : '');
+      linha('Licença', VLTV.licenca.textoCurto(), VLTV.licenca.ehAtivo() ? 'ok' : '');
     }
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
     if (cfg.SUPORTE) { linha('Suporte', cfg.SUPORTE); }

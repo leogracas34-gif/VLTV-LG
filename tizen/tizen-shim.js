@@ -17,19 +17,53 @@
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
   PEDIR.forEach(function (t) { tentar(function () { window.tizen.tvinputdevice.registerKey(t); }); });
 
+  // Reenvia a tecla com outro código (o app foi escrito com os códigos da LG).
+  function reenviar(e, codigo) {
+    var novo = document.createEvent('Event');
+    novo.initEvent(e.type, true, true);
+    Object.defineProperty(novo, 'keyCode', { get: function () { return codigo; } });
+    Object.defineProperty(novo, 'which', { get: function () { return codigo; } });
+    (document.activeElement || document.body).dispatchEvent(novo);
+  }
+
   // Voltar da Samsung é 10009; o app inteiro espera o código 461 da LG. Troca na entrada, uma vez só.
   function virarVoltar(e) {
     if (e.keyCode !== 10009) { return; }
     e.preventDefault();
     e.stopImmediatePropagation();
-    var novo = document.createEvent('Event');
-    novo.initEvent(e.type, true, true);
-    Object.defineProperty(novo, 'keyCode', { get: function () { return 461; } });
-    Object.defineProperty(novo, 'which', { get: function () { return 461; } });
-    (document.activeElement || document.body).dispatchEvent(novo);
+    reenviar(e, 461);
   }
   document.addEventListener('keydown', virarVoltar, true);
   document.addEventListener('keyup', virarVoltar, true);
+
+  // Tecla única de play/pause da Samsung (código 10252): o app só conhece PLAY (415) e PAUSE (19).
+  // Com o filme na tela, vira PLAY se estiver parado e PAUSE se estiver tocando.
+  function virarPlayPause(e) {
+    if (e.keyCode !== 10252) { return; }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.type !== 'keydown') { return; }
+    var v = document.getElementById('player-video');
+    if (!v || v.offsetParent === null) { return; }   // o filme não está na tela: ignora
+    reenviar(e, v.paused ? 415 : 19);
+  }
+  document.addEventListener('keydown', virarPlayPause, true);
+  document.addEventListener('keyup', virarPlayPause, true);
+
+  // OK do controle: numa TV de verdade o OK (Enter) clica no botão em foco sozinho. O controle do
+  // simulador da Samsung manda uma tecla "de mentira", e o navegador não clica. Aqui, se o app não tratou
+  // o OK e ninguém clicou, clica no botão em foco. Na TV real o clique já acontece e isto não faz nada.
+  var clicouNoOk = false;
+  document.addEventListener('click', function () { clicouNoOk = true; }, true);
+  document.addEventListener('keydown', function (e) { if (e.keyCode === 13) { clicouNoOk = false; } }, true);
+  window.addEventListener('keydown', function (e) {
+    if (e.keyCode !== 13 || e.defaultPrevented) { return; }
+    var alvo = document.activeElement;
+    if (!alvo || (alvo.tagName !== 'BUTTON' && alvo.tagName !== 'A')) { return; }
+    setTimeout(function () {
+      if (!clicouNoOk && document.activeElement === alvo && !alvo.disabled) { alvo.click(); }
+    }, 50);
+  }, false);
 
   // O app fecha com window.close(); na Samsung o certo é pedir para a TV encerrar o aplicativo.
   window.close = function () {

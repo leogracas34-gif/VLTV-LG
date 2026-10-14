@@ -1,0 +1,87 @@
+name: Build Tizen WGT (Samsung)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'webos/**'
+      - 'tizen/**'
+      - '.github/workflows/build-tizen.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Montar a pasta do app Samsung a partir do app da LG
+        run: python3 tizen/montar.py
+
+      - name: Colocar as chaves no config.js (Secrets TMDB_API_KEY e VPS_APP_KEY)
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VPS_APP_KEY: ${{ secrets.VPS_APP_KEY }}
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const arq = 'tizen-build/js/config.js';
+          let t = fs.readFileSync(arq, 'utf8');
+          const tmdb = String(process.env.TMDB_API_KEY || '').replace(/[\s"']/g, '');
+          const vps = String(process.env.VPS_APP_KEY || '').trim().replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          if (tmdb) { t = t.split('__TMDB_API_KEY__').join(tmdb); } else { console.log('::warning::TMDB_API_KEY vazio: o app funciona, só sem logos.'); }
+          if (vps) { t = t.split('__VPS_APP_KEY__').join(vps); } else { console.log('::warning::VPS_APP_KEY vazio: o app funciona, mas não envia créditos aprendidos.'); }
+          fs.writeFileSync(arq, t);
+          JS
+
+      - name: Instalar as ferramentas da Samsung (Tizen Studio CLI)
+        run: |
+          for v in 6.1 6.0 5.6 5.5; do
+            U="https://download.tizen.org/sdk/Installer/tizen-studio_${v}/web-cli_Tizen_Studio_${v}_ubuntu-64.bin"
+            if curl -fsSL -o /tmp/tizen-cli.bin "$U"; then echo "Baixou a versão $v"; break; fi
+          done
+          [ -s /tmp/tizen-cli.bin ] || { echo "ERRO: não consegui baixar o Tizen Studio CLI"; exit 1; }
+          chmod +x /tmp/tizen-cli.bin
+          /tmp/tizen-cli.bin --accept-license "$HOME/tizen-studio" > /tmp/tizen-install.log 2>&1 || { tail -30 /tmp/tizen-install.log; exit 1; }
+          echo "$HOME/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
+
+      - name: Certificado de autor (o MESMO em todas as versões)
+        env:
+          P12_B64: ${{ secrets.TIZEN_AUTHOR_P12_B64 }}
+          SENHA: ${{ secrets.TIZEN_AUTHOR_PASS }}
+        run: |
+          export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
+          mkdir -p cert-novo
+          if [ -n "$P12_B64" ] && [ -n "$SENHA" ]; then
+            echo "$P12_B64" | base64 -d > "$RUNNER_TEMP/autor.p12"
+            echo "Usando o certificado guardado nos Secrets."
+          else
+            SENHA="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
+            tizen certificate -a VLTV -p "$SENHA" -c BR -s MG -ct BeloHorizonte -o "VLTV Play" -n "VLTV Play" -e "leandro_gracas@yahoo.com.br" -f autor_vltv
+            cp "$HOME/tizen-studio-data/keystore/author/autor_vltv.p12" "$RUNNER_TEMP/autor.p12"
+            base64 -w0 "$RUNNER_TEMP/autor.p12" > cert-novo/TIZEN_AUTHOR_P12_B64.txt
+            echo -n "$SENHA" > cert-novo/TIZEN_AUTHOR_PASS.txt
+            echo "::warning::Certificado NOVO gerado. Baixe o artefato 'certificado-autor' e salve os dois textos nos Secrets (TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS) para as próximas versões usarem o mesmo autor."
+          fi
+          tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
+          echo "SENHA_PERFIL=ok"
+
+      - name: Gerar o pacote .wgt
+        run: |
+          export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
+          mkdir -p saida
+          tizen package -t wgt -s vltv -o saida -- tizen-build
+          ls -la saida
+
+      - name: Guardar o .wgt
+        uses: actions/upload-artifact@v4
+        with:
+          name: vltv-tizen-wgt
+          path: saida/*.wgt
+
+      - name: Guardar o certificado novo (só aparece na primeira vez)
+        if: hashFiles('cert-novo/*') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: certificado-autor
+          path: cert-novo/*

@@ -92,16 +92,22 @@ jobs:
       - name: Gerar o pacote .wgt
         run: |
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
-          mkdir -p saida
-          tizen package -t wgt -s vltv -o saida -- tizen-build || {
+          OUT="$GITHUB_WORKSPACE/saida"
+          mkdir -p "$OUT"
+          tizen package -t wgt -s vltv -o "$OUT" -- "$GITHUB_WORKSPACE/tizen-build" || {
             echo "=== FALHOU: FINAL DO LOG DO TIZEN ==="
             grep -E 'Caused by|ERROR' "$HOME/tizen-studio-data/cli/logs/cli.log" | tail -5
             exit 1
           }
-          ls -la saida
+          for f in "$OUT"/*.wgt; do
+            [ -f "$f" ] && mv "$f" "$OUT/VLTV-Play.wgt"
+          done
+          [ -f "$OUT/VLTV-Play.wgt" ] || { echo "ERRO: o .wgt não foi encontrado em $OUT"; ls -la "$OUT"; exit 1; }
+          ls -la "$OUT"
 
       - name: Guardar o .wgt
         uses: actions/upload-artifact@v4
         with:
           name: vltv-tizen-wgt
-          path: saida/*.wgt
+          path: saida/VLTV-Play.wgt
+          if-no-files-found: error

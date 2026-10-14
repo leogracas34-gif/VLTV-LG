@@ -53,7 +53,8 @@ jobs:
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
           mkdir -p cert-novo
           if [ -n "$P12_B64" ] && [ -n "$SENHA" ]; then
-            echo "$P12_B64" | base64 -d > "$RUNNER_TEMP/autor.p12"
+            printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/autor.p12"
+            SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
             echo "Usando o certificado guardado nos Secrets."
           else
             SENHA="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
@@ -63,11 +64,18 @@ jobs:
             echo -n "$SENHA" > cert-novo/TIZEN_AUTHOR_PASS.txt
             echo "::warning::Certificado NOVO gerado. Baixe o artefato 'certificado-autor' e salve os dois textos nos Secrets (TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS) para as próximas versões usarem o mesmo autor."
           fi
-          ls -la "$RUNNER_TEMP/autor.p12"
+          echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes (o original tem uns 5000)"
+          echo "Tamanho da senha: ${#SENHA} caracteres"
+          if keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/autor.p12" -storepass "$SENHA" > /tmp/kt.log 2>&1; then
+            echo "TESTE DA SENHA: OK"
+          else
+            echo "TESTE DA SENHA: FALHOU"
+            cat /tmp/kt.log
+            exit 1
+          fi
           tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
           echo "=== Perfis cadastrados ==="
           tizen security-profiles list
-          echo "SENHA_PERFIL=ok"
 
       - name: Gerar o pacote .wgt
         run: |
@@ -76,10 +84,6 @@ jobs:
           tizen package -t wgt -s vltv -o saida -- tizen-build || {
             echo "=== FALHOU: LOG DO TIZEN ==="
             find "$HOME/tizen-studio-data" -name '*.log' -exec tail -n 60 {} \;
-            echo "=== CONTEÚDO DE tizen-build ==="
-            ls -la tizen-build
-            echo "=== config.xml ==="
-            cat tizen-build/config.xml
             exit 1
           }
           ls -la saida

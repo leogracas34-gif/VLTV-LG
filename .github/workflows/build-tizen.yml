@@ -64,26 +64,34 @@ jobs:
             echo -n "$SENHA" > cert-novo/TIZEN_AUTHOR_PASS.txt
             echo "::warning::Certificado NOVO gerado. Baixe o artefato 'certificado-autor' e salve os dois textos nos Secrets (TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS) para as próximas versões usarem o mesmo autor."
           fi
-          echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes (o original tem uns 5000)"
+          echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes"
           echo "Tamanho da senha: ${#SENHA} caracteres"
           if keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/autor.p12" -storepass "$SENHA" > /tmp/kt.log 2>&1; then
-            echo "TESTE DA SENHA: OK"
+            echo "TESTE DA SENHA DO AUTOR: OK"
           else
-            echo "TESTE DA SENHA: FALHOU"
+            echo "TESTE DA SENHA DO AUTOR: FALHOU"
             cat /tmp/kt.log
             exit 1
           fi
-          tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
+          DIST="$(find "$HOME/tizen-studio" -name 'tizen-distributor-signer.p12' | head -1)"
+          echo "Distribuidor padrão: ${DIST:-NÃO ENCONTRADO}"
+          if [ -n "$DIST" ]; then
+            tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA" -d "$DIST" -dp tizenpkcs12passfordsigner
+          else
+            tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
+          fi
           echo "=== Perfis cadastrados ==="
           tizen security-profiles list
+          echo "=== profiles.xml (senhas escondidas) ==="
+          sed -E 's/(password|Password)="[^"]*"/\1="***"/g' "$HOME/tizen-studio-data/profile/profiles.xml"
 
       - name: Gerar o pacote .wgt
         run: |
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
           mkdir -p saida
           tizen package -t wgt -s vltv -o saida -- tizen-build || {
-            echo "=== FALHOU: LOG DO TIZEN ==="
-            find "$HOME/tizen-studio-data" -name '*.log' -exec tail -n 60 {} \;
+            echo "=== FALHOU: FINAL DO LOG DO TIZEN ==="
+            tail -n 15 "$HOME/tizen-studio-data/cli/logs/cli.log"
             exit 1
           }
           ls -la saida

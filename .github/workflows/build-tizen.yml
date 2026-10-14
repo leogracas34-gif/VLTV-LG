@@ -63,14 +63,25 @@ jobs:
             echo -n "$SENHA" > cert-novo/TIZEN_AUTHOR_PASS.txt
             echo "::warning::Certificado NOVO gerado. Baixe o artefato 'certificado-autor' e salve os dois textos nos Secrets (TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS) para as próximas versões usarem o mesmo autor."
           fi
+          ls -la "$RUNNER_TEMP/autor.p12"
           tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
+          echo "=== Perfis cadastrados ==="
+          tizen security-profiles list
           echo "SENHA_PERFIL=ok"
 
       - name: Gerar o pacote .wgt
         run: |
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
           mkdir -p saida
-          tizen package -t wgt -s vltv -o saida -- tizen-build
+          tizen package -t wgt -s vltv -o saida -- tizen-build || {
+            echo "=== FALHOU: LOG DO TIZEN ==="
+            find "$HOME/tizen-studio-data" -name '*.log' -exec tail -n 60 {} \;
+            echo "=== CONTEÚDO DE tizen-build ==="
+            ls -la tizen-build
+            echo "=== config.xml ==="
+            cat tizen-build/config.xml
+            exit 1
+          }
           ls -la saida
 
       - name: Guardar o .wgt

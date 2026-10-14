@@ -51,43 +51,53 @@ jobs:
           SENHA: ${{ secrets.TIZEN_AUTHOR_PASS }}
         run: |
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
-          java -version 2>&1 | head -1
-          if [ -n "$P12_B64" ] && [ -n "$SENHA" ]; then
-            printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/autor.p12"
-            SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
-            echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes"
-            echo "Tamanho da senha: ${#SENHA} caracteres"
-            if keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/autor.p12" -storepass "$SENHA" > /tmp/kt.log 2>&1; then
-              echo "TESTE DA SENHA DO AUTOR: OK"
-            else
-              echo "TESTE DA SENHA DO AUTOR: FALHOU"
-              cat /tmp/kt.log
-            fi
-            tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
-            tizen security-profiles list
-          else
-            echo "Secrets do certificado vazios: o próximo passo vai gerar um certificado novo."
+          if [ -z "$P12_B64" ] || [ -z "$SENHA" ]; then
+            echo "ERRO: crie os Secrets TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS"
+            exit 1
           fi
+          printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/autor.p12"
+          SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
+          export SENHA
+          echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes"
+          if keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/autor.p12" -storepass "$SENHA" > /dev/null 2>&1; then
+            echo "TESTE DA SENHA DO AUTOR: OK"
+          else
+            echo "TESTE DA SENHA DO AUTOR: FALHOU (a senha do Secret não abre o .p12)"
+            exit 1
+          fi
+          tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          arq = os.path.expanduser('~/tizen-studio-data/profile/profiles.xml')
+          tree = ET.parse(arq)
+          itens = []
+          for p in tree.getroot().iter('profile'):
+              if p.get('name') != 'vltv':
+                  continue
+              for it in p.iter('profileitem'):
+                  d = it.get('distributor')
+                  if d == '0':
+                      it.set('password', os.environ['SENHA'])
+                  elif d == '1':
+                      it.set('password', 'tizenpkcs12passfordsigner')
+                  else:
+                      it.set('password', '')
+                  itens.append((d, 'com senha' if it.get('password') else 'sem senha'))
+          tree.write(arq, encoding='UTF-8', xml_declaration=True)
+          print('profiles.xml ajustado:', itens)
+          PY
+          tizen security-profiles list
 
       - name: Gerar o pacote .wgt
         run: |
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
-          mkdir -p saida cert-novo
-          if tizen package -t wgt -s vltv -o saida -- tizen-build; then
-            echo "Pacote gerado com o certificado dos Secrets."
-          else
-            echo "=== FALHOU com o certificado dos Secrets. Tentando com um certificado NOVO ==="
-            SENHA2="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
-            tizen certificate -a VLTV -p "$SENHA2" -c BR -s MG -ct BeloHorizonte -o "VLTV Play" -n "VLTV Play" -e "leandro_gracas@yahoo.com.br" -f autor_vltv
-            P12NOVO="$(find "$HOME/tizen-studio-data/keystore" -name 'autor_vltv.p12' | head -1)"
-            echo "Certificado novo: ${P12NOVO:-NÃO ENCONTRADO}"
-            [ -n "$P12NOVO" ] || exit 1
-            base64 -w0 "$P12NOVO" > cert-novo/TIZEN_AUTHOR_P12_B64.txt
-            echo -n "$SENHA2" > cert-novo/TIZEN_AUTHOR_PASS.txt
-            tizen security-profiles add -n vltv-novo -a "$P12NOVO" -p "$SENHA2"
-            tizen package -t wgt -s vltv-novo -o saida -- tizen-build
-            echo "::warning::O certificado dos Secrets foi recusado pelo Tizen. Este build usou um certificado NOVO (artefato certificado-autor)."
-          fi
+          mkdir -p saida
+          tizen package -t wgt -s vltv -o saida -- tizen-build || {
+            echo "=== FALHOU: FINAL DO LOG DO TIZEN ==="
+            grep -E 'Caused by|ERROR' "$HOME/tizen-studio-data/cli/logs/cli.log" | tail -5
+            exit 1
+          }
           ls -la saida
 
       - name: Guardar o .wgt
@@ -95,10 +105,3 @@ jobs:
         with:
           name: vltv-tizen-wgt
           path: saida/*.wgt
-
-      - name: Guardar o certificado novo (só aparece se foi gerado)
-        if: hashFiles('cert-novo/*') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: certificado-autor
-          path: cert-novo/*

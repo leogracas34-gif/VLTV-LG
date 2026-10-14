@@ -1,0 +1,100 @@
+name: Diagnostico certificado Tizen
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Instalar as ferramentas da Samsung (Tizen Studio CLI)
+        run: |
+          for v in 6.1 6.0 5.6 5.5; do
+            U="https://download.tizen.org/sdk/Installer/tizen-studio_${v}/web-cli_Tizen_Studio_${v}_ubuntu-64.bin"
+            if curl -fsSL -o /tmp/tizen-cli.bin "$U"; then echo "Baixou a versão $v"; break; fi
+          done
+          [ -s /tmp/tizen-cli.bin ] || { echo "ERRO: não consegui baixar o Tizen Studio CLI"; exit 1; }
+          chmod +x /tmp/tizen-cli.bin
+          /tmp/tizen-cli.bin --accept-license "$HOME/tizen-studio" > /tmp/tizen-install.log 2>&1 || { tail -30 /tmp/tizen-install.log; exit 1; }
+
+      - name: Diagnosticar o certificado
+        env:
+          P12_B64: ${{ secrets.TIZEN_AUTHOR_P12_B64 }}
+          SENHA: ${{ secrets.TIZEN_AUTHOR_PASS }}
+        run: |
+          set +e
+          export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
+          R=/tmp/resumo.txt
+          : > "$R"
+          r() { echo "$*" | tee -a "$R"; }
+
+          printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > /tmp/autor.p12
+          SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
+          export SENHA
+
+          r "Tamanho do .p12: $(stat -c%s /tmp/autor.p12) bytes"
+          r "Tamanho da senha: ${#SENHA} caracteres"
+          r "Simbolos na senha (fora de letras e numeros): $(printf '%s' "$SENHA" | tr -d 'A-Za-z0-9' | wc -c)"
+          if printf '%s' "$SENHA" | LC_ALL=C grep -q '[^ -~]'; then r "Senha com acento/caractere fora do ASCII: SIM"; else r "Senha com acento/caractere fora do ASCII: NAO"; fi
+
+          r "Java do sistema: $(java -version 2>&1 | head -1)"
+          for J in $(find "$HOME/tizen-studio" -name java -type f 2>/dev/null | head -3); do r "Java dentro do Tizen: $J"; done
+
+          for K in $(which keytool) $(find "$HOME/tizen-studio" -name keytool -type f 2>/dev/null | head -3); do
+            if "$K" -list -storetype PKCS12 -keystore /tmp/autor.p12 -storepass "$SENHA" > /dev/null 2>&1; then r "keytool ($K) abre o .p12: OK"; else r "keytool ($K) abre o .p12: FALHOU"; fi
+          done
+
+          INFO="$(openssl pkcs12 -info -noout -passin env:SENHA -in /tmp/autor.p12 2>&1 || openssl pkcs12 -legacy -info -noout -passin env:SENHA -in /tmp/autor.p12 2>&1)"
+          r "Criptografia do .p12 (openssl):"
+          echo "$INFO" | grep -iE 'MAC|PBE|AES|RC2|DES|Iteration|Error|unsupported' | head -5 | tee -a "$R"
+
+          DIST="$(find "$HOME/tizen-studio" -name tizen-distributor-signer.p12 2>/dev/null | head -1)"
+          if keytool -list -storetype PKCS12 -keystore "$DIST" -storepass tizenpkcs12passfordsigner > /dev/null 2>&1; then r "Distribuidor padrao abre com a senha padrao: OK"; else r "Distribuidor padrao abre com a senha padrao: FALHOU"; fi
+
+          mkdir -p /tmp/app
+          cat > /tmp/app/config.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://example.com/Teste" version="1.0.0" viewmodes="maximized">
+            <tizen:application id="TESTE00001.Teste" package="TESTE00001" required_version="4.0"/>
+            <content src="index.html"/>
+            <name>Teste</name>
+          </widget>
+          XML
+          echo '<html><body>teste</body></html>' > /tmp/app/index.html
+
+          testar() {
+            NOME="$1"; P12="$2"; PASS="$3"
+            mkdir -p "/tmp/saida-$NOME"
+            if ! tizen security-profiles add -n "$NOME" -a "$P12" -p "$PASS" > "/tmp/add-$NOME.log" 2>&1; then
+              r "TESTE $NOME: FALHOU ao cadastrar perfil - $(tail -2 "/tmp/add-$NOME.log" | tr '\n' ' ' | cut -c1-120)"
+              return
+            fi
+            if tizen package -t wgt -s "$NOME" -o "/tmp/saida-$NOME" -- /tmp/app > "/tmp/pkg-$NOME.log" 2>&1; then
+              r "TESTE $NOME: OK (gerou o .wgt)"
+            else
+              r "TESTE $NOME: FALHOU - $(grep -m1 -E 'Caused by|Exception' "/tmp/pkg-$NOME.log" | cut -c1-120)"
+            fi
+          }
+
+          testar A-original /tmp/autor.p12 "$SENHA"
+
+          ( export LC_ALL=C.UTF-8 JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"; testar B-utf8 /tmp/autor.p12 "$SENHA" )
+
+          if keytool -importkeystore -noprompt -srckeystore /tmp/autor.p12 -srcstoretype PKCS12 -srcstorepass "$SENHA" -destkeystore /tmp/reexport.p12 -deststoretype PKCS12 -deststorepass "$SENHA" > /tmp/reexp.log 2>&1; then
+            testar C-reexportado /tmp/reexport.p12 "$SENHA"
+          else
+            r "TESTE C-reexportado: nao foi possivel converter - $(tail -1 /tmp/reexp.log | cut -c1-120)"
+          fi
+
+          SENHA2="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)"
+          tizen certificate -a Controle -p "$SENHA2" -c BR -s MG -ct Cidade -o Teste -n Teste -e teste@example.com -f controle > /tmp/cert.log 2>&1
+          P12C="$(find "$HOME/tizen-studio-data/keystore" -name 'controle.p12' 2>/dev/null | head -1)"
+          if [ -n "$P12C" ]; then
+            testar D-controle "$P12C" "$SENHA2"
+          else
+            r "TESTE D-controle: nao gerou o certificado - $(tail -1 /tmp/cert.log | cut -c1-120)"
+          fi
+
+          echo
+          echo "=== RESUMO ==="
+          cat "$R"

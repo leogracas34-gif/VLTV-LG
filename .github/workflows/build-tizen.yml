@@ -1,39 +1,12 @@
-name: Build Tizen WGT (Samsung)
+name: Diagnostico certificado Tizen
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'webos/**'
-      - 'tizen/**'
-      - '.github/workflows/build-tizen.yml'
 
 jobs:
-  build:
+  diagnostico:
     runs-on: ubuntu-22.04
     steps:
-      - name: Baixar o código
-        uses: actions/checkout@v4
-
-      - name: Montar a pasta do app Samsung a partir do app da LG
-        run: python3 tizen/montar.py
-
-      - name: Colocar as chaves no config.js (Secrets TMDB_API_KEY e VPS_APP_KEY)
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          VPS_APP_KEY: ${{ secrets.VPS_APP_KEY }}
-        run: |
-          node - <<'JS'
-          const fs = require('fs');
-          const arq = 'tizen-build/js/config.js';
-          let t = fs.readFileSync(arq, 'utf8');
-          const tmdb = String(process.env.TMDB_API_KEY || '').replace(/[\s"']/g, '');
-          const vps = String(process.env.VPS_APP_KEY || '').trim().replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          if (tmdb) { t = t.split('__TMDB_API_KEY__').join(tmdb); } else { console.log('::warning::TMDB_API_KEY vazio: o app funciona, só sem logos.'); }
-          if (vps) { t = t.split('__VPS_APP_KEY__').join(vps); } else { console.log('::warning::VPS_APP_KEY vazio: o app funciona, mas não envia créditos aprendidos.'); }
-          fs.writeFileSync(arq, t);
-          JS
-
       - name: Instalar as ferramentas da Samsung (Tizen Studio CLI)
         run: |
           for v in 6.1 6.0 5.6 5.5; do
@@ -43,68 +16,85 @@ jobs:
           [ -s /tmp/tizen-cli.bin ] || { echo "ERRO: não consegui baixar o Tizen Studio CLI"; exit 1; }
           chmod +x /tmp/tizen-cli.bin
           /tmp/tizen-cli.bin --accept-license "$HOME/tizen-studio" > /tmp/tizen-install.log 2>&1 || { tail -30 /tmp/tizen-install.log; exit 1; }
-          echo "$HOME/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
 
-      - name: Certificado de autor (o MESMO em todas as versões)
+      - name: Diagnosticar o certificado
         env:
           P12_B64: ${{ secrets.TIZEN_AUTHOR_P12_B64 }}
           SENHA: ${{ secrets.TIZEN_AUTHOR_PASS }}
         run: |
+          set +e
           export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
-          mkdir -p cert-novo
-          if [ -n "$P12_B64" ] && [ -n "$SENHA" ]; then
-            printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/autor.p12"
-            SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
-            echo "Usando o certificado guardado nos Secrets."
-          else
-            SENHA="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
-            tizen certificate -a VLTV -p "$SENHA" -c BR -s MG -ct BeloHorizonte -o "VLTV Play" -n "VLTV Play" -e "leandro_gracas@yahoo.com.br" -f autor_vltv
-            cp "$HOME/tizen-studio-data/keystore/author/autor_vltv.p12" "$RUNNER_TEMP/autor.p12"
-            base64 -w0 "$RUNNER_TEMP/autor.p12" > cert-novo/TIZEN_AUTHOR_P12_B64.txt
-            echo -n "$SENHA" > cert-novo/TIZEN_AUTHOR_PASS.txt
-            echo "::warning::Certificado NOVO gerado. Baixe o artefato 'certificado-autor' e salve os dois textos nos Secrets (TIZEN_AUTHOR_P12_B64 e TIZEN_AUTHOR_PASS) para as próximas versões usarem o mesmo autor."
-          fi
-          echo "Tamanho do .p12: $(stat -c%s "$RUNNER_TEMP/autor.p12") bytes"
-          echo "Tamanho da senha: ${#SENHA} caracteres"
-          if keytool -list -storetype PKCS12 -keystore "$RUNNER_TEMP/autor.p12" -storepass "$SENHA" > /tmp/kt.log 2>&1; then
-            echo "TESTE DA SENHA DO AUTOR: OK"
-          else
-            echo "TESTE DA SENHA DO AUTOR: FALHOU"
-            cat /tmp/kt.log
-            exit 1
-          fi
-          DIST="$(find "$HOME/tizen-studio" -name 'tizen-distributor-signer.p12' | head -1)"
-          echo "Distribuidor padrão: ${DIST:-NÃO ENCONTRADO}"
-          if [ -n "$DIST" ]; then
-            tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA" -d "$DIST" -dp tizenpkcs12passfordsigner
-          else
-            tizen security-profiles add -n vltv -a "$RUNNER_TEMP/autor.p12" -p "$SENHA"
-          fi
-          echo "=== Perfis cadastrados ==="
-          tizen security-profiles list
-          echo "=== profiles.xml (senhas escondidas) ==="
-          sed -E 's/(password|Password)="[^"]*"/\1="***"/g' "$HOME/tizen-studio-data/profile/profiles.xml"
+          R=/tmp/resumo.txt
+          : > "$R"
+          r() { echo "$*" | tee -a "$R"; }
 
-      - name: Gerar o pacote .wgt
-        run: |
-          export PATH="$HOME/tizen-studio/tools/ide/bin:$PATH"
-          mkdir -p saida
-          tizen package -t wgt -s vltv -o saida -- tizen-build || {
-            echo "=== FALHOU: FINAL DO LOG DO TIZEN ==="
-            tail -n 15 "$HOME/tizen-studio-data/cli/logs/cli.log"
-            exit 1
+          printf '%s' "$P12_B64" | tr -d ' \r\n' | base64 -d > /tmp/autor.p12
+          SENHA="$(printf '%s' "$SENHA" | tr -d '\r\n')"
+          export SENHA
+
+          r "Tamanho do .p12: $(stat -c%s /tmp/autor.p12) bytes"
+          r "Tamanho da senha: ${#SENHA} caracteres"
+          r "Simbolos na senha (fora de letras e numeros): $(printf '%s' "$SENHA" | tr -d 'A-Za-z0-9' | wc -c)"
+          if printf '%s' "$SENHA" | LC_ALL=C grep -q '[^ -~]'; then r "Senha com acento/caractere fora do ASCII: SIM"; else r "Senha com acento/caractere fora do ASCII: NAO"; fi
+
+          r "Java do sistema: $(java -version 2>&1 | head -1)"
+          for J in $(find "$HOME/tizen-studio" -name java -type f 2>/dev/null | head -3); do r "Java dentro do Tizen: $J"; done
+
+          for K in $(which keytool) $(find "$HOME/tizen-studio" -name keytool -type f 2>/dev/null | head -3); do
+            if "$K" -list -storetype PKCS12 -keystore /tmp/autor.p12 -storepass "$SENHA" > /dev/null 2>&1; then r "keytool ($K) abre o .p12: OK"; else r "keytool ($K) abre o .p12: FALHOU"; fi
+          done
+
+          INFO="$(openssl pkcs12 -info -noout -passin env:SENHA -in /tmp/autor.p12 2>&1 || openssl pkcs12 -legacy -info -noout -passin env:SENHA -in /tmp/autor.p12 2>&1)"
+          r "Criptografia do .p12 (openssl):"
+          echo "$INFO" | grep -iE 'MAC|PBE|AES|RC2|DES|Iteration|Error|unsupported' | head -5 | tee -a "$R"
+
+          DIST="$(find "$HOME/tizen-studio" -name tizen-distributor-signer.p12 2>/dev/null | head -1)"
+          if keytool -list -storetype PKCS12 -keystore "$DIST" -storepass tizenpkcs12passfordsigner > /dev/null 2>&1; then r "Distribuidor padrao abre com a senha padrao: OK"; else r "Distribuidor padrao abre com a senha padrao: FALHOU"; fi
+
+          mkdir -p /tmp/app
+          cat > /tmp/app/config.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://example.com/Teste" version="1.0.0" viewmodes="maximized">
+            <tizen:application id="TESTE00001.Teste" package="TESTE00001" required_version="4.0"/>
+            <content src="index.html"/>
+            <name>Teste</name>
+          </widget>
+          XML
+          echo '<html><body>teste</body></html>' > /tmp/app/index.html
+
+          testar() {
+            NOME="$1"; P12="$2"; PASS="$3"
+            mkdir -p "/tmp/saida-$NOME"
+            if ! tizen security-profiles add -n "$NOME" -a "$P12" -p "$PASS" > "/tmp/add-$NOME.log" 2>&1; then
+              r "TESTE $NOME: FALHOU ao cadastrar perfil - $(tail -2 "/tmp/add-$NOME.log" | tr '\n' ' ' | cut -c1-120)"
+              return
+            fi
+            if tizen package -t wgt -s "$NOME" -o "/tmp/saida-$NOME" -- /tmp/app > "/tmp/pkg-$NOME.log" 2>&1; then
+              r "TESTE $NOME: OK (gerou o .wgt)"
+            else
+              r "TESTE $NOME: FALHOU - $(grep -m1 -E 'Caused by|Exception' "/tmp/pkg-$NOME.log" | cut -c1-120)"
+            fi
           }
-          ls -la saida
 
-      - name: Guardar o .wgt
-        uses: actions/upload-artifact@v4
-        with:
-          name: vltv-tizen-wgt
-          path: saida/*.wgt
+          testar A-original /tmp/autor.p12 "$SENHA"
 
-      - name: Guardar o certificado novo (só aparece na primeira vez)
-        if: hashFiles('cert-novo/*') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: certificado-autor
-          path: cert-novo/*
+          ( export LC_ALL=C.UTF-8 JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"; testar B-utf8 /tmp/autor.p12 "$SENHA" )
+
+          if keytool -importkeystore -noprompt -srckeystore /tmp/autor.p12 -srcstoretype PKCS12 -srcstorepass "$SENHA" -destkeystore /tmp/reexport.p12 -deststoretype PKCS12 -deststorepass "$SENHA" > /tmp/reexp.log 2>&1; then
+            testar C-reexportado /tmp/reexport.p12 "$SENHA"
+          else
+            r "TESTE C-reexportado: nao foi possivel converter - $(tail -1 /tmp/reexp.log | cut -c1-120)"
+          fi
+
+          SENHA2="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)"
+          tizen certificate -a Controle -p "$SENHA2" -c BR -s MG -ct Cidade -o Teste -n Teste -e teste@example.com -f controle > /tmp/cert.log 2>&1
+          P12C="$(find "$HOME/tizen-studio-data/keystore" -name 'controle.p12' 2>/dev/null | head -1)"
+          if [ -n "$P12C" ]; then
+            testar D-controle "$P12C" "$SENHA2"
+          else
+            r "TESTE D-controle: nao gerou o certificado - $(tail -1 /tmp/cert.log | cut -c1-120)"
+          fi
+
+          echo
+          echo "=== RESUMO ==="
+          cat "$R"

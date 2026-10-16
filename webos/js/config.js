@@ -30,6 +30,13 @@ VLTV.config = {
   // quando a TV não consegue abrir o vídeo pelo caminho normal.
   AVPLAY_PRIMEIRO: false,
 
+  // Motor de reprodução. false = igual ao app antigo (só a tag <video>): é o modo seguro.
+  // true = liga hls.js, mpegts.js, AVPlay (Samsung) e reconexão automática. Só ligue depois de testar na TV do cliente.
+  MOTOR_AVANCADO: false,
+
+  // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
+  DIAGNOSTICO: true,
+
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',
 

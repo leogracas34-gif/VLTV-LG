@@ -63,6 +63,12 @@
   function agora() { return new Date().getTime(); }
   function tentar(f, padrao) { try { return f(); } catch (e) { return padrao; } }
   function cfg() { return (window.VLTV && VLTV.config) || {}; }
+  // MOTOR_AVANCADO = false (padrão): comportamento idêntico ao app antigo (só a tag <video>, mesmas esperas,
+  // sem bibliotecas, sem AVPlay, sem vigia de reconexão). true liga hls.js, mpegts.js, AVPlay e reconexão.
+  function avancado() { return !!cfg().MOTOR_AVANCADO; }
+  // DIAGNOSTICO = true: a mensagem de erro mostra o que foi tentado (ex.: m3u8: formato | ts: tempo).
+  function diagnostico() { return !!cfg().DIAGNOSTICO; }
+  var ESPERA_SIMPLES_MS = { live: 12000, vod: 20000 };   // mesmas esperas da versão antiga
 
   // ── Memória: se a TV não abre um tipo de endereço sozinha, não perde tempo tentando de novo ─────
   var memoria = tentar(function () { return JSON.parse(localStorage.getItem(CH_MEMORIA) || '{}'); }, {}) || {};
@@ -125,6 +131,10 @@
       if (vistos[k]) { return; }
       vistos[k] = true;
       plano.push({ estrategia: estrategia, url: url, tipo: tipoDaUrl(url) });
+    }
+    if (!avancado()) {
+      urls.forEach(function (u) { add('nativo', u); });
+      return plano;
     }
     var nativos = [];
     var bibliotecas = [];
@@ -282,6 +292,9 @@
     v.addEventListener('ended', function () { if (self.ativo && self.atual && self.atual.estrategia !== 'avplay' && self.cb.aoFim) { self.cb.aoFim(); } });
     v.addEventListener('error', function () {
       if (!self.ativo || !self.atual || self.atual.estrategia !== 'nativo') { return; }
+      // Evento atrasado de uma tentativa que já foi trocada (src removido/mudado): ignora.
+      var srcAtual = v.getAttribute('src') || '';
+      if (!srcAtual || srcAtual !== self.atual.url) { return; }
       var cod = v.error ? v.error.code : 0;
       self.aoErro({ estrategia: 'nativo', tipo: cod === 3 ? 'decodificacao' : (cod === 2 ? 'rede' : 'formato'), codigo: cod });
     });
@@ -371,12 +384,19 @@
     tentar(function () { self.video.pause(); self.video.removeAttribute('src'); self.video.load(); });
 
     function avisar() {
-      if (self.cb.aoFalha) { self.cb.aoFalha(mensagemDaFalha(self.erros)); }
+      var msg = mensagemDaFalha(self.erros);
+      if (diagnostico() && self.erros.length) {
+        var rastro = self.erros.map(function (e) {
+          return (e.estrategia || '?') + ':' + (e.http ? 'HTTP ' + e.http : (e.tipo || '?'));
+        }).join(' | ');
+        msg += ' [' + rastro + ']';
+      }
+      if (self.cb.aoFalha) { self.cb.aoFalha(msg); }
     }
     // A tag <video> não diz o código HTTP. Se nenhum caminho soube o motivo, pergunta ao servidor
     // (conteúdo bloqueado, plano vencido e arquivo inexistente ficam bem diferentes para o cliente).
     var sabeMotivo = this.erros.some(function (e) { return !!e.http; });
-    if (sabeMotivo || this.erros.length === 0 || !this.urls.length) { avisar(); return; }
+    if (sabeMotivo || this.erros.length === 0 || !this.urls.length || !diagnostico()) { avisar(); return; }
     var meu = this.idTent;
     sondar(this.urls[0], function (codigo) {
       if (meu !== self.idTent || self.ativo) { return; }   // o usuário já abriu outra coisa
@@ -394,7 +414,7 @@
     this.limparEngine();
     this.camadaAvplay(false);
 
-    var espera = t.estrategia === 'avplay' ? ESPERA_MS.avplay : ESPERA_MS[this.modo];
+    var espera = t.estrategia === 'avplay' ? ESPERA_MS.avplay : (avancado() ? ESPERA_MS[this.modo] : ESPERA_SIMPLES_MS[this.modo]);
     function armarEspera(ms, jaProrrogou) {
       self.timerEspera = setTimeout(function () {
         if (meu !== self.idTent) { return; }
@@ -494,6 +514,7 @@
   P.iniciarVigia = function () {
     var self = this;
     clearInterval(this.timerVigia);
+    if (!avancado()) { return; }
     this.ultimoTempo = -1;
     this.ultimoMovimento = agora();
     this.timerVigia = setInterval(function () { self.vigiar(); }, 1000);

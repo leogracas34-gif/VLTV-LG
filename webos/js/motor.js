@@ -52,8 +52,11 @@
   var CAMINHO_MPEGTS = 'js/lib/mpegts.js';
   var CH_MEMORIA = 'vltv_motor';
 
-  var ESPERA_MS = { live: 12000, vod: 20000, avplay: 15000 };
-  var TRAVOU_MS = { live: 10000, vod: 25000 };   // parado por tanto tempo = reconecta
+  // Servidor IPTV costuma demorar para começar a mandar o vídeo (principalmente via gateway/proxy).
+  // Antes: 12s/20s por formato, então 3 formatos = ~36s e a mensagem "servidor demorou demais".
+  var ESPERA_MS = { live: 20000, vod: 35000, avplay: 15000 };
+  var ESPERA_EXTRA_MS = 20000;                    // +tempo se a TV já recebeu dados (servidor lento, mas respondendo)
+  var TRAVOU_MS = { live: 20000, vod: 40000 };   // parado por tanto tempo = reconecta
   var MAX_RECONEXOES = { live: 8, vod: 4 };
   var ESTAVEL_MS = 30000;                         // tocando tanto tempo sem problema zera as reconexões
 
@@ -151,6 +154,16 @@
     var ordem = [];
     if (cfg().AVPLAY_PRIMEIRO && avplays.length) { ordem = ordem.concat(avplays); avplays = []; }
     ordem = ordem.concat(nativosOk, bibliotecas, nativosRuins, avplays);
+    // O formato que funcionou da última vez passa na frente (evita testar formato por formato a cada canal).
+    var venceu = memoria.venceu && memoria.venceu[modo];
+    if (venceu) {
+      var f = [];
+      var r = [];
+      ordem.forEach(function (x) {
+        ((x.e === venceu.estrategia && tipoDaUrl(x.u) === venceu.tipo) ? f : r).push(x);
+      });
+      ordem = f.concat(r);
+    }
     ordem.forEach(function (x) { add(x.e, x.u); });
     return plano;
   }
@@ -382,9 +395,15 @@
     this.camadaAvplay(false);
 
     var espera = t.estrategia === 'avplay' ? ESPERA_MS.avplay : ESPERA_MS[this.modo];
-    this.timerEspera = setTimeout(function () {
-      if (meu === self.idTent) { self.aoErro({ estrategia: t.estrategia, tipo: 'tempo' }); }
-    }, espera);
+    function armarEspera(ms, jaProrrogou) {
+      self.timerEspera = setTimeout(function () {
+        if (meu !== self.idTent) { return; }
+        // A TV já recebeu dados (servidor lento, mas respondendo): dá mais um tempo antes de trocar de formato.
+        if (!jaProrrogou && self.recebendoDados(t)) { armarEspera(ESPERA_EXTRA_MS, true); return; }
+        self.aoErro({ estrategia: t.estrategia, tipo: 'tempo' });
+      }, ms);
+    }
+    armarEspera(espera, false);
 
     var v = this.video;
     if (t.estrategia === 'nativo') {
@@ -398,6 +417,13 @@
     } else if (t.estrategia === 'avplay') {
       this.iniciarAvplay(t, meu);
     }
+  };
+
+  // true se a tag <video> já recebeu pelo menos os metadados/dados desta tentativa.
+  P.recebendoDados = function (t) {
+    if (t.estrategia === 'avplay') { return false; }
+    var v = this.video;
+    return tentar(function () { return v.readyState >= 1 || (v.buffered && v.buffered.length > 0); }, false);
   };
 
   // Falha da tentativa atual: anota o motivo e segue para a próxima (ou reconecta, se já estava tocando).
@@ -417,6 +443,12 @@
     if (erro.http && erro.http >= 400) { this.descartadas[t.url] = true; }
     this.idTent++;
     this.limparEngine();
+    // Fecha a conexão da tentativa que desistiu. Sem isso a tag <video> continua pedindo o canal em segundo plano
+    // e muitos servidores IPTV (limite de 1 conexão por usuário) atrasam ou recusam a próxima tentativa.
+    if (t.estrategia === 'nativo') {
+      var vv = this.video;
+      tentar(function () { vv.pause(); vv.removeAttribute('src'); vv.load(); });
+    }
     this.proxima();
   };
 
@@ -445,6 +477,10 @@
       gravarMemoria();
     }
     this.estrategiaVencedora = t.estrategia;
+    // Guarda o que funcionou (por modo: canal ao vivo / filme) para tentar primeiro na próxima vez.
+    if (!memoria.venceu) { memoria.venceu = {}; }
+    memoria.venceu[this.modo] = { estrategia: t.estrategia, tipo: t.tipo };
+    gravarMemoria();
   };
 
   P.estrategia = function () { return this.atual ? this.atual.estrategia : ''; };

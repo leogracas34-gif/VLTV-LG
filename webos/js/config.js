@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.0.2',
+  VERSAO: '1.1.0',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -24,6 +24,11 @@ VLTV.config = {
   MIN_WEBOS_YEAR: 2018,
   MIN_WEBOS_SDK: 4,
   MIN_CHROME: 53,
+
+  // Player (só Samsung): true = usa o player nativo da Samsung (AVPlay) ANTES do da tag <video>.
+  // Deixe false até testar numa TV Samsung de verdade; com false, o AVPlay entra só como reserva
+  // quando a TV não consegue abrir o vídeo pelo caminho normal.
+  AVPLAY_PRIMEIRO: false,
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',

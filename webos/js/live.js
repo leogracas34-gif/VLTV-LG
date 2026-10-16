@@ -6,7 +6,6 @@
 
   // Ordem de tentativa do formato do canal (se um falhar, tenta o próximo).
   var EXTENSOES = ['m3u8', 'ts', ''];
-  var ESPERA_REPRODUZIR_MS = 12000;
   var TAMANHO_LOTE = 150;
   var TEMPO_INFO_MS = 4000;
   var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
@@ -60,13 +59,10 @@
   var tocando = null;            // canal em reprodução
   var listaTocando = null;       // lista de onde o canal saiu
   var idxTocando = 0;
-  var extIdx = 0;
   var textoAgora = '';
 
   var idReqCanais = 0;
-  var idPlay = 0;
   var idEpg = 0;
-  var timerEspera = null;
   var timerInfo = null;
 
   // ── Utilidades de tela ────────────────────────────────────────────
@@ -406,71 +402,47 @@
   }
 
   // ── Reprodução ────────────────────────────────────────────────────
-  function iniciarExtensao() {
-    var meu = idPlay;
-    clearTimeout(timerEspera);
+  // O motor tenta os formatos (m3u8, ts, sem extensão), depois as bibliotecas e o player da Samsung,
+  // reconecta sozinho se o canal travar e explica o motivo quando não toca.
+  var motor = VLTV.motor.criar(video, {
+    modo: 'live',
+    aoPlaying: function () { esconderOverlay(); },
+    aoEspera: function () { if (tocando) { mostrarOverlay('Carregando...'); } },
+    aoReconectando: function (msg) { if (tocando) { mostrarOverlay(msg); } },
+    aoFalha: function (msg) { if (tocando) { mostrarOverlay(msg, 'erro'); } }
+  });
 
-    // Canal de lista M3U tem endereço próprio: uma tentativa só.
-    var tentativas = tocando.url ? [''] : EXTENSOES;
-    if (extIdx >= tentativas.length) {
-      mostrarOverlay('Canal indisponível no momento.', 'erro');
-      return;
-    }
-
+  function iniciarCanal() {
     mostrarOverlay('Carregando...');
-    video.src = tocando.url ? tocando.url : VLTV.api.urlCanal(tocando.stream_id, EXTENSOES[extIdx]);
-    var p = video.play();
-    if (p && p.catch) { p.catch(function () { /* o erro chega pelo evento 'error' */ }); }
-
-    timerEspera = setTimeout(function () {
-      if (meu === idPlay) { proximaExtensao(); }
-    }, ESPERA_REPRODUZIR_MS);
-  }
-
-  function proximaExtensao() {
-    extIdx++;
-    iniciarExtensao();
+    var urls = [];
+    if (tocando.url) {
+      urls.push(tocando.url);   // canal de lista M3U tem endereço próprio
+    } else {
+      EXTENSOES.forEach(function (e) { urls.push(VLTV.api.urlCanal(tocando.stream_id, e)); });
+    }
+    motor.abrir(urls);
   }
 
   function tocar(lista, idx) {
     tocando = lista[idx];
     listaTocando = lista;
     idxTocando = idx;
-    extIdx = 0;
-    idPlay++;
     mostrarInfoBasica();
     marcarTocando();
     carregarEpg(tocando);
-    iniciarExtensao();
+    iniciarCanal();
   }
 
   function parar() {
-    idPlay++;
     idEpg++;
-    clearTimeout(timerEspera);
     clearTimeout(timerInfo);
     tocando = null;
     listaTocando = null;
-    try {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    } catch (e) { /* ignora */ }
+    motor.parar();
     esconderOverlay();
     marcarTocando();
     mostrarInfoBasica();
   }
-
-  video.addEventListener('playing', function () {
-    clearTimeout(timerEspera);
-    esconderOverlay();
-  });
-  video.addEventListener('waiting', function () {
-    if (tocando) { mostrarOverlay('Carregando...'); }
-  });
-  video.addEventListener('error', function () {
-    if (tocando) { proximaExtensao(); }
-  });
 
   // ── Tela cheia ────────────────────────────────────────────────────
   function desenharInfoCheio() {
@@ -495,6 +467,7 @@
   function entrarCheio() {
     cheio = true;
     caixaPlayer.classList.add('cheio');
+    motor.reposicionar();
     mostrarInfoCheio();
   }
 
@@ -503,6 +476,7 @@
     clearTimeout(timerInfo);
     infoCheio.classList.add('escondida');
     caixaPlayer.classList.remove('cheio');
+    motor.reposicionar();
   }
 
   // Troca de canal em tela cheia (volta ao início/fim da lista de forma circular).

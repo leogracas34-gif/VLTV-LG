@@ -5,7 +5,6 @@
 (function () {
   'use strict';
 
-  var ESPERA_REPRODUZIR_MS = 20000;
   var TEMPO_CONTROLES_MS = 6000;
   var INTERVALO_SALVAR_MS = 5000;
   var APLICAR_PULO_MS = 700;        // espera o usuário parar de apertar antes de pular de fato
@@ -20,7 +19,7 @@
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
     ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40,
-    PAUSE: 19, PLAY: 415, STOP: 413, VOLTA: 412, AVANCA: 417
+    PAUSE: 19, PLAY: 415, STOP: 413, VOLTA: 412, AVANCA: 417, AMARELO: 405
   };
 
   function $(id) { return document.getElementById(id); }
@@ -44,12 +43,9 @@
 
   var itens = [];
   var idx = 0;
-  var extensoes = [];
-  var extIdx = 0;
   var ativo = false;
   var aoSair = null;
   var idPlay = 0;
-  var timerEspera = null;
   var timerControles = null;
   var timerPulo = null;
   var timerAviso = null;
@@ -105,10 +101,137 @@
 
   function cartaoVisivel() { return !cartao.classList.contains('escondida'); }
 
+  // ── Áudio e legenda ───────────────────────────────────────────────
+  // Abre com a seta para baixo (ou a tecla amarela). Só mostra o que o vídeo e a TV realmente oferecem.
+  var faixasAberto = false;
+  var faixasCol = 0;            // 0 = áudio, 1 = legenda
+  var faixasPos = [0, 0];
+  var faixasLista = [[], []];   // cada item: { id, rotulo, ativa } (na legenda, o item 0 é "Desativada")
+  var timerFaixas = null;
+
+  var elFaixas = document.createElement('div');
+  elFaixas.id = 'player-faixas';
+  elFaixas.className = 'faixas escondida';
+  $('tela-player').appendChild(elFaixas);
+
+  var elLegenda = document.createElement('div');
+  elLegenda.id = 'player-legenda';
+  elLegenda.className = 'legenda-avplay escondida';
+  $('tela-player').appendChild(elLegenda);
+
+  var elDica = document.createElement('div');
+  elDica.className = 'ctrl-dica';
+  elDica.textContent = '\u25BC  \u00C1udio e legenda';
+  controles.appendChild(elDica);
+
+  function mostrarLegenda(texto) {
+    if (!texto) { elLegenda.classList.add('escondida'); elLegenda.textContent = ''; return; }
+    elLegenda.textContent = texto;
+    elLegenda.classList.remove('escondida');
+  }
+  function esconderLegenda() { mostrarLegenda(''); }
+
+  function desenharFaixas() {
+    var f = motor.faixas();
+    var legendas = [{ id: null, rotulo: 'Desativada', ativa: !f.legendaAtiva }];
+    f.legenda.forEach(function (x) { legendas.push(x); });
+    faixasLista = [f.audio, f.legenda.length > 0 ? legendas : []];
+    faixasPos[0] = Math.max(0, Math.min(faixasLista[0].length - 1, faixasPos[0]));
+    faixasPos[1] = Math.max(0, Math.min(faixasLista[1].length - 1, faixasPos[1]));
+    if (faixasLista[faixasCol].length === 0 && faixasLista[1 - faixasCol].length > 0) { faixasCol = 1 - faixasCol; }
+
+    while (elFaixas.firstChild) { elFaixas.removeChild(elFaixas.firstChild); }
+    var titulo = document.createElement('div');
+    titulo.className = 'fx-titulo';
+    titulo.textContent = '\u00C1udio e legenda';
+    elFaixas.appendChild(titulo);
+
+    if (faixasLista[0].length === 0 && faixasLista[1].length === 0) {
+      var vazio = document.createElement('div');
+      vazio.className = 'fx-vazio';
+      vazio.textContent = 'Este v\u00EDdeo n\u00E3o tem outras faixas de \u00E1udio ou legenda (ou a TV n\u00E3o permite escolher).';
+      elFaixas.appendChild(vazio);
+      return;
+    }
+
+    var colunas = document.createElement('div');
+    colunas.className = 'fx-colunas';
+    ['\u00C1udio', 'Legenda'].forEach(function (nome, c) {
+      var col = document.createElement('div');
+      col.className = 'fx-col';
+      var h = document.createElement('div');
+      h.className = 'fx-nome';
+      h.textContent = nome;
+      col.appendChild(h);
+      if (faixasLista[c].length === 0) {
+        var sem = document.createElement('div');
+        sem.className = 'fx-item fx-sem';
+        sem.textContent = c === 0 ? 'Apenas o \u00E1udio padr\u00E3o' : 'Sem legendas neste v\u00EDdeo';
+        col.appendChild(sem);
+      }
+      faixasLista[c].forEach(function (it, i) {
+        var li = document.createElement('div');
+        li.className = 'fx-item' + (it.ativa ? ' ativa' : '') + (faixasCol === c && faixasPos[c] === i ? ' sel' : '');
+        li.textContent = (it.ativa ? '\u2713  ' : '') + it.rotulo;
+        li.addEventListener('mouseenter', function () { faixasCol = c; faixasPos[c] = i; desenharFaixas(); });
+        li.addEventListener('click', function () { faixasCol = c; faixasPos[c] = i; escolherFaixa(); });
+        col.appendChild(li);
+      });
+      colunas.appendChild(col);
+    });
+    elFaixas.appendChild(colunas);
+  }
+
+  function abrirFaixas() {
+    faixasAberto = true;
+    faixasCol = 0;
+    faixasPos = [0, 0];
+    var f = motor.faixas();
+    f.audio.forEach(function (x, i) { if (x.ativa) { faixasPos[0] = i; } });
+    desenharFaixas();
+    elFaixas.classList.remove('escondida');
+    mostrarControles();
+  }
+
+  function fecharFaixas() {
+    faixasAberto = false;
+    clearTimeout(timerFaixas);
+    elFaixas.classList.add('escondida');
+  }
+
+  function escolherFaixa() {
+    var it = faixasLista[faixasCol][faixasPos[faixasCol]];
+    if (!it) { return; }
+    if (faixasCol === 0) { motor.escolherAudio(it.id); }
+    else { motor.escolherLegenda(it.id); }
+    clearTimeout(timerFaixas);
+    timerFaixas = setTimeout(function () { if (faixasAberto) { desenharFaixas(); } }, 450);
+  }
+
+  function teclaFaixas(k) {
+    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.AMARELO || k === TECLA.STOP) { fecharFaixas(); return true; }
+    if (k === TECLA.CIMA) { faixasPos[faixasCol] = Math.max(0, faixasPos[faixasCol] - 1); desenharFaixas(); return true; }
+    if (k === TECLA.BAIXO) {
+      faixasPos[faixasCol] = Math.min(Math.max(0, faixasLista[faixasCol].length - 1), faixasPos[faixasCol] + 1);
+      desenharFaixas();
+      return true;
+    }
+    if (k === TECLA.ESQ || k === TECLA.DIR) {
+      var outra = 1 - faixasCol;
+      if (faixasLista[outra].length > 0) { faixasCol = outra; desenharFaixas(); }
+      return true;
+    }
+    if (k === TECLA.ENTER) { escolherFaixa(); return true; }
+    // Teclas de mídia continuam funcionando com o menu aberto.
+    if (k === TECLA.PLAY) { if (motor.pausado()) { alternarPausa(); } return true; }
+    if (k === TECLA.PAUSE) { if (!motor.pausado()) { alternarPausa(); } return true; }
+    return true;
+  }
+
   // ── Barra e botões ────────────────────────────────────────────────
   function atualizarBarra() {
-    var d = video.duration;
-    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    var d = motor.duracao();
+    var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     var valida = isFinite(d) && d > 0;
     var pct = valida ? Math.max(0, Math.min(100, (t / d) * 100)) : 0;
     elProgresso.style.width = pct + '%';
@@ -116,13 +239,13 @@
     elPrevia.classList.toggle('escondida', puloAlvo === null);
     elTempo.textContent = formatar(t);
     elDuracao.textContent = valida ? formatar(d) : '';
-    elEstado.textContent = puloAlvo !== null ? 'Ir para ' + formatar(t) : (video.paused ? 'Pausado' : '');
+    elEstado.textContent = puloAlvo !== null ? 'Ir para ' + formatar(t) : (motor.pausado() ? 'Pausado' : '');
   }
 
   function agendarEsconder() {
     clearTimeout(timerControles);
     // Pausado ou escolhendo botão, a barra continua na tela; tocando, some depois de alguns segundos.
-    if (!video.paused) {
+    if (!motor.pausado()) {
       timerControles = setTimeout(function () {
         controles.classList.add('escondida');
         ajustarCartao();
@@ -144,7 +267,7 @@
 
   // ── Avançar e voltar ──────────────────────────────────────────────
   function podePular() {
-    var d = video.duration;
+    var d = motor.duracao();
     return isFinite(d) && d > 0;
   }
 
@@ -163,11 +286,7 @@
     var alvo = puloAlvo;
     puloAlvo = null;
     puloSequencia = 0;
-    try {
-      video.currentTime = alvo;
-    } catch (e) {
-      avisar('Esta TV não conseguiu pular neste vídeo.');
-    }
+    if (!motor.buscar(alvo)) { avisar('Esta TV não conseguiu pular neste vídeo.'); }
     atualizarBarra();
   }
 
@@ -180,8 +299,8 @@
     var sentido = segundos < 0 ? -1 : 1;
     var passo = fixo ? Math.abs(segundos) : passoAtual();
     puloSequencia++;
-    var base = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
-    puloAlvo = Math.max(0, Math.min(video.duration - 1, base + sentido * passo));
+    var base = puloAlvo !== null ? puloAlvo : (motor.tempo());
+    puloAlvo = Math.max(0, Math.min(motor.duracao() - 1, base + sentido * passo));
     mostrarControles();
     clearTimeout(timerPulo);
     timerPulo = setTimeout(aplicarPulo, APLICAR_PULO_MS);
@@ -193,8 +312,8 @@
     if (!item || !item.chave) { return; }
     // Enquanto o ponto de retomada não foi aplicado, não grava (evitaria apagar o progresso).
     if (inicioPendente > 0) { return; }
-    var d = video.duration;
-    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    var d = motor.duracao();
+    var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     if (!isFinite(d) || d <= 0 || t < 3) { return; }
     VLTV.dados.salvarProgresso(item.chave, t, d);
   }
@@ -202,12 +321,12 @@
   // Pula para o ponto de retomada assim que a TV souber a duração do vídeo.
   function aplicarInicio() {
     if (inicioPendente <= 0) { return; }
-    var d = video.duration;
+    var d = motor.duracao();
     if (!isFinite(d) || d <= 0) { return; }
     var alvo = inicioPendente;
     inicioPendente = 0;
     if (d > alvo + 5) {
-      try { video.currentTime = alvo; } catch (e) { /* ignora */ }
+      motor.buscar(alvo);
     }
   }
 
@@ -245,8 +364,8 @@
   // Não aprende quando o próximo episódio abre sozinho.
   function aprenderCreditos(toqueNoBotao) {
     if (!serieChave || creditosEnviados || proximoLancado) { return; }
-    var d = video.duration;
-    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    var d = motor.duracao();
+    var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     if (!isFinite(d) || d <= 0 || t < 0) { return; }
     var restante = Math.floor(d - t);
 
@@ -315,9 +434,9 @@
   // Roda a cada segundo, só enquanto há próximo episódio.
   function verificarProximo() {
     if (!ativo || proximoLancado || !temProximo()) { return; }
-    if (video.paused || video.ended) { return; }
-    var d = video.duration;
-    var t = puloAlvo !== null ? puloAlvo : (video.currentTime || 0);
+    if (motor.pausado() || motor.terminou()) { return; }
+    var d = motor.duracao();
+    var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     if (!isFinite(d) || d <= 0) { return; }
 
     var restante = Math.floor(d - t);
@@ -345,8 +464,8 @@
     esconderCartao();
     salvarPosicao();
     var item = itens[idx];
-    if (item && item.chave && isFinite(video.duration) && video.duration > 0 && !porToque) {
-      VLTV.dados.salvarProgresso(item.chave, video.duration, video.duration);   // assistido até o fim
+    if (item && item.chave && isFinite(motor.duracao()) && motor.duracao() > 0 && !porToque) {
+      VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao());   // assistido até o fim
     }
     carregarItem(idx + 1, 0);
   }
@@ -362,24 +481,19 @@
     return lista;
   }
 
+  // Lista de endereços possíveis (o motor tenta um por um, depois as bibliotecas e o player da Samsung).
+  function enderecos(item) {
+    var urls = [];
+    montarExtensoes(item).forEach(function (e) {
+      var u = item.url ? item.url : VLTV.api.urlVod(item.tipo, item.id, e);
+      if (u && urls.indexOf(u) === -1) { urls.push(u); }
+    });
+    return urls;
+  }
+
   function tentar() {
-    var meu = idPlay;
-    clearTimeout(timerEspera);
-
-    if (extIdx >= extensoes.length) {
-      mostrarOverlay('Não foi possível reproduzir este vídeo.', 'erro');
-      return;
-    }
-
     mostrarOverlay('Carregando...');
-    var item = itens[idx];
-    video.src = item.url ? item.url : VLTV.api.urlVod(item.tipo, item.id, extensoes[extIdx]);
-    var p = video.play();
-    if (p && p.catch) { p.catch(function () { /* o erro chega pelo evento 'error' */ }); }
-
-    timerEspera = setTimeout(function () {
-      if (meu === idPlay) { extIdx++; tentar(); }
-    }, ESPERA_REPRODUZIR_MS);
+    motor.abrir(enderecos(itens[idx]));
   }
 
   function pararTimersProximo() {
@@ -393,8 +507,6 @@
     idPlay++;
     inicioPendente = inicioSeg > 0 ? inicioSeg : 0;
     ultimoSalvo = 0;
-    extensoes = montarExtensoes(itens[idx]);
-    extIdx = 0;
 
     clearTimeout(timerPulo);
     timerPulo = null;
@@ -406,6 +518,8 @@
     iniciarCreditos();
     if (temProximo()) { timerProximo = setInterval(verificarProximo, 1000); }
 
+    fecharFaixas();
+    esconderLegenda();
     elTitulo.textContent = itens[idx].titulo || '';
     elProgresso.style.width = '0%';
     elTempo.textContent = '0:00';
@@ -417,17 +531,14 @@
   function parar() {
     idPlay++;
     ativo = false;
-    clearTimeout(timerEspera);
     clearTimeout(timerControles);
     clearTimeout(timerPulo);
     clearTimeout(timerAviso);
     pararTimersProximo();
     puloAlvo = null;
-    try {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    } catch (e) { /* ignora */ }
+    motor.parar();
+    esconderLegenda();
+    fecharFaixas();
     esconderOverlay();
     esconderCartao();
     elAviso.classList.add('escondida');
@@ -444,63 +555,56 @@
     if (aoSair) { aoSair(ultimo); }
   }
 
-  video.addEventListener('loadedmetadata', aplicarInicio);
-  video.addEventListener('durationchange', aplicarInicio);
-  video.addEventListener('playing', function () {
-    clearTimeout(timerEspera);
-    esconderOverlay();
-    aplicarInicio();
-    mostrarControles();
-  });
-  video.addEventListener('waiting', function () {
-    if (ativo) { mostrarOverlay('Carregando...'); }
-  });
-  video.addEventListener('seeked', function () {
-    if (ativo) { esconderOverlay(); }
-  });
-  video.addEventListener('pause', function () {
-    if (ativo) { salvarPosicao(); mostrarControles(); }
-  });
-  video.addEventListener('timeupdate', function () {
-    if (!ativo) { return; }
-    if (controlesVisiveis()) { atualizarBarra(); }
-    var agora = new Date().getTime();
-    if (agora - ultimoSalvo > INTERVALO_SALVAR_MS) {
-      ultimoSalvo = agora;
-      salvarPosicao();
+  // Eventos do motor (iguais para a TV nativa, bibliotecas e AVPlay da Samsung).
+  var motor = VLTV.motor.criar(video, {
+    modo: 'vod',
+    aoMetadados: aplicarInicio,
+    aoPlaying: function () {
+      esconderOverlay();
+      aplicarInicio();
+      mostrarControles();
+    },
+    aoEspera: function () { if (ativo) { mostrarOverlay('Carregando...'); } },
+    aoBuscou: function () { if (ativo) { esconderOverlay(); } },
+    aoPausa: function () { if (ativo) { salvarPosicao(); mostrarControles(); } },
+    aoTempo: function () {
+      if (!ativo) { return; }
+      if (controlesVisiveis()) { atualizarBarra(); }
+      var agora = new Date().getTime();
+      if (agora - ultimoSalvo > INTERVALO_SALVAR_MS) {
+        ultimoSalvo = agora;
+        salvarPosicao();
+      }
+    },
+    aoReconectando: function (msg) { if (ativo) { mostrarOverlay(msg); } },
+    aoFalha: function (msg) { if (ativo) { mostrarOverlay(msg, 'erro'); } },
+    aoLegenda: function (texto) { mostrarLegenda(texto); },
+    aoFaixas: function () { if (faixasAberto) { desenharFaixas(); } },
+    aoFim: function () {
+      if (!ativo) { return; }
+      var item = itens[idx];
+      if (item && item.chave && isFinite(motor.duracao()) && motor.duracao() > 0) {
+        VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao());   // marca como assistido
+      }
+      if (temProximo() && !proximoLancado) { abrirProximo(false); }
+      else if (idx + 1 < itens.length && !proximoLancado) { proximoLancado = true; carregarItem(idx + 1, 0); }
+      else if (idx + 1 >= itens.length) { sair(); }
     }
-  });
-  video.addEventListener('error', function () {
-    if (ativo) { extIdx++; tentar(); }
-  });
-  video.addEventListener('ended', function () {
-    if (!ativo) { return; }
-    var item = itens[idx];
-    if (item && item.chave && isFinite(video.duration) && video.duration > 0) {
-      VLTV.dados.salvarProgresso(item.chave, video.duration, video.duration);   // marca como assistido
-    }
-    if (temProximo() && !proximoLancado) { abrirProximo(false); }
-    else if (idx + 1 < itens.length && !proximoLancado) { proximoLancado = true; carregarItem(idx + 1, 0); }
-    else if (idx + 1 >= itens.length) { sair(); }
   });
 
   // ── Controle remoto ───────────────────────────────────────────────
   function alternarPausa() {
-    if (video.paused) {
-      var p = video.play();
-      if (p && p.catch) { p.catch(function () { /* ignora */ }); }
-    } else {
-      video.pause();
-    }
+    if (motor.pausado()) { motor.play(); } else { motor.pause(); }
     mostrarControles();
   }
 
   function tecla(k) {
+    if (faixasAberto) { return teclaFaixas(k); }
     if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); return true; }
 
     // Teclas de mídia do controle (sempre iguais, em qualquer foco)
-    if (k === TECLA.PLAY) { if (video.paused) { alternarPausa(); } return true; }
-    if (k === TECLA.PAUSE) { if (!video.paused) { alternarPausa(); } return true; }
+    if (k === TECLA.PLAY) { if (motor.pausado()) { alternarPausa(); } return true; }
+    if (k === TECLA.PAUSE) { if (!motor.pausado()) { alternarPausa(); } return true; }
     if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S, true); return true; }
     if (k === TECLA.AVANCA) { pular(PULO_LONGO_S, true); return true; }
 
@@ -512,7 +616,8 @@
       if (cartaoVisivel()) { abrirProximo(true); }
       else { alternarPausa(); }
     }
-    else if (k === TECLA.BAIXO || k === TECLA.CIMA) { mostrarControles(); }
+    else if (k === TECLA.BAIXO || k === TECLA.AMARELO) { abrirFaixas(); }
+    else if (k === TECLA.CIMA) { mostrarControles(); }
     return true;
   }
 

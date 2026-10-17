@@ -13,6 +13,7 @@
 
   var ITENS = [
     { id: 'info', nome: 'Informação geral' },
+    { id: 'idioma', nome: 'Idioma' },
     { id: 'parental', nome: 'Controle parental' },
     { id: 'cache', nome: 'Limpar cache' },
     { id: 'recarregar', nome: 'Atualizar o aplicativo' },
@@ -151,6 +152,8 @@
       esvaziar(conteudo);
       texto('Carregando...');
       lerMac(function () { if (ITENS[idx].id === 'info') { desenharInfo(); } });
+    } else if (item.id === 'idioma') {
+      desenharIdioma();
     } else if (item.id === 'parental') {
       if (foco === 'dir') { desenharParental(); }
       else {
@@ -164,6 +167,47 @@
     } else {
       desenharSobre();
     }
+  }
+
+  // ── Idioma ──
+  // Duas opções, cada uma com a bandeira. OK troca o idioma na hora (o aplicativo reinicia sozinho).
+  function desenharIdioma() {
+    var I = VLTV.idioma;
+    var atual = I.codigo();
+    var lista = I.lista();
+    dirItens = lista.map(function (l) {
+      return { codigo: l.codigo, nome: l.nome, acao: function () { I.definir(l.codigo); } };
+    });
+    if (foco !== 'dir') {
+      dirIdx = 0;
+      dirItens.forEach(function (it, i) { if (it.codigo === atual) { dirIdx = i; } });
+    }
+    esvaziar(conteudo);
+    dirItens.forEach(function (it, i) {
+      var l = document.createElement('div');
+      l.className = 'cfg-linha' + (foco === 'dir' && i === dirIdx ? ' sel' : '');
+      l.style.alignItems = 'center';
+      var a = document.createElement('span');
+      a.className = 'cfg-rotulo';
+      a.style.display = 'flex';
+      a.style.alignItems = 'center';
+      a.setAttribute('data-i18n-nao', '1');       // o nome do idioma fica sempre no próprio idioma
+      a.appendChild(I.bandeira(it.codigo));
+      a.appendChild(document.createTextNode(it.nome));
+      var b = document.createElement('span');
+      b.className = 'cfg-valor ok';
+      b.setAttribute('data-i18n-nao', '1');
+      b.textContent = it.codigo === atual ? '\u2713' : '';
+      l.appendChild(a);
+      l.appendChild(b);
+      conteudo.appendChild(l);
+    });
+    texto('Escolha o idioma do aplicativo. A mudança vale na hora: o aplicativo reinicia sozinho.');
+  }
+
+  // Redesenha a coluna da direita do item que está com as opções abertas.
+  function redesenharDir() {
+    if (ITENS[idx].id === 'idioma') { desenharIdioma(); } else { desenharParental(); }
   }
 
   // ── Limpar cache ──
@@ -182,7 +226,7 @@
     var lic = VLTV.licenca && VLTV.licenca.estado();
     if (lic) { linha('Licença do aplicativo', VLTV.licenca.textoCurto(), VLTV.licenca.ehAtivo() ? 'ok' : ''); }
     linha('Seu login e seus favoritos', 'Continuam salvos', 'ok');
-    texto('Reinicia o aplicativo e carrega tudo de novo (lista, categorias e licença). Novas versões do aplicativo chegam pela loja de aplicativos da LG. Pressione OK para atualizar.');
+    texto('Reinicia o aplicativo e carrega tudo de novo (lista, categorias e licença). Novas versões do aplicativo chegam pela loja de aplicativos da TV. Pressione OK para atualizar.');
   }
 
   // ── Sobre o aplicativo ──
@@ -303,12 +347,12 @@
       foco = 'menu';
       desenharDireita();
     } else if (k === TECLA.CIMA) {
-      if (dirIdx > 0) { dirIdx--; desenharParental(); }
+      if (dirIdx > 0) { dirIdx--; redesenharDir(); }
     } else if (k === TECLA.BAIXO) {
-      if (dirIdx < dirItens.length - 1) { dirIdx++; desenharParental(); }
+      if (dirIdx < dirItens.length - 1) { dirIdx++; redesenharDir(); }
     } else if (k === TECLA.ENTER) {
       var it = dirItens[dirIdx];
-      if (it) { it.acao(); desenharParental(); }
+      if (it) { it.acao(); redesenharDir(); }
     } else { return false; }
     return true;
   }
@@ -324,6 +368,7 @@
     } else if (k === TECLA.ENTER || k === TECLA.DIR) {
       var id = ITENS[idx].id;
       if (id === 'parental') { abrirParental(); }
+      else if (id === 'idioma') { foco = 'dir'; desenharIdioma(); }
       else if (k === TECLA.DIR) { return true; }
       else if (id === 'cache') { limparCache(); }
       else if (id === 'recarregar') { recarregar(); }
@@ -370,9 +415,9 @@
     return li ? lis.indexOf(li) : -1;
   }
 
-  // Linha de opção do Controle parental sob o cursor (só vale com a janela da direita aberta).
+  // Linha de opção (Controle parental ou Idioma) sob o cursor. O Idioma responde ao cursor mesmo antes de abrir.
   function indiceOpcao(e) {
-    if (foco !== 'dir') { return -1; }
+    if (foco !== 'dir' && ITENS[idx].id !== 'idioma') { return -1; }
     var l = filhoDe(conteudo, e.target);
     if (!l || !l.classList.contains('cfg-linha')) { return -1; }
     var i = Array.prototype.indexOf.call(conteudo.children, l);
@@ -399,14 +444,16 @@
   conteudo.addEventListener('mousemove', function (e) {
     if (!cursorAndou(e)) { return; }
     var i = indiceOpcao(e);
-    if (i < 0 || i === dirIdx) { return; }
+    if (i < 0 || (i === dirIdx && foco === 'dir')) { return; }
     dirIdx = i;
-    desenharParental();
+    foco = 'dir';
+    redesenharDir();
   });
   conteudo.addEventListener('click', function (e) {
     var i = indiceOpcao(e);
     if (i >= 0) {
       dirIdx = i;
+      foco = 'dir';
       teclaDireita(TECLA.ENTER);
     } else if (foco === 'menu' && ITENS[idx].id === 'parental') {
       abrirParental();        // clicar no texto do Controle parental também pede a senha

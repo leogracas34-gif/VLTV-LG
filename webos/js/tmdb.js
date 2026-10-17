@@ -96,7 +96,7 @@
   // Resolve com o resultado do TMDB (objeto com id, backdrop_path...) ou null.
   function procurarMelhor(tipoTmdb, busca) {
     var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
-      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';
+      '&query=' + encodeURIComponent(busca.query) + '&language=' + idiomaTmdb().lingua + '&region=' + idiomaTmdb().regiao;
 
     function pegar(url) {
       return pegarJson(url).then(function (j) { return escolher(j && j.results ? j.results : [], busca); });
@@ -106,13 +106,19 @@
     return pegar(comAno).then(function (r) { return r || pegar(base); });
   }
 
+  // Idioma da escolha do usuário (Configurações > Idioma): português do Brasil ou inglês.
+  function idiomaTmdb() {
+    return (window.VLTV && VLTV.idioma && VLTV.idioma.tmdb) ? VLTV.idioma.tmdb() : { lingua: 'pt-BR', regiao: 'BR', logos: 'pt' };
+  }
+
   function escolherLogo(logos) {
     var i;
+    var id = idiomaTmdb();
     for (i = 0; i < logos.length; i++) {
-      if (String(logos[i].iso_639_1).toLowerCase() === 'pt' && String(logos[i].iso_3166_1).toUpperCase() === 'BR' && logos[i].file_path) { return logos[i].file_path; }
+      if (String(logos[i].iso_639_1).toLowerCase() === id.logos && String(logos[i].iso_3166_1).toUpperCase() === id.regiao && logos[i].file_path) { return logos[i].file_path; }
     }
     for (i = 0; i < logos.length; i++) {
-      if (String(logos[i].iso_639_1).toLowerCase() === 'pt' && logos[i].file_path) { return logos[i].file_path; }
+      if (String(logos[i].iso_639_1).toLowerCase() === id.logos && logos[i].file_path) { return logos[i].file_path; }
     }
     for (i = 0; i < logos.length; i++) {
       if ((logos[i].iso_639_1 === null || logos[i].iso_639_1 === undefined) && logos[i].file_path) { return logos[i].file_path; }
@@ -124,7 +130,7 @@
     return procurarMelhor(tipoTmdb, busca).then(function (achado) {
       if (achado === null) { return null; }
       var id = achado.id;
-      var url = API + '/' + tipoTmdb + '/' + id + '/images?api_key=' + chave() + '&include_image_language=pt-BR,pt,null';
+      var url = API + '/' + tipoTmdb + '/' + id + '/images?api_key=' + chave() + '&include_image_language=' + (idiomaTmdb().logos === 'en' ? 'en,null' : 'pt-BR,pt,null');
       return pegarJson(url).then(function (j) {
         var caminho = j && j.logos ? escolherLogo(j.logos) : null;
         return caminho ? endereco(caminho) : null;

@@ -289,7 +289,11 @@
     v.addEventListener('timeupdate', emitir('aoTempo'));
     v.addEventListener('loadedmetadata', function () { self.aoMetadados(); });
     v.addEventListener('durationchange', function () { self.aoMetadados(); });
-    v.addEventListener('ended', function () { if (self.ativo && self.atual && self.atual.estrategia !== 'avplay' && self.cb.aoFim) { self.cb.aoFim(); } });
+    v.addEventListener('ended', function () {
+      // Canal ao vivo nunca "termina": se a transmissão fechou, abre de novo.
+      if (self.modo === 'live' && self.ativo && self.confirmada && self.atual && self.atual.estrategia !== 'avplay') { self.reconectar('erro'); return; }
+      if (self.ativo && self.atual && self.atual.estrategia !== 'avplay' && self.cb.aoFim) { self.cb.aoFim(); }
+    });
     v.addEventListener('error', function () {
       if (!self.ativo || !self.atual || self.atual.estrategia !== 'nativo') { return; }
       // Evento atrasado de uma tentativa que já foi trocada (src removido/mudado): ignora.
@@ -302,8 +306,9 @@
 
   // ── Abrir / parar ──────────────────────────────────────────────────
   // urls: endereços possíveis do mesmo conteúdo, do mais provável ao menos. inicioSeg: onde começar (filmes).
-  P.abrir = function (urls, inicioSeg) {
+  P.abrir = function (urls, inicioSeg, reabertura) {
     this.parar(true);
+    if (!reabertura) { this.reabertas = 0; }
     this.ativo = true;
     this.urls = (urls || []).filter(function (u) { return !!u; });
     this.plano = montarPlano(this.urls, this.modo);
@@ -382,6 +387,22 @@
     this.limparEngine();
     this.camadaAvplay(false);
     tentar(function () { self.video.pause(); self.video.removeAttribute('src'); self.video.load(); });
+
+    // Canal ao vivo que não abriu (fonte do provedor caiu por um instante): tenta abrir de novo, até 3 vezes, 4 s entre elas.
+    // Erro de acesso do servidor (401, 403, 404...) não melhora tentando de novo: esse mostra o motivo na hora.
+    var acesso = this.erros.some(function (e) { return e.http && e.http >= 400 && e.http < 500; });
+    if (this.modo === 'live' && !acesso && (this.reabertas || 0) < 3 && this.urls.length) {
+      var urlsNovas = this.urls;
+      this.reabertas = (this.reabertas || 0) + 1;
+      var meuId = ++this.idTent;
+      if (this.cb.aoReconectando) { this.cb.aoReconectando('Reconectando... (' + this.reabertas + ')'); }
+      clearTimeout(this.timerReconectar);
+      this.timerReconectar = setTimeout(function () {
+        if (self.idTent !== meuId || self.ativo) { return; }   // o usuário já abriu outra coisa
+        self.abrir(urlsNovas, 0, true);
+      }, 4000);
+      return;
+    }
 
     function avisar() {
       var msg = mensagemDaFalha(self.erros);
@@ -514,7 +535,8 @@
   P.iniciarVigia = function () {
     var self = this;
     clearInterval(this.timerVigia);
-    if (!avancado()) { return; }
+    // Canal ao vivo sempre reconecta sozinho quando a imagem para (mesmo com o motor simples). Filmes só no motor avançado.
+    if (!avancado() && this.modo !== 'live') { return; }
     this.ultimoTempo = -1;
     this.ultimoMovimento = agora();
     this.timerVigia = setInterval(function () { self.vigiar(); }, 1000);

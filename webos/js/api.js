@@ -39,7 +39,23 @@
     return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
   }
 
+  // Separa o guia em "agora" e "próximos" pelo relógio da TV: o que já terminou sai da lista e só vale como
+  // "agora" o programa que já começou. espera = quanto falta (ms) para o guia mudar de programa.
+  function separarEpg(lista, agoraSeg) {
+    var vivos = (lista || []).filter(function (p) { return !(p.fimTs && p.fimTs <= agoraSeg); });
+    var atual = vivos.length > 0 && (!vivos[0].iniTs || vivos[0].iniTs <= agoraSeg) ? vivos[0] : null;
+    var resto = atual ? vivos.slice(1) : vivos;
+    var proximoTs = 0;
+    if (atual && atual.fimTs) { proximoTs = atual.fimTs; }
+    else if (resto.length > 0 && resto[0].iniTs) { proximoTs = resto[0].iniTs; }
+    var espera = proximoTs ? (proximoTs - agoraSeg + 3) * 1000 : 60000;
+    espera = Math.max(15000, Math.min(espera, 300000));
+    return { atual: atual, proximos: resto, espera: espera };
+  }
+
   VLTV.api = {
+    separarEpg: separarEpg,
+
     // ── TV ao vivo ──────────────────────────────────────────────────
     // Em lista M3U: false se a lista não tem esse tipo de conteúdo ('ao_vivo', 'filmes' ou 'series').
     temConteudo: function (tipo) {
@@ -66,6 +82,8 @@
             titulo: decodificar(p.title),
             inicio: hora(p.start_timestamp),
             fim: hora(p.stop_timestamp || p.end),
+            iniTs: parseInt(p.start_timestamp, 10) || 0,
+            fimTs: parseInt(p.stop_timestamp || p.end, 10) || 0,
             descricao: decodificar(p.description)
           };
         });

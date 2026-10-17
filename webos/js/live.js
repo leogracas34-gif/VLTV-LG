@@ -63,6 +63,7 @@
 
   var idReqCanais = 0;
   var idEpg = 0;
+  var timerEpg = null;
   var timerInfo = null;
 
   // ── Utilidades de tela ────────────────────────────────────────────
@@ -367,13 +368,26 @@
     textoAgora = '';
   }
 
+  // Confere o guia de novo na hora em que o programa muda (e a cada minuto, se não souber a hora).
+  function agendarEpg(canal, id, ms) {
+    clearTimeout(timerEpg);
+    timerEpg = setTimeout(function () {
+      if (id !== idEpg || tocando !== canal) { return; }
+      carregarEpg(canal);
+    }, ms);
+  }
+
   function carregarEpg(canal) {
     var id = ++idEpg;
+    clearTimeout(timerEpg);
     if (canal.url) { return; }   // lista M3U: sem guia de programação
-    VLTV.api.epgCurto(canal.stream_id, 8)
+    VLTV.api.epgCurto(canal.stream_id, 10)
       .then(function (lista) {
         if (id !== idEpg) { return; }
-        var atual = lista[0];
+        var sep = VLTV.api.separarEpg(lista, Math.floor(new Date().getTime() / 1000));
+        var atual = sep.atual;
+        lista = [atual].concat(sep.proximos);
+        agendarEpg(canal, id, sep.espera);
         var agora = linhaEpg('Agora', atual);
         infoAgora.textContent = atual && atual.titulo
           ? 'Agora' + (atual.inicio ? ' (' + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + atual.titulo
@@ -398,6 +412,7 @@
       .catch(function () {
         if (id !== idEpg) { return; }
         infoAgora.textContent = 'Sem informação de programação.';
+        agendarEpg(canal, id, 60000);
       });
   }
 
@@ -435,6 +450,7 @@
 
   function parar() {
     idEpg++;
+    clearTimeout(timerEpg);
     clearTimeout(timerInfo);
     tocando = null;
     listaTocando = null;

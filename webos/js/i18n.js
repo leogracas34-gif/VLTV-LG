@@ -352,6 +352,7 @@ window.VLTV = window.VLTV || {};
     [/^Episódio (\d+)$/, function (m) { return 'Episode ' + m[1]; }],
     [/^(\d+)\. Episódio (\d+)$/, function (m) { return m[1] + '. Episode ' + m[2]; }],
     [/^Temporada (\d+)$/, function (m) { return 'Season ' + m[1]; }],
+    [/^(\d+) (temporada|temporadas)$/, function (m) { return m[1] + (m[1] === '1' ? ' season' : ' seasons'); }],
     [/^Ir para (.+)$/, function (m) { return 'Go to ' + m[1]; }],
     [/^Último episódio da temporada — a seguir: Temporada (\d+)$/, function (m) { return 'Last episode of the season — up next: Season ' + m[1]; }],
     [/^Faltam (\d+) episódios para a próxima temporada$/, function (m) { return m[1] + ' episodes left until the next season'; }],
@@ -382,6 +383,8 @@ window.VLTV = window.VLTV || {};
 
   function traduzirNucleo(s) {
     if (s in EXATO) { return EXATO[s]; }
+    // Rótulos com dois-pontos ("Gênero:", "Elenco:")
+    if (s.length > 2 && s.charAt(s.length - 1) === ':' && (s.slice(0, -1) in EXATO)) { return EXATO[s.slice(0, -1)] + ':'; }
     var i, m;
     for (i = 0; i < REGRAS.length; i++) {
       m = REGRAS[i][0].exec(s);
@@ -419,6 +422,109 @@ window.VLTV = window.VLTV || {};
     memoria[texto] = r;
     memoriaTamanho++;
     return r;
+  }
+
+
+  // ── Categorias e gêneros (vêm do servidor do provedor, em português) ──
+  // Traduz só as palavras conhecidas; o que não estiver aqui fica como o provedor escreveu.
+  var PALAVRAS = Object.create(null);
+  (function () {
+    var v = {
+      'filmes': 'movies', 'filme': 'movie', 'series': 'series', 'serie': 'series', 'novelas': 'soap operas', 'novela': 'soap opera',
+      'acao': 'action', 'aventura': 'adventure', 'aventuras': 'adventure', 'comedia': 'comedy', 'comedias': 'comedies', 'drama': 'drama', 'dramas': 'dramas',
+      'terror': 'horror', 'suspense': 'thriller', 'ficcao': 'fiction', 'romance': 'romance', 'romantico': 'romance', 'animacao': 'animation',
+      'animacoes': 'animation', 'animes': 'anime', 'anime': 'anime', 'infantil': 'kids', 'infantis': 'kids', 'desenho': 'cartoon', 'desenhos': 'cartoons',
+      'documentario': 'documentary', 'documentarios': 'documentaries', 'familia': 'family', 'fantasia': 'fantasy', 'guerra': 'war', 'crime': 'crime',
+      'policial': 'crime', 'musical': 'musical', 'misterio': 'mystery', 'faroeste': 'western', 'historia': 'history', 'historico': 'history',
+      'biografia': 'biography', 'esporte': 'sport', 'esportes': 'sports', 'esportivos': 'sports', 'futebol': 'soccer', 'lutas': 'fights', 'luta': 'fight',
+      'noticias': 'news', 'jornalismo': 'news', 'variedades': 'variety', 'entretenimento': 'entertainment', 'religiosos': 'religious',
+      'religiosas': 'religious', 'religioso': 'religious', 'adultos': 'adult', 'adulto': 'adult', 'educativo': 'educational', 'educativos': 'educational',
+      'cultura': 'culture', 'musica': 'music', 'musicas': 'music', 'radio': 'radio', 'radios': 'radios', 'cinema': 'cinema', 'classicos': 'classics',
+      'classico': 'classic', 'premiados': 'award winners', 'lancamentos': 'new releases', 'lancamento': 'new release', 'nacionais': 'brazilian',
+      'nacional': 'brazilian', 'internacionais': 'international', 'internacional': 'international', 'estrangeiros': 'foreign', 'dublado': 'dubbed',
+      'dublados': 'dubbed', 'dubladas': 'dubbed', 'dublada': 'dubbed', 'legendadas': 'subtitled', 'legendada': 'subtitled', 'legendado': 'subtitled', 'legendados': 'subtitled', 'canais': 'channels', 'canal': 'channel', 'abertos': 'open',
+      'fechados': 'pay', 'favoritos': 'favorites', 'todos': 'all', 'todas': 'all', 'outros': 'others', 'outras': 'others', 'geral': 'general',
+      'populares': 'popular', 'destaques': 'highlights', 'destaque': 'highlight', 'automobilismo': 'motorsport', 'basquete': 'basketball',
+      'tenis': 'tennis', 'volei': 'volleyball', 'culinaria': 'cooking', 'viagem': 'travel', 'natureza': 'nature', 'ciencia': 'science',
+      'tecnologia': 'technology', 'negocios': 'business', 'humor': 'humor', 'terrir': 'horror comedy', 'e': 'and', 'ao': 'to', 'vivo': 'live',
+      'temporada': 'season', 'temporadas': 'seasons', 'episodio': 'episode', 'episodios': 'episodes', 'pesquisar': 'search'
+    };
+    for (var k in v) { if (Object.prototype.hasOwnProperty.call(v, k)) { PALAVRAS[k] = v[k]; } }
+  })();
+  var FRASES = [
+    ['ficcao cientifica', 'sci-fi'], ['ao vivo', 'live'], ['canais abertos', 'open channels'], ['canais fechados', 'pay channels'],
+    ['artes marciais', 'martial arts'], ['reality show', 'reality shows'], ['stand up', 'stand-up'], ['stand-up', 'stand-up'],
+    ['filmes e series', 'movies and series'], ['tv ao vivo', 'live tv']
+  ];
+
+  function semAcento(s) {
+    var r = s.toLowerCase();
+    try { r = r.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch (e) { /* TV sem normalize */ }
+    return r;
+  }
+  function estilo(orig, en) {
+    if (orig.length > 1 && orig === orig.toUpperCase() && orig !== orig.toLowerCase()) { return en.toUpperCase(); }
+    if (orig.charAt(0) !== orig.charAt(0).toLowerCase()) {
+      return en.replace(/(^|[\s-])([a-z])/g, function (m, a, b) { return a + b.toUpperCase(); });
+    }
+    return en;
+  }
+
+  var memCat = Object.create(null);
+  function categoria(texto) {
+    if (!INGLES || typeof texto !== 'string' || texto.length === 0 || texto.length > 200) { return texto; }
+    var guardada = memCat[texto];
+    if (guardada !== undefined) { return guardada; }
+    var r = traduzirCategoria(texto);
+    memCat[texto] = r;
+    return r;
+  }
+
+  function traduzirCategoria(texto) {
+    var exato = t(texto);               // textos fixos do app (Favoritos, Pesquisar...) já têm tradução própria
+    if (exato !== texto) { return exato; }
+    var n = semAcento(texto);
+    // "Filmes de Ação" -> "Action Movies"
+    var m = /^(\s*)(filmes|series|desenhos|documentarios|canais) (?:de|do|da|dos|das) (.+?)(\s*)$/.exec(n);
+    if (m && n.length === texto.length) {
+      var cab = texto.substr(m[1].length, m[2].length);
+      var resto = texto.substr(texto.length - m[3].length - m[4].length, m[3].length);
+      return m[1] + traduzirCategoria(resto) + ' ' + estilo(cab, PALAVRAS[m[2]]) + m[4];
+    }
+    var saida = '';
+    var i = 0;
+    var palavra = /[a-z0-9+]+/g;
+    var partes = [];     // [inicio, fim] de cada palavra
+    var x;
+    while ((x = palavra.exec(n)) !== null) { partes.push([x.index, x.index + x[0].length]); }
+    var usado = 0;
+    var p = 0;
+    while (p < partes.length) {
+      var ini = partes[p][0];
+      var fim = partes[p][1];
+      saida += texto.slice(usado, ini);
+      var trocou = false;
+      // frases de duas ou três palavras
+      for (var f = 0; f < FRASES.length && !trocou; f++) {
+        var nf = FRASES[f][0];
+        var cnt = nf.split(' ').length;
+        if (p + cnt - 1 < partes.length && n.slice(ini, partes[p + cnt - 1][1]) === nf) {
+          saida += estilo(texto.slice(ini, partes[p + cnt - 1][1]), FRASES[f][1]);
+          fim = partes[p + cnt - 1][1];
+          p += cnt - 1;
+          trocou = true;
+        }
+      }
+      if (!trocou) {
+        var palavraN = n.slice(ini, fim);
+        var en = PALAVRAS[palavraN];
+        saida += en !== undefined ? estilo(texto.slice(ini, fim), en) : texto.slice(ini, fim);
+      }
+      usado = fim;
+      p++;
+    }
+    saida += texto.slice(usado);
+    return saida;
   }
 
   // ── Tradução da tela ──────────────────────────────────────────────
@@ -507,6 +613,7 @@ window.VLTV = window.VLTV || {};
     bandeira: bandeira,
     definir: definir,
     t: t,
+    categoria: categoria,
     // Idioma e região para as consultas ao TMDB (sinopses, logos, pesquisa).
     tmdb: function () { return INGLES ? { lingua: 'en-US', regiao: 'US', logos: 'en' } : { lingua: 'pt-BR', regiao: 'BR', logos: 'pt' }; }
   };

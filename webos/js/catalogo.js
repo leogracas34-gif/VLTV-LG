@@ -130,7 +130,7 @@
       }
       var nome = document.createElement('span');
       nome.className = 'nome';
-      nome.textContent = c.category_name || '';
+      nome.textContent = VLTV.idioma.categoria(c.category_name || '');
       li.appendChild(nome);
       if (c.adulta) {
         var cad = document.createElement('span');
@@ -280,6 +280,33 @@
       VLTV.rolar(celulaSel);
     }
     bombearCapas();
+    traduzirVisiveis();
+  }
+
+  // Idioma inglês: troca o nome dos títulos que aparecem na tela pelo nome em inglês do TMDB (quando existe).
+  var timerTrad = null;
+  function traduzirVisiveis() {
+    if (!VLTV.idioma.ehIngles() || !VLTV.tmdb.ativo()) { return; }
+    clearTimeout(timerTrad);
+    timerTrad = setTimeout(function () {
+      var lote = itens;
+      var linha = linhaAtual();
+      var de = Math.max(0, (linha - 1) * COLUNAS);
+      var ate = Math.min(lote.length, (linha + 4) * COLUNAS);
+      for (var i = de; i < ate; i++) {
+        (function (it, cel) {
+          if (!it || !cel || cel._trad) { return; }
+          cel._trad = true;
+          var id = it.stream_id || it.series_id;
+          if (!id) { return; }
+          VLTV.tmdb.textos(tipo, id, it.name).then(function (r) {
+            if (!r || !r.titulo || lote !== itens) { return; }
+            var el = cel.querySelector('.celula-nome');
+            if (el) { el.textContent = r.titulo; }
+          });
+        })(lote[i], celulas[i]);
+      }
+    }, 250);
   }
 
   function aplicarItens(lista, focar) {
@@ -309,7 +336,7 @@
     if (!cat) { return; }
     var id = ++idReq;
     var abertura = idAbertura;
-    tituloGrade.textContent = cat.category_name || cfg.titulo;
+    tituloGrade.textContent = VLTV.idioma.categoria(cat.category_name || cfg.titulo);
 
     if (cat.especial === 'fav') {
       msgVazio = 'Nenhum favorito ainda. Abra um título e escolha MINHA LISTA para ele aparecer aqui.';

@@ -120,7 +120,7 @@
       }
       var nome = document.createElement('span');
       nome.className = 'nome';
-      nome.textContent = c.category_name || '';
+      nome.textContent = VLTV.idioma.categoria(c.category_name || '');
       li.appendChild(nome);
       if (c.adulta) {
         var cad = document.createElement('span');
@@ -240,7 +240,7 @@
     var id = ++idReqCanais;
     catCarregada = idx;
     marcarCarregada();
-    tituloCanais.textContent = cat.category_name || 'Canais';
+    tituloCanais.textContent = VLTV.idioma.categoria(cat.category_name || 'Canais');
     definirEstrela(false);
 
     if (cat.especial === 'fav') {

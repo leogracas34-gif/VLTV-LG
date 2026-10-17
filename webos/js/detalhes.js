@@ -305,6 +305,17 @@
   }
 
   // ── Topo: título, nota, ano, gênero, sinopse ──────────────────────
+  var idsTxt = { topo: 0, info: 0 };
+  // Idioma inglês: título e sinopse em inglês do TMDB (o painel manda em português). Sem tradução, fica o que o painel mandou.
+  function textosEmIngles(onde, aplicar) {
+    if (!VLTV.idioma.ehIngles()) { return; }
+    var meu = ++idsTxt[onde];
+    VLTV.tmdb.textos(item.tipo, item.id, item.nome).then(function (r) {
+      if (meu !== idsTxt[onde] || !r) { return; }
+      aplicar(r);
+    });
+  }
+
   function renderTopo() {
     var nome = limparTitulo(info.name || item.nome);
     elTitulo.textContent = nome;
@@ -333,12 +344,16 @@
 
     elQual.textContent = /\b(4k|uhd)\b/i.test(item.nome) ? '4K' : 'HD';
 
-    var genero = String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, '  •  ');
+    var genero = VLTV.idioma.categoria(String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, '  •  '));
     elGenero.textContent = genero;
     mostrar(elGenero, !!genero);
 
     var sinopse = info.plot || info.description || item.sinopse || '';
     elSinopse.textContent = sinopse || 'Sem sinopse disponível.';
+    textosEmIngles('topo', function (r) {
+      if (r.titulo) { elTitulo.textContent = r.titulo; }
+      if (r.sinopse) { elSinopse.textContent = r.sinopse; }
+    });
   }
 
   // ── Botão principal, barra de progresso e Reiniciar ───────────────
@@ -596,11 +611,16 @@
     tit.className = 'det-info-titulo';
     tit.textContent = limparTitulo(info.name || item.nome);
     caixa.appendChild(tit);
+    var tituloCaixa = tit;
 
     var sin = document.createElement('div');
     sin.className = 'det-info-sin';
     sin.textContent = info.plot || info.description || item.sinopse || 'Sem sinopse disponível.';
     caixa.appendChild(sin);
+    textosEmIngles('info', function (r) {
+      if (r.titulo) { tituloCaixa.textContent = r.titulo; }
+      if (r.sinopse) { sin.textContent = r.sinopse; }
+    });
 
     var elenco = String(info.cast || info.actors || item.elenco || '');
     if (elenco.length > 220) { elenco = elenco.slice(0, 217) + '...'; }
@@ -611,7 +631,7 @@
 
     linha(item.tipo === 'series' ? 'Temporadas' : 'Duração', dur);
     linha('Data de lançamento', formatarData(info.releasedate || info.releaseDate || info.release_date || item.lancamento));
-    linha('Gênero', String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, ', '));
+    linha('Gênero', VLTV.idioma.categoria(String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, ', ')));
     linha('Direção', String(info.director || item.direcao || ''));
     linha('Elenco', elenco);
   }

@@ -96,7 +96,7 @@
   // Resolve com o resultado do TMDB (objeto com id, backdrop_path...) ou null.
   function procurarMelhor(tipoTmdb, busca) {
     var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
-      '&query=' + encodeURIComponent(busca.query) + '&language=' + idiomaTmdb().lingua + '&region=' + idiomaTmdb().regiao;
+      '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';   // o painel é em português: a busca continua assim, em qualquer idioma do app
 
     function pegar(url) {
       return pegarJson(url).then(function (j) { return escolher(j && j.results ? j.results : [], busca); });
@@ -136,6 +136,61 @@
         return caminho ? endereco(caminho) : null;
       });
     });
+  }
+
+  // ── Título e sinopse no idioma do app (só inglês: o painel já vem em português) ──
+  var PREFIXO_TXT = 'vltv_txt1_';
+  var VALIDADE_TXT_MS = 30 * 24 * 3600 * 1000;
+  var filaTxt = [];
+  var ativasTxt = 0;
+  var emAndamentoTxt = {};
+
+  function emIngles() { return idiomaTmdb().lingua.indexOf('en') === 0; }
+
+  // Devolve { titulo, sinopse } já guardado, { vazio: true } se o TMDB não achou, ou null se nunca foi pesquisado.
+  function textosGuardados(tipo, id) {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(PREFIXO_TXT + tipo + '_' + id) || 'null');
+      if (!c || new Date().getTime() - c.t > VALIDADE_TXT_MS) { return null; }
+      return c.vazio ? { vazio: true } : { titulo: c.n || '', sinopse: c.s || '' };
+    } catch (e) { return null; }
+  }
+
+  function gravarTextos(k, r) {
+    try {
+      window.localStorage.setItem(PREFIXO_TXT + k, JSON.stringify(r ? { n: r.titulo, s: r.sinopse, t: new Date().getTime() } : { vazio: true, t: new Date().getTime() }));
+    } catch (e) { /* TV sem espaço: segue sem guardar */ }
+  }
+
+  function bombearTextos() {
+    while (ativasTxt < 3 && filaTxt.length > 0) { filaTxt.shift()(); }
+  }
+
+  // Resolve com { titulo, sinopse } em inglês, ou null. Nunca rejeita. No português do Brasil não faz nada.
+  function textos(tipo, id, nome) {
+    if (!emIngles() || !ativo()) { return Promise.resolve(null); }
+    var g = textosGuardados(tipo, id);
+    if (g) { return Promise.resolve(g.vazio ? null : g); }
+    var k = tipo + '_' + id;
+    if (emAndamentoTxt[k]) { return emAndamentoTxt[k]; }
+    var p = new Promise(function (resolve) {
+      filaTxt.push(function () {
+        ativasTxt++;
+        var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+        procurarMelhor(tipoTmdb, VLTV.titulo.paraBusca(nome)).then(function (achado) {
+          if (!achado) { return null; }
+          return pegarJson(API + '/' + tipoTmdb + '/' + achado.id + '?api_key=' + chave() + '&language=en-US').then(function (j) {
+            var t = j && (j.title || j.name);
+            return t ? { titulo: t, sinopse: (j.overview || '') } : null;
+          });
+        }).then(function (r) { gravarTextos(k, r); return r; })
+          .catch(function () { return undefined; })          // falha de rede: não grava, tenta de novo outra hora
+          .then(function (r) { ativasTxt--; delete emAndamentoTxt[k]; resolve(r || null); bombearTextos(); });
+      });
+      bombearTextos();
+    });
+    emAndamentoTxt[k] = p;
+    return p;
   }
 
   // Logo guardada na TV (string), '' = já tentamos e não tem, null = nunca tentamos.
@@ -202,6 +257,6 @@
 
   function fundoPronto(tipo, id) { return fundoGuardado(tipo, id); }
 
-  VLTV.tmdb = { ativo: ativo, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
 
 })();

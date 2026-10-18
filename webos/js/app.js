@@ -213,7 +213,18 @@
   // ── Login ─────────────────────────────────────────────────────────
   // ctx: { modo, user, pass, codigo, servidor, m3u, dnsPreferido }
   // Resolve com { estado, base, info, teste, nome }.
+  // Regra da licença: lista de código de parceiro entra sempre (app "Ativo parceiro"). Qualquer outra lista
+  // (Usuário, Xtream com servidor ou M3U) só entra se a licença da TV estiver valendo (teste de 7 dias ou ativa);
+  // senão vem { estado: 'sem_licenca' } e o app mostra a tela de ativação, antes mesmo de abrir a lista.
   function autenticar(ctx) {
+    if (ctx.modo === 'parceiro') { return autenticarLista(ctx); }
+    return VLTV.licenca.verificar().then(function (lic) {
+      if (VLTV.licenca.liberaListaComum(lic)) { return autenticarLista(ctx); }
+      return { estado: 'sem_licenca', lic: lic };
+    });
+  }
+
+  function autenticarLista(ctx) {
     if (ctx.modo === 'm3u') {
       return VLTV.m3u.carregar(ctx.m3u).then(
         function () { return { estado: 'ok' }; },
@@ -259,16 +270,18 @@
 
   // Leva para a tela certa depois do login.
   function concluir(res, ctx) {
+    // Lista que não é de parceiro e a TV sem licença valendo: ativação, sem mostrar teste nem erro da lista.
+    if (res.estado === 'sem_licenca') {
+      VLTV.licenca.definirParceiro(false);
+      bloquearSemLicenca(res.lic, '');
+      return;
+    }
+
     if (res.estado === 'ok') {
       // Código de parceiro válido = aplicativo ativo (sem teste, sem vencimento).
-      // Qualquer outra lista só entra se a licença da TV estiver valendo (teste ou ativa).
       var ehParceiro = ctx.modo === 'parceiro';
       VLTV.licenca.definirParceiro(ehParceiro);
-      var licTv = VLTV.licenca.estado();
-      if (!ehParceiro && licTv && licTv.estado === 'expired') {
-        bloquearSemLicenca(licTv, '');
-        return;
-      }
+      VLTV.licenca.informarParceiro(ehParceiro ? ctx.codigo : '');
       bloqueioAtual = null;
       nomeParceiro = res.nome || '';
       var dados = {
@@ -292,6 +305,7 @@
     // Se a TV não tem licença própria, o aplicativo bloqueia e pede a ativação.
     if (ctx.modo === 'parceiro' && (res.estado === 'codigo_invalido' || res.estado === 'suspenso')) {
       VLTV.licenca.definirParceiro(false);
+      VLTV.licenca.informarParceiro('');
       var licSemParceiro = VLTV.licenca.estado();
       if (licSemParceiro && licSemParceiro.estado === 'expired') {
         if (!adicionando) {
@@ -412,7 +426,7 @@
     VLTV.listasTela.ocupar(true, ctx.modo === 'm3u' ? 'Baixando a lista... isso pode demorar.' : 'Conectando...');
     autenticar(ctx).then(function (res) {
       trocando = false;
-      if (res.estado === 'ok') {
+      if (res.estado === 'ok' || res.estado === 'sem_licenca') {
         VLTV.listasTela.ocupar(false);
         concluir(res, ctx);
       } else {
@@ -445,6 +459,7 @@
     // Sair tira da TV a lista que estava em uso. Se sobrar outra, o app mostra a tela de listas.
     var ativa = VLTV.listas.idAtiva();
     if (ativa) { VLTV.listas.remover(ativa); }
+    VLTV.licenca.informarParceiro('');
     VLTV.sessao.limpar();
     VLTV.m3u.limpar();
     nomeParceiro = '';
@@ -792,7 +807,7 @@
       if (telaAtual !== 'licenca') { pararPollLicenca(); return; }
       VLTV.licenca.verificar().then(function (lic) {
         if (telaAtual !== 'licenca') { return; }
-        if (lic.estado === 'trial' || lic.estado === 'active') { liberarApp(); }
+        if (VLTV.licenca.liberaListaComum(lic)) { liberarApp(); }
       });
     }, 20000);
   }

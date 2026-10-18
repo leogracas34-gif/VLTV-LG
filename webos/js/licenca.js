@@ -5,12 +5,28 @@
 
   var CH_ID = 'vltv_dev_id';
   var CH_CACHE = 'vltv_licenca';
+  var CH_PARC = 'vltv_lic_parc';          // código de parceiro da lista em uso ('' = lista que não é de parceiro)
   var TOLERANCIA_OFFLINE_S = 3 * 86400;   // sem internet: vale o último estado por até 3 dias
 
   var estadoAtual = null;
   // Lista de código de parceiro em uso: o app fica "Ativo" sem teste, sem vencimento e sem vitalício.
   var ehParceiro = false;
   function definirParceiro(v) { ehParceiro = !!v; }
+
+  // Avisa a VPS (painel) se a lista em uso é de parceiro: o painel mostra "Ativo parceiro" em vez de teste/vencido.
+  // codigo = código do parceiro, ou '' quando a lista em uso não é de parceiro.
+  function informarParceiro(codigo) {
+    var c = String(codigo || '').toUpperCase();
+    if (ler(CH_PARC) === c) { return; }
+    gravar(CH_PARC, c);
+    var cc = cache();
+    if (!cc || !cc.token) { return; }       // sem token ainda: o aviso vai junto no próximo registro/consulta
+    chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(c), null, cc.token).catch(function () { /* o próximo registro avisa */ });
+  }
+  // Lista que não é de parceiro: precisa de licença da TV valendo (teste de 7 dias contado desde a 1ª abertura, ou ativa).
+  function liberaListaComum(lic) {
+    return !!lic && (lic.estado === 'active' || lic.estado === 'trial');
+  }
   function ehAtivo() { return ehParceiro || !!(estadoAtual && estadoAtual.estado === 'active'); }
 
   function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -103,7 +119,7 @@
         }
 
         function registrar() {
-          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO })
+          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO, parceiro: ler(CH_PARC) || '' })
             .then(function (r) {
               if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); resolve(estadoAtual); return; }
               if (r.status >= 500 || r.status === 0) { offline(); return; }
@@ -113,7 +129,7 @@
         }
 
         if (c && c.token && c.id === ident.id) {
-          chamar('GET', '/lg/status', null, c.token).then(function (r) {
+          chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(ler(CH_PARC) || ''), null, c.token).then(function (r) {
             if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); resolve(estadoAtual); }
             else if (r.status === 401 || r.status === 404) { registrar(); }   // token vencido: se apresenta de novo
             else { offline(); }
@@ -204,6 +220,8 @@
 
   VLTV.licenca = {
     definirParceiro: definirParceiro,
+    liberaListaComum: liberaListaComum,
+    informarParceiro: informarParceiro,
     ehAtivo: ehAtivo,
     ehParceiro: function () { return ehParceiro; },
     avisos: avisos,

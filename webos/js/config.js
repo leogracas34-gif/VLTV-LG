@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.2.0',
+  VERSAO: '1.2.3',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -64,6 +64,8 @@ VLTV.config = {
   // Imagens do TMDB servidas pela sua VPS (mesmo endereço do app Android).
   TMDB_IMAGENS_URL: 'https://cdn.vltvplay.tech',
   TMDB_TAMANHO_LOGO: 'w500',
+  // Imagem dos episódios que o painel não manda com imagem.
+  TMDB_TAMANHO_EPISODIO: 'w300',
   // Fundo dos filmes que o painel não manda com imagem de fundo (tela de detalhes).
   TMDB_TAMANHO_FUNDO: 'w1280',
   // Quanto esperar (ms) pelo fundo do TMDB antes de usar a capa desfocada. Decide UMA vez, sem trocar depois.

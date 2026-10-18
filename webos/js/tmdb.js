@@ -42,6 +42,11 @@
     });
   }
 
+  function enderecoImagem(caminho, tamanho) {
+    var base = cfg().TMDB_IMAGENS_URL || 'https://image.tmdb.org';
+    return base + '/t/p/' + tamanho + (caminho.charAt(0) === '/' ? caminho : '/' + caminho);
+  }
+
   function endereco(caminho) {
     var base = cfg().TMDB_IMAGENS_URL || 'https://image.tmdb.org';
     return base + '/t/p/' + (cfg().TMDB_TAMANHO_LOGO || 'w500') + (caminho.charAt(0) === '/' ? caminho : '/' + caminho);
@@ -138,27 +143,39 @@
     });
   }
 
-  // ── Título e sinopse no idioma do app (só inglês: o painel já vem em português) ──
-  var PREFIXO_TXT = 'vltv_txt1_';
+  // ── Título e sinopse pelo TMDB (idioma do app) ──────────────────
+  // Inglês: título e sinopse em inglês (o painel manda em português).
+  // Português: só serve de reserva para a sinopse quando o painel não mandou nenhuma.
+  // O que o TMDB devolve fica guardado na TV: sinopse encontrada nunca é pesquisada de novo.
+  var PREFIXO_TXT = 'vltv_txt2_';
+  var PREFIXO_TEMP = 'vltv_temp3_';
   var VALIDADE_TXT_MS = 30 * 24 * 3600 * 1000;
   var filaTxt = [];
   var ativasTxt = 0;
   var emAndamentoTxt = {};
+  var emAndamentoTemp = {};
 
   function emIngles() { return idiomaTmdb().lingua.indexOf('en') === 0; }
 
-  // Devolve { titulo, sinopse } já guardado, { vazio: true } se o TMDB não achou, ou null se nunca foi pesquisado.
+  function chaveTxt(tipo, id) { return PREFIXO_TXT + idiomaTmdb().lingua + '_' + tipo + '_' + id; }
+
+  // Devolve { titulo, sinopse, tid } já guardado, { vazio: true } se o TMDB não achou (por 7 dias), ou null se vale pesquisar.
   function textosGuardados(tipo, id) {
     try {
-      var c = JSON.parse(window.localStorage.getItem(PREFIXO_TXT + tipo + '_' + id) || 'null');
-      if (!c || new Date().getTime() - c.t > VALIDADE_TXT_MS) { return null; }
-      return c.vazio ? { vazio: true } : { titulo: c.n || '', sinopse: c.s || '' };
+      var c = JSON.parse(window.localStorage.getItem(chaveTxt(tipo, id)) || 'null');
+      if (!c) { return null; }
+      var idade = new Date().getTime() - c.t;
+      if (c.vazio) { return idade < VALIDADE_SEM_LOGO_MS ? { vazio: true } : null; }
+      if (!c.s && idade > VALIDADE_SEM_LOGO_MS) { return null; }     // sem sinopse: tenta de novo depois de 7 dias
+      return { titulo: c.n || '', sinopse: c.s || '', tid: c.i || 0 };
     } catch (e) { return null; }
   }
 
-  function gravarTextos(k, r) {
+  function gravarTextos(tipo, id, r) {
     try {
-      window.localStorage.setItem(PREFIXO_TXT + k, JSON.stringify(r ? { n: r.titulo, s: r.sinopse, t: new Date().getTime() } : { vazio: true, t: new Date().getTime() }));
+      window.localStorage.setItem(chaveTxt(tipo, id), JSON.stringify(r
+        ? { n: r.titulo, s: r.sinopse, i: r.tid, t: new Date().getTime() }
+        : { vazio: true, t: new Date().getTime() }));
     } catch (e) { /* TV sem espaço: segue sem guardar */ }
   }
 
@@ -166,9 +183,9 @@
     while (ativasTxt < 3 && filaTxt.length > 0) { filaTxt.shift()(); }
   }
 
-  // Resolve com { titulo, sinopse } em inglês, ou null. Nunca rejeita. No português do Brasil não faz nada.
+  // Resolve com { titulo, sinopse, tid } no idioma do app, ou null. Nunca rejeita.
   function textos(tipo, id, nome) {
-    if (!emIngles() || !ativo()) { return Promise.resolve(null); }
+    if (!ativo()) { return Promise.resolve(null); }
     var g = textosGuardados(tipo, id);
     if (g) { return Promise.resolve(g.vazio ? null : g); }
     var k = tipo + '_' + id;
@@ -179,17 +196,50 @@
         var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
         procurarMelhor(tipoTmdb, VLTV.titulo.paraBusca(nome)).then(function (achado) {
           if (!achado) { return null; }
-          return pegarJson(API + '/' + tipoTmdb + '/' + achado.id + '?api_key=' + chave() + '&language=en-US').then(function (j) {
+          return pegarJson(API + '/' + tipoTmdb + '/' + achado.id + '?api_key=' + chave() + '&language=' + idiomaTmdb().lingua).then(function (j) {
             var t = j && (j.title || j.name);
-            return t ? { titulo: t, sinopse: (j.overview || '') } : null;
+            return t ? { titulo: t, sinopse: (j.overview || ''), tid: achado.id } : null;
           });
-        }).then(function (r) { gravarTextos(k, r); return r; })
+        }).then(function (r) { gravarTextos(tipo, id, r); return r; })
           .catch(function () { return undefined; })          // falha de rede: não grava, tenta de novo outra hora
           .then(function (r) { ativasTxt--; delete emAndamentoTxt[k]; resolve(r || null); bombearTextos(); });
       });
       bombearTextos();
     });
     emAndamentoTxt[k] = p;
+    return p;
+  }
+
+  // Episódios de uma temporada pelo TMDB: nome (no idioma do app) e imagem (still) de cada episódio.
+  // Resolve com { numeroDoEpisodio: { titulo, imagem } } ou null. Fica guardado na TV.
+  function temporada(id, nome, numero) {
+    if (!ativo()) { return Promise.resolve(null); }
+    var k = PREFIXO_TEMP + idiomaTmdb().lingua + '_' + id + '_' + numero;
+    function montar(c) {
+      var saida = {};
+      for (var n in c) { if (Object.prototype.hasOwnProperty.call(c, n)) { saida[n] = { titulo: c[n][0] || '', imagem: c[n][1] ? enderecoImagem(c[n][1], cfg().TMDB_TAMANHO_EPISODIO || 'w300') : '' }; } }
+      return saida;
+    }
+    try {
+      var c = JSON.parse(window.localStorage.getItem(k) || 'null');
+      if (c && c.e && new Date().getTime() - c.t < VALIDADE_TXT_MS) { return Promise.resolve(montar(c.e)); }
+    } catch (e) { /* segue e pesquisa */ }
+    if (emAndamentoTemp[k]) { return emAndamentoTemp[k]; }
+    var p = textos('series', id, nome).then(function (r) {
+      if (!r || !r.tid) { return null; }
+      return pegarJson(API + '/tv/' + r.tid + '/season/' + numero + '?api_key=' + chave() + '&language=' + idiomaTmdb().lingua).then(function (j) {
+        var e = {};
+        var lista = (j && j.episodes) || [];
+        for (var i = 0; i < lista.length; i++) {
+          var x = lista[i];
+          if (x.episode_number !== null && x.episode_number !== undefined) { e[x.episode_number] = [x.name || '', x.still_path || '']; }
+        }
+        try { window.localStorage.setItem(k, JSON.stringify({ e: e, t: new Date().getTime() })); } catch (z) { /* sem espaço */ }
+        return montar(e);
+      });
+    }).catch(function () { return null; })
+      .then(function (e) { delete emAndamentoTemp[k]; return e; });
+    emAndamentoTemp[k] = p;
     return p;
   }
 
@@ -257,6 +307,6 @@
 
   function fundoPronto(tipo, id) { return fundoGuardado(tipo, id); }
 
-  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
 
 })();

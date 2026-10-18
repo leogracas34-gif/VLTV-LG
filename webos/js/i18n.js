@@ -1,7 +1,8 @@
 // VLTV Play | Idioma: português do Brasil (padrão) e inglês.
 // Como funciona: o aplicativo continua escrito em português por dentro. Quando o idioma é inglês, este arquivo
 // traduz na tela cada texto do aplicativo (os que já estão na página e os que aparecem depois).
-// Nomes de canais, filmes, séries, categorias e sinopses vêm do servidor do provedor e não são traduzidos.
+// Categorias e gêneros (vindos do provedor) são traduzidos pelas palavras conhecidas; títulos, sinopses, logos e nomes de
+// episódios em inglês vêm do TMDB (tmdb.js). Nomes de canais ficam como são (são marcas).
 // Escolha do idioma: Configurações > Idioma. A escolha fica guardada na TV.
 window.VLTV = window.VLTV || {};
 
@@ -318,6 +319,11 @@ window.VLTV = window.VLTV || {};
     'Digite a resposta.': 'Enter the answer.',
     'Resposta incorreta.': 'Wrong answer.',
 
+    // ── Diagnóstico de idioma (Informação geral) ──
+    'Conectado': 'Connected',
+    'Sem chave': 'No key',
+    'Títulos e sinopses (TMDB)': 'Titles and synopses (TMDB)',
+
     // ── Plataforma ──
     'Navegador (modo de teste)': 'Browser (test mode)'
   });
@@ -447,7 +453,26 @@ window.VLTV = window.VLTV || {};
       'populares': 'popular', 'destaques': 'highlights', 'destaque': 'highlight', 'automobilismo': 'motorsport', 'basquete': 'basketball',
       'tenis': 'tennis', 'volei': 'volleyball', 'culinaria': 'cooking', 'viagem': 'travel', 'natureza': 'nature', 'ciencia': 'science',
       'tecnologia': 'technology', 'negocios': 'business', 'humor': 'humor', 'terrir': 'horror comedy', 'e': 'and', 'ao': 'to', 'vivo': 'live',
-      'temporada': 'season', 'temporadas': 'seasons', 'episodio': 'episode', 'episodios': 'episodes', 'pesquisar': 'search'
+      'temporada': 'season', 'temporadas': 'seasons', 'episodio': 'episode', 'episodios': 'episodes', 'pesquisar': 'search',
+      'novos': 'new', 'novas': 'new', 'novo': 'new', 'nova': 'new', 'recentes': 'recent', 'melhores': 'best', 'mais': 'most', 'vistos': 'watched',
+      'assistidos': 'watched', 'maratona': 'marathon', 'maratonas': 'marathons', 'pipoca': 'popcorn', 'cine': 'cinema', 'turcas': 'turkish',
+      'turcos': 'turkish', 'coreanas': 'korean', 'coreano': 'korean', 'doramas': 'k-dramas', 'dorama': 'k-drama', 'indianas': 'indian',
+      'asiaticas': 'asian', 'asiaticos': 'asian', 'mexicanas': 'mexican', 'brasileiros': 'brazilian', 'brasileiras': 'brazilian', 'brasileiro': 'brazilian',
+      'brasil': 'brazil', 'portugal': 'portugal', 'portugueses': 'portuguese', 'ingles': 'english', 'espanhol': 'spanish', 'frances': 'french',
+      'alemao': 'german', 'japones': 'japanese', 'concursos': 'game shows', 'sertanejo': 'country', 'sertanejas': 'country', 'pagode': 'pagode',
+      'forro': 'forro', 'gospel': 'gospel', 'evangelicos': 'christian', 'evangelico': 'christian', 'catolicos': 'catholic', 'catolico': 'catholic',
+      'cristao': 'christian', 'cristaos': 'christian', 'erotico': 'adult', 'eroticos': 'adult', 'shows': 'shows', 'show': 'show', 'eventos': 'events',
+      'jogos': 'games', 'jogo': 'game', 'campeonatos': 'championships', 'campeonato': 'championship', 'copa': 'cup', 'brasileirao': 'brasileirao',
+      'saude': 'health', 'moda': 'fashion', 'casa': 'home', 'decoracao': 'decor', 'arte': 'art', 'artes': 'arts', 'telejornal': 'news', 'jornais': 'news',
+      'clima': 'weather', 'tempo': 'weather', 'sem': 'no', 'categoria': 'category', 'categorias': 'categories', 'abertas': 'open', 'aberta': 'open',
+      'cabo': 'cable', 'fechada': 'pay', 'lives': 'live', 'televisao': 'television', 'programas': 'shows', 'programa': 'show', 'serial': 'serial',
+      'seriados': 'series', 'seriado': 'series', 'miniserie': 'miniseries', 'minisseries': 'miniseries', 'miniseries': 'miniseries', 'curtas': 'shorts',
+      'curta': 'short', 'metragem': 'length', 'longa': 'feature', 'antigos': 'classic', 'antigo': 'classic', 'antigas': 'classic', 'cult': 'cult',
+      'indicados': 'nominees', 'oscar': 'oscar', 'plataformas': 'platforms', 'streaming': 'streaming', 'amor': 'love', 'amizade': 'friendship',
+      'familiares': 'family', 'juvenil': 'teen', 'juvenis': 'teen', 'teen': 'teen', 'jovem': 'young', 'jovens': 'young', 'adolescentes': 'teen',
+      'bebes': 'baby', 'educacao': 'education', 'aulas': 'classes', 'cursos': 'courses', 'idiomas': 'languages', 'religiao': 'religion',
+      'espiritualidade': 'spirituality', 'politica': 'politics', 'economia': 'economy', 'financas': 'finance', 'mundo': 'world', 'planeta': 'planet',
+      'animais': 'animals', 'animal': 'animal', 'carros': 'cars', 'motos': 'motorcycles', 'caminhoes': 'trucks', 'aviao': 'aviation', 'militar': 'military'
     };
     for (var k in v) { if (Object.prototype.hasOwnProperty.call(v, k)) { PALAVRAS[k] = v[k]; } }
   })();
@@ -587,6 +612,19 @@ window.VLTV = window.VLTV || {};
       vigia.takeRecords();      // ignora as mudanças que o próprio tradutor acabou de fazer
     });
     vigia.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATRIBUTOS });
+    reforcar();
+  }
+
+  // Reforço: além do vigia, passa a tela inteira de novo algumas vezes depois de abrir e logo depois de cada
+  // tecla (a tela muda quando se navega). Se alguma TV deixar o vigia perder um texto, o reforço pega.
+  function reforcar() {
+    var temporizador = null;
+    function passar() { try { arvore(document.body); } catch (e) { /* ignora */ } }
+    [300, 1200, 3000, 6000].forEach(function (ms) { setTimeout(passar, ms); });
+    document.addEventListener('keyup', function () {
+      clearTimeout(temporizador);
+      temporizador = setTimeout(passar, 350);
+    }, true);
   }
 
   // ── Trocar o idioma ───────────────────────────────────────────────
@@ -599,7 +637,7 @@ window.VLTV = window.VLTV || {};
       var apagar = [];
       for (var i = 0; i < window.localStorage.length; i++) {
         var k = window.localStorage.key(i);
-        if (k && (k.indexOf('vltv_logo') === 0 || k.indexOf('vltv_fundo') === 0 || k.indexOf('vltv_banner_cache') === 0)) { apagar.push(k); }
+        if (k && (k.indexOf('vltv_logo') === 0 || k.indexOf('vltv_fundo') === 0 || k.indexOf('vltv_banner_cache') === 0 || k.indexOf('vltv_txt1_') === 0)) { apagar.push(k); }
       }
       apagar.forEach(function (k) { window.localStorage.removeItem(k); });
     } catch (e) { /* ignora */ }
@@ -614,6 +652,7 @@ window.VLTV = window.VLTV || {};
     definir: definir,
     t: t,
     categoria: categoria,
+    nomeAtual: function () { return INGLES ? 'English (en-US)' : 'Português (pt-BR)'; },
     // Idioma e região para as consultas ao TMDB (sinopses, logos, pesquisa).
     tmdb: function () { return INGLES ? { lingua: 'en-US', regiao: 'US', logos: 'en' } : { lingua: 'pt-BR', regiao: 'BR', logos: 'pt' }; }
   };

@@ -169,7 +169,7 @@
     var id = (s.daVps && !s.resolvido) ? 'vps' + idBruto : idBruto;
     var logo = VLTV.tmdb.logo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.logo = u; });
     var fundo = VLTV.tmdb.fundo(s.tipo, id, s.raw.name).then(carregarImagem).then(function (u) { s.fundo = u; });
-    var txt = VLTV.tmdb.textos(s.tipo, id, s.raw.name).then(function (r) { if (r && r.titulo) { s.nomeEn = r.titulo; } });
+    var txt = !VLTV.idioma.ehIngles() ? Promise.resolve(null) : VLTV.tmdb.textos(s.tipo, id, s.raw.name).then(function (r) { if (r && r.titulo) { s.nomeEn = r.titulo; } });
     return Promise.all([logo, fundo, txt]).catch(function () { return null; });
   }
 

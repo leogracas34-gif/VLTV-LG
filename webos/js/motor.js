@@ -69,6 +69,9 @@
   // DIAGNOSTICO = true: a mensagem de erro mostra o que foi tentado (ex.: m3u8: formato | ts: tempo).
   function diagnostico() { return !!cfg().DIAGNOSTICO; }
   var ESPERA_SIMPLES_MS = { live: 12000, vod: 20000 };   // mesmas esperas da versão antiga
+  // Filme/episódio: o PRIMEIRO endereço (o formato que o painel informa) não tem limite de tempo. Servidor de filmes
+  // costuma demorar para começar a mandar o arquivo, e a tag <video> sozinha espera quanto for preciso. Só o erro de
+  // verdade (o evento 'error' da TV) manda tentar outro formato. Quem quiser sair aperta Voltar.
 
   // ── Memória: se a TV não abre um tipo de endereço sozinha, não perde tempo tentando de novo ─────
   var memoria = tentar(function () { return JSON.parse(localStorage.getItem(CH_MEMORIA) || '{}'); }, {}) || {};
@@ -444,7 +447,8 @@
         self.aoErro({ estrategia: t.estrategia, tipo: 'tempo' });
       }, ms);
     }
-    armarEspera(espera, false);
+    var semLimite = this.modo === 'vod' && t.estrategia === 'nativo' && this.erros.length === 0;
+    if (!semLimite) { armarEspera(espera, false); }
 
     var v = this.video;
     if (t.estrategia === 'nativo') {

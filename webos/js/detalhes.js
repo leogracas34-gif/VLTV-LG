@@ -306,13 +306,17 @@
 
   // ── Topo: título, nota, ano, gênero, sinopse ──────────────────────
   var idsTxt = { topo: 0, info: 0 };
-  // Idioma inglês: título e sinopse em inglês do TMDB (o painel manda em português). Sem tradução, fica o que o painel mandou.
-  function textosEmIngles(onde, aplicar) {
-    if (!VLTV.idioma.ehIngles()) { return; }
+  var tituloEn = '';       // título em inglês do TMDB (usado no nome dos episódios que vão para o player)
+  // TMDB: em inglês troca título e sinopse pelos de lá (o painel manda em português). Em qualquer idioma,
+  // se o painel não mandou sinopse (semSinopse), busca a sinopse no TMDB; ela fica guardada na TV.
+  function textosEmIngles(onde, semSinopse, aplicar) {
+    var ingles = VLTV.idioma.ehIngles();
+    if (!ingles && !semSinopse) { return; }
     var meu = ++idsTxt[onde];
     VLTV.tmdb.textos(item.tipo, item.id, item.nome).then(function (r) {
       if (meu !== idsTxt[onde] || !r) { return; }
-      aplicar(r);
+      if (ingles && r.titulo) { tituloEn = r.titulo; }
+      aplicar(ingles ? r : { titulo: '', sinopse: r.sinopse });
     });
   }
 
@@ -350,7 +354,7 @@
 
     var sinopse = info.plot || info.description || item.sinopse || '';
     elSinopse.textContent = sinopse || 'Sem sinopse disponível.';
-    textosEmIngles('topo', function (r) {
+    textosEmIngles('topo', !sinopse, function (r) {
       if (r.titulo) { elTitulo.textContent = r.titulo; }
       if (r.sinopse) { elSinopse.textContent = r.sinopse; }
     });
@@ -462,12 +466,14 @@
       img.onerror = function () {
         if (img.parentNode) { img.parentNode.removeChild(img); }
         thumb.insertBefore(document.createTextNode(String(numero)), thumb.firstChild);
+        if (li._tmdbImg) { imagemEpisodio(li, li._tmdbImg); }
       };
       img.src = url;
       thumb.appendChild(img);
     } else {
       thumb.appendChild(document.createTextNode(String(numero)));
     }
+    li._thumb = thumb;
 
     var p = VLTV.dados.progresso('e' + ep.id);
     var linhaDur = duracaoEpisodio(ep);
@@ -521,6 +527,48 @@
       var li = criarEpisodio(ep, i);
       elEps.appendChild(li);
       itensEps.push(li);
+    });
+    completarEpisodios(t);
+  }
+
+  // Coloca a imagem do TMDB no quadrado do episódio que não tem imagem (ou cuja imagem não carregou).
+  function imagemEpisodio(li, url) {
+    var thumb = li && li._thumb;
+    if (!thumb || !url || thumb.querySelector('img')) { return; }
+    var img = document.createElement('img');
+    img.alt = '';
+    img.onload = function () {
+      var n = thumb.firstChild;
+      while (n) { var prox = n.nextSibling; if (n.nodeType === 3) { thumb.removeChild(n); } n = prox; }   // some o número grande
+    };
+    img.onerror = function () { if (img.parentNode) { img.parentNode.removeChild(img); } };
+    img.src = url;
+    thumb.insertBefore(img, thumb.firstChild);
+  }
+
+  // TMDB: imagem de cada episódio que veio sem imagem do painel; em inglês também o nome do episódio
+  // (e o nome que vai para o player). Em português só completa nomes genéricos ("Episódio 3").
+  function completarEpisodios(t) {
+    if (item.tipo !== 'series' || !VLTV.tmdb.ativo()) { return; }
+    var ingles = VLTV.idioma.ehIngles();
+    var lis = itensEps;
+    VLTV.tmdb.temporada(item.id, item.nome, t.numero).then(function (mapa) {
+      if (!mapa || temporadas[tempIdx] !== t || lis !== itensEps) { return; }
+      var base = tituloEn || limparTitulo(info.name || item.nome);
+      t.episodios.forEach(function (ep, i) {
+        var numero = ep.episode_num || (i + 1);
+        var m = mapa[numero];
+        var li = lis[i];
+        if (!m || !li) { return; }
+        if (m.imagem) { li._tmdbImg = m.imagem; imagemEpisodio(li, m.imagem); }
+        if (!m.titulo) { return; }
+        var generico = tituloEpisodio(ep, numero) === 'Episódio ' + numero;
+        if (!ingles && !generico) { return; }
+        var el = li.querySelector('.ep-tit');
+        if (el) { el.textContent = m.titulo; }
+        var pl = plano[t.inicio + i];
+        if (pl) { pl.titulo = base + ' - T' + t.numero + ' E' + numero + ' - ' + m.titulo; }
+      });
     });
   }
 
@@ -582,6 +630,12 @@
       li._raw = raw;
       elSug.appendChild(li);
       itensSug.push(li);
+      if (VLTV.idioma.ehIngles() && VLTV.tmdb.ativo()) {
+        VLTV.tmdb.textos(item.tipo, idDe(raw), raw.name).then(function (r) {
+          var el = r && r.titulo ? li.querySelector('.celula-nome') : null;
+          if (el) { el.textContent = r.titulo; }
+        });
+      }
     });
   }
 
@@ -615,9 +669,10 @@
 
     var sin = document.createElement('div');
     sin.className = 'det-info-sin';
-    sin.textContent = info.plot || info.description || item.sinopse || 'Sem sinopse disponível.';
+    var sinopseInfo = info.plot || info.description || item.sinopse || '';
+    sin.textContent = sinopseInfo || 'Sem sinopse disponível.';
     caixa.appendChild(sin);
-    textosEmIngles('info', function (r) {
+    textosEmIngles('info', !sinopseInfo, function (r) {
       if (r.titulo) { tituloCaixa.textContent = r.titulo; }
       if (r.sinopse) { sin.textContent = r.sinopse; }
     });
@@ -989,6 +1044,7 @@
   function carregar(tipo, raw) {
     idCarga++;
     item = normalizar(tipo, raw);
+    tituloEn = '';
     info = {};
     temporadas = [];
     plano = [];

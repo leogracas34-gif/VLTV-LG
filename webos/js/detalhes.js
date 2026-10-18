@@ -98,6 +98,18 @@
   // "Reacher 2022 (2022) FULL HD" vira "Reacher" (a vassoura fica em titulo.js).
   function limparTitulo(nome) { return VLTV.titulo.limpar(nome); }
 
+  // Nome que vai para o player: em inglês, o título do TMDB (já guardado na TV); senão o nome limpo do painel.
+  function nomeDoPlayer() {
+    if (VLTV.idioma.ehIngles()) {
+      if (!tituloEn && item) {
+        var g = VLTV.tmdb.textosGuardados(item.tipo, item.id);
+        if (g && g.titulo) { tituloEn = g.titulo; }
+      }
+      if (tituloEn) { return tituloEn; }
+    }
+    return limparTitulo(info.name || item.nome);
+  }
+
   function anoDoNome(nome) {
     var m = /\((\d{4})\)\s*$/.exec(String(nome || ''));
     return m ? m[1] : '';
@@ -306,16 +318,29 @@
 
   // ── Topo: título, nota, ano, gênero, sinopse ──────────────────────
   var idsTxt = { topo: 0, info: 0 };
+  var basePlano = '';      // nome da série usado no começo do título de cada episódio do plano
+  // O título em inglês chegou depois de o plano ser montado: troca o começo do nome dos episódios.
+  function trocarBasePlano(novo) {
+    if (!basePlano || basePlano === novo) { return; }
+    var velho = basePlano + ' - T';
+    plano.forEach(function (e) {
+      if (e.titulo && e.titulo.indexOf(velho) === 0) { e.titulo = novo + ' - T' + e.titulo.slice(velho.length); }
+    });
+    basePlano = novo;
+  }
   var tituloEn = '';       // título em inglês do TMDB (usado no nome dos episódios que vão para o player)
   // TMDB: em inglês troca título e sinopse pelos de lá (o painel manda em português). Em qualquer idioma,
   // se o painel não mandou sinopse (semSinopse), busca a sinopse no TMDB; ela fica guardada na TV.
   function textosEmIngles(onde, semSinopse, aplicar) {
     var ingles = VLTV.idioma.ehIngles();
+    var meu = ++idsTxt[onde];   // sempre conta: uma resposta antiga do TMDB nunca cobre a sinopse que o painel mandou depois
     if (!ingles && !semSinopse) { return; }
-    var meu = ++idsTxt[onde];
     VLTV.tmdb.textos(item.tipo, item.id, item.nome).then(function (r) {
       if (meu !== idsTxt[onde] || !r) { return; }
-      if (ingles && r.titulo) { tituloEn = r.titulo; }
+      if (ingles && r.titulo) {
+        tituloEn = r.titulo;
+        trocarBasePlano(r.titulo);
+      }
       aplicar(ingles ? r : { titulo: '', sinopse: r.sinopse });
     });
   }
@@ -554,7 +579,7 @@
     var lis = itensEps;
     VLTV.tmdb.temporada(item.id, item.nome, t.numero).then(function (mapa) {
       if (!mapa || temporadas[tempIdx] !== t || lis !== itensEps) { return; }
-      var base = tituloEn || limparTitulo(info.name || item.nome);
+      var base = nomeDoPlayer();
       t.episodios.forEach(function (ep, i) {
         var numero = ep.episode_num || (i + 1);
         var m = mapa[numero];
@@ -796,7 +821,7 @@
   // ── Ações ─────────────────────────────────────────────────────────
   function itemFilme() {
     return {
-      titulo: limparTitulo(info.name || item.nome),
+      titulo: nomeDoPlayer(),
       tipo: 'movie',
       id: item.id,
       ext: item.ext || info.container_extension,
@@ -967,7 +992,8 @@
     info = dados.info || {};
     temporadas = dados.temporadas || [];
     plano = [];
-    var nomeLimpo = limparTitulo(info.name || item.nome);
+    var nomeLimpo = nomeDoPlayer();
+    basePlano = nomeLimpo;
 
     temporadas.forEach(function (t, ti) {
       t.inicio = plano.length;
@@ -1045,6 +1071,7 @@
     idCarga++;
     item = normalizar(tipo, raw);
     tituloEn = '';
+    basePlano = '';
     info = {};
     temporadas = [];
     plano = [];

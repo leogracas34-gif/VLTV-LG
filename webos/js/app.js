@@ -67,9 +67,8 @@
 
     if (nome === 'login') {
       mostrarSenha(false);
-      // Login recém-aberto: nada fica com foco nem destacado até mexer no controle.
-      if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); }
-      telas.login.classList.add('sem-foco');
+      // Login recém-aberto: o foco já começa na aba escolhida (Usuário / Xtream / M3U): ← → trocam, ↓ vai para os campos.
+      focaveis()[0].focus();
     }
     VLTV.indice.pausar(nome === 'player');           // vídeo tocando: o preparo da pesquisa espera
     if (nome === 'home') { VLTV.indice.aquecer(); }  // deixa a pesquisa de Filmes e Séries pronta em segundo plano
@@ -603,12 +602,6 @@
     detalhes: function (k) { return VLTV.detalhes.tecla(k); },
     player: function (k) { return VLTV.player.tecla(k); }
   };
-
-  // Mexeu no controle (setas, OK ou cursor): o destaque do login passa a aparecer.
-  function revelarFocoLogin() { telas.login.classList.remove('sem-foco'); }
-  document.addEventListener('keydown', revelarFocoLogin, true);
-  document.addEventListener('mousemove', revelarFocoLogin, true);
-  document.addEventListener('click', revelarFocoLogin, true);
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;

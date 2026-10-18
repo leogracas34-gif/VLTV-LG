@@ -307,6 +307,55 @@
 
   function fundoPronto(tipo, id) { return fundoGuardado(tipo, id); }
 
-  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+  // ── Guia de programação (EPG) no idioma do app ────────────────────
+  // O guia chega em português. Em inglês, programa que é filme ou série do TMDB ganha título e sinopse em inglês
+  // (só vale quando o nome é igual ao do TMDB). Fica guardado na TV por 30 dias; quem o TMDB não conhece fica como veio.
+  var PREFIXO_EPG = 'vltv_epg1_';
+  var emAndamentoEpg = {};
+
+  function epgGuardado(titulo) {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(PREFIXO_EPG + idiomaTmdb().lingua + '_' + norm(titulo)) || 'null');
+      if (!c) { return null; }
+      if (new Date().getTime() - c.t > (c.n ? VALIDADE_TXT_MS : VALIDADE_SEM_LOGO_MS)) { return null; }
+      return c.n ? { titulo: c.n, sinopse: c.s || '' } : { vazio: true };
+    } catch (e) { return null; }
+  }
+
+  // Resolve com { titulo, sinopse } no idioma do app, ou null (não é filme/série do TMDB). Nunca rejeita.
+  function epg(titulo) {
+    var nome = String(titulo || '').replace(/^\s+|\s+$/g, '');
+    if (!ativo() || nome.length < 2 || !emIngles()) { return Promise.resolve(null); }
+    var g = epgGuardado(nome);
+    if (g) { return Promise.resolve(g.vazio ? null : g); }
+    var k = norm(nome);
+    if (emAndamentoEpg[k]) { return emAndamentoEpg[k]; }
+    var busca = VLTV.titulo.paraBusca(nome);
+    var p = new Promise(function (resolve) {
+      filaTxt.push(function () {
+        ativasTxt++;
+        pegarJson(API + '/search/multi?api_key=' + chave() + '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR').then(function (j) {
+          var lista = ((j && j.results) || []).filter(function (r) { return r.media_type === 'movie' || r.media_type === 'tv'; });
+          var achado = escolher(lista, busca);
+          if (!achado) { return null; }
+          return pegarJson(API + '/' + achado.media_type + '/' + achado.id + '?api_key=' + chave() + '&language=en-US').then(function (d) {
+            var t = d && (d.title || d.name);
+            return t ? { titulo: t, sinopse: d.overview || '' } : null;
+          });
+        }).then(function (r) {
+          try {
+            window.localStorage.setItem(PREFIXO_EPG + idiomaTmdb().lingua + '_' + k, JSON.stringify(r ? { n: r.titulo, s: r.sinopse, t: new Date().getTime() } : { t: new Date().getTime() }));
+          } catch (e) { /* sem espaço */ }
+          return r;
+        }).catch(function () { return undefined; })
+          .then(function (r) { ativasTxt--; delete emAndamentoEpg[k]; resolve(r || null); bombearTextos(); });
+      });
+      bombearTextos();
+    });
+    emAndamentoEpg[k] = p;
+    return p;
+  }
+
+  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
 
 })();

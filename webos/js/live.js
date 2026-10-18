@@ -396,6 +396,8 @@
         esvaziar(infoProximos);
         // Preenche a coluna: sem descrição sobra espaço, então cabem mais programas.
         var quantos = atual && atual.descricao ? 5 : 7;
+        var traduzir = VLTV.idioma.ehIngles();
+        var nomesProx = [];
         lista.slice(1, 1 + quantos).forEach(function (p) {
           if (!p.titulo) { return; }
           var linha = document.createElement('div');
@@ -403,11 +405,32 @@
           h.className = 'hora-prog';
           h.textContent = p.inicio;
           linha.appendChild(h);
-          linha.appendChild(document.createTextNode(p.titulo));
+          var tx = document.createTextNode(p.titulo);
+          linha.appendChild(tx);
           infoProximos.appendChild(linha);
+          nomesProx.push({ p: p, tx: tx });
         });
         textoAgora = agora;
         if (cheio && !infoCheio.classList.contains('escondida')) { desenharInfoCheio(); }
+
+        // Inglês: título e sinopse do programa no TMDB (filmes e séries); o resto fica como o guia mandou.
+        if (traduzir) {
+          nomesProx.forEach(function (x) {
+            VLTV.tmdb.epg(x.p.titulo).then(function (r) {
+              if (id !== idEpg || !r || !r.titulo) { return; }
+              x.tx.nodeValue = r.titulo;
+            });
+          });
+          if (atual && atual.titulo) {
+            VLTV.tmdb.epg(atual.titulo).then(function (r) {
+              if (id !== idEpg || !r || !r.titulo) { return; }
+              infoAgora.textContent = 'Now' + (atual.inicio ? ' (' + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + r.titulo;
+              if (r.sinopse && atual.descricao) { infoDesc.textContent = r.sinopse; }
+              textoAgora = linhaEpg('Now', { inicio: atual.inicio, titulo: r.titulo });
+              if (cheio && !infoCheio.classList.contains('escondida')) { desenharInfoCheio(); }
+            });
+          }
+        }
       })
       .catch(function () {
         if (id !== idEpg) { return; }

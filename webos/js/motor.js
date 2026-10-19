@@ -56,9 +56,17 @@
   // Antes: 12s/20s por formato, então 3 formatos = ~36s e a mensagem "servidor demorou demais".
   var ESPERA_MS = { live: 20000, vod: 35000, avplay: 15000 };
   var ESPERA_EXTRA_MS = 20000;                    // +tempo se a TV já recebeu dados (servidor lento, mas respondendo)
-  var TRAVOU_MS = { live: 20000, vod: 40000 };   // parado por tanto tempo = reconecta
+  var TRAVOU_MS = { live: 6000, vod: 40000 };   // parado por tanto tempo = reconecta
   var MAX_RECONEXOES = { live: 8, vod: 4 };
   var ESTAVEL_MS = 30000;                         // tocando tanto tempo sem problema zera as reconexões
+  // Canal ao vivo que não abriu ou caiu: reconecta NA HORA. A 1ª reabertura é imediata, as seguintes são bem rápidas
+  // e depois se mantêm a cada 3 s (o app continua tentando sozinho; o tempo entre tentativas é curto, não o total).
+  var MAX_REABERTAS_LIVE = 40;
+  var PAUSAS_REABERTURA_MS = [0, 400, 1000, 2000];
+  function pausaReabertura(n) { return n < PAUSAS_REABERTURA_MS.length ? PAUSAS_REABERTURA_MS[n] : 3000; }
+  // Reconexão de canal que estava tocando e travou/caiu: 1ª imediata, depois 400 ms, 1 s e no máximo 2 s.
+  var PAUSAS_RECONEXAO_MS = [0, 0, 400, 1000];
+  function pausaReconexao(n) { return n < PAUSAS_RECONEXAO_MS.length ? PAUSAS_RECONEXAO_MS[n] : 2000; }
 
   function agora() { return new Date().getTime(); }
   function tentar(f, padrao) { try { return f(); } catch (e) { return padrao; } }
@@ -391,10 +399,10 @@
     this.camadaAvplay(false);
     tentar(function () { self.video.pause(); self.video.removeAttribute('src'); self.video.load(); });
 
-    // Canal ao vivo que não abriu (fonte do provedor caiu por um instante): tenta abrir de novo, até 3 vezes, 4 s entre elas.
+    // Canal ao vivo que não abriu (fonte do provedor caiu por um instante): tenta abrir de novo várias vezes, com pausa crescente.
     // Erro de acesso do servidor (401, 403, 404...) não melhora tentando de novo: esse mostra o motivo na hora.
     var acesso = this.erros.some(function (e) { return e.http && e.http >= 400 && e.http < 500; });
-    if (this.modo === 'live' && !acesso && (this.reabertas || 0) < 3 && this.urls.length) {
+    if (this.modo === 'live' && !acesso && (this.reabertas || 0) < MAX_REABERTAS_LIVE && this.urls.length) {
       var urlsNovas = this.urls;
       this.reabertas = (this.reabertas || 0) + 1;
       var meuId = ++this.idTent;
@@ -403,7 +411,7 @@
       this.timerReconectar = setTimeout(function () {
         if (self.idTent !== meuId || self.ativo) { return; }   // o usuário já abriu outra coisa
         self.abrir(urlsNovas, 0, true);
-      }, 4000);
+      }, pausaReabertura(this.reabertas - 1));
       return;
     }
 
@@ -554,7 +562,7 @@
     if (Math.abs(t - this.ultimoTempo) > 0.05) {
       this.ultimoTempo = t;
       this.ultimoMovimento = n;
-      if (this.reconexoes > 0 && this.inicioEstavel && n - this.inicioEstavel > ESTAVEL_MS) { this.reconexoes = 0; }
+      if ((this.reconexoes > 0 || this.reabertas > 0) && this.inicioEstavel && n - this.inicioEstavel > ESTAVEL_MS) { this.reconexoes = 0; this.reabertas = 0; }
       return;
     }
     if (n - this.ultimoMovimento > TRAVOU_MS[this.modo]) { this.reconectar('travou'); }
@@ -579,8 +587,14 @@
     this.idTent++;
     clearTimeout(this.timerEspera);
     this.limparEngine();
+    // Fecha a conexão parada. Sem isso ela continua aberta no servidor e, com limite de 1 conexão por usuário,
+    // a nova é recusada (a TV só diz "formato"). Só tira o endereço da tag <video>; hls.js e mpegts.js já foram desligados acima.
+    if (t.estrategia === 'nativo') {
+      var vv = this.video;
+      tentar(function () { vv.pause(); vv.removeAttribute('src'); vv.load(); });
+    }
     if (this.cb.aoReconectando) { this.cb.aoReconectando('Reconectando... (' + this.reconexoes + ')'); }
-    var espera = Math.min(1000 * this.reconexoes, 4000);
+    var espera = pausaReconexao(this.reconexoes);
     clearTimeout(this.timerReconectar);
     this.timerReconectar = setTimeout(function () {
       if (!self.ativo) { return; }

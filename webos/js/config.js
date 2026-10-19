@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.2.3',
+  VERSAO: '1.2.4',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -39,7 +39,7 @@ VLTV.config = {
   MOTOR_AVANCADO: false,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
-  DIAGNOSTICO: true,
+  DIAGNOSTICO: false,
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',

@@ -78,12 +78,12 @@
       contagem.onsuccess = function () {
         var sobra = contagem.result - MAX_REGISTROS;
         if (sobra <= 0) { return; }
-        var cursor = loja.index('t').openKeyCursor();
+        var cursor = loja.index('t').openKeyCursor();   // do mais antigo para o mais novo
         cursor.onsuccess = function () {
           var c = cursor.result;
           if (!c || sobra <= 0) { return; }
-          loja.delete(c.primaryKey);
-          sobra--;
+          // O índice de pesquisa (vltv_idx2_) nunca é apagado pela limpeza automática: ele fica guardado de vez.
+          if (String(c.primaryKey).indexOf('vltv_idx2_') === -1) { loja.delete(c.primaryKey); sobra--; }
           c.continue();
         };
       };

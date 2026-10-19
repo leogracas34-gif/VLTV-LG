@@ -25,6 +25,10 @@ VLTV.config = {
   MIN_WEBOS_SDK: 4,
   MIN_CHROME: 53,
 
+  // Ajuste de fuso do guia de programação (EPG), em horas. 0 = usa o horário que o painel manda.
+  // Se TODOS os canais estiverem com a hora errada pelo mesmo tanto, ajuste aqui (ex.: -3 se o guia está 3 h adiantado).
+  EPG_AJUSTE_HORAS: 0,
+
   // Player (só Samsung): true = usa o player nativo da Samsung (AVPlay) ANTES do da tag <video>.
   // Deixe false até testar numa TV Samsung de verdade; com false, o AVPlay entra só como reserva
   // quando a TV não consegue abrir o vídeo pelo caminho normal.

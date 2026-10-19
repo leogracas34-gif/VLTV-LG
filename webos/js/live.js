@@ -355,9 +355,24 @@
   }
 
   // ── Guia de programação (EPG) ─────────────────────────────────────
+  // Quando o programa não é de hoje, mostra o dia junto da hora ("Amanhã 02:00"), para não parecer horário errado.
+  function rotuloDia(p) {
+    if (!p || !p.iniTs) { return ''; }
+    var ini = new Date(p.iniTs * 1000);
+    var hoje = new Date();
+    var dias = Math.round((new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()).getTime() -
+                           new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime()) / 86400000);
+    if (dias === 0) { return ''; }
+    var en = VLTV.idioma.ehIngles();
+    if (dias === 1) { return en ? 'Tomorrow ' : 'Amanhã '; }
+    if (dias === -1) { return en ? 'Yesterday ' : 'Ontem '; }
+    var nomes = en ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return nomes[ini.getDay()] + ' ';
+  }
+
   function linhaEpg(rotulo, p) {
     if (!p || !p.titulo) { return ''; }
-    return rotulo + (p.inicio ? ' (' + p.inicio + ') ' : ' ') + p.titulo;
+    return rotulo + (p.inicio ? ' (' + rotuloDia(p) + p.inicio + ') ' : ' ') + p.titulo;
   }
 
   function mostrarInfoBasica() {
@@ -390,7 +405,7 @@
         agendarEpg(canal, id, sep.espera);
         var agora = linhaEpg('Agora', atual);
         infoAgora.textContent = atual && atual.titulo
-          ? 'Agora' + (atual.inicio ? ' (' + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + atual.titulo
+          ? 'Agora' + (atual.inicio ? ' (' + rotuloDia(atual) + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + atual.titulo
           : 'Sem informação de programação.';
         infoDesc.textContent = atual && atual.descricao ? atual.descricao : '';
         esvaziar(infoProximos);
@@ -403,7 +418,7 @@
           var linha = document.createElement('div');
           var h = document.createElement('span');
           h.className = 'hora-prog';
-          h.textContent = p.inicio;
+          h.textContent = rotuloDia(p) + p.inicio;
           linha.appendChild(h);
           var tx = document.createTextNode(p.titulo);
           linha.appendChild(tx);
@@ -424,9 +439,9 @@
           if (atual && atual.titulo) {
             VLTV.tmdb.epg(atual.titulo).then(function (r) {
               if (id !== idEpg || !r || !r.titulo) { return; }
-              infoAgora.textContent = 'Now' + (atual.inicio ? ' (' + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + r.titulo;
+              infoAgora.textContent = 'Now' + (atual.inicio ? ' (' + rotuloDia(atual) + atual.inicio + (atual.fim ? ' - ' + atual.fim : '') + ')' : '') + ' ' + r.titulo;
               if (r.sinopse && atual.descricao) { infoDesc.textContent = r.sinopse; }
-              textoAgora = linhaEpg('Now', { inicio: atual.inicio, titulo: r.titulo });
+              textoAgora = linhaEpg('Now', { inicio: atual.inicio, iniTs: atual.iniTs, titulo: r.titulo });
               if (cheio && !infoCheio.classList.contains('escondida')) { desenharInfoCheio(); }
             });
           }

@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.2.4',
+  VERSAO: '1.2.5',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -43,6 +43,9 @@ VLTV.config = {
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',
+
+  // A cada quantos segundos o app confere a licença/parceiro com a VPS enquanto está aberto (bloqueio na hora).
+  LICENCA_VIGIA_S: 30,
 
   // Quantos dias antes do vencimento a TV começa a avisar (licença do app e plano de canais).
   AVISO_VENCIMENTO_DIAS: 7,

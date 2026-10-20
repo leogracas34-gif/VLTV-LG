@@ -901,6 +901,61 @@
   $('lic-btn').addEventListener('click', verificarLicenca);
   $('lic-listas').addEventListener('click', usarOutraLista);
 
+
+  // ── Vigia da licença: confere com a VPS ENQUANTO o app está aberto ──
+  // Bloqueio, vencimento, renovação de teste ou troca de plano (anual -> vitalício) valem na hora,
+  // sem precisar reiniciar o app. Intervalo em config.js (LICENCA_VIGIA_S).
+  var VIGIA_MS = (VLTV.config.LICENCA_VIGIA_S || 30) * 1000;
+  var TELAS_SEM_VIGIA = ['licenca', 'login', 'carregando', 'listas', 'incompativel'];
+  var vigiando = false;
+
+  // Recarrega o app: o vídeo para de vez e a entrada normal mostra a tela certa
+  // (ativação, aparelho bloqueado ou login com aviso de código de parceiro inválido).
+  function recarregarPorLicenca() {
+    try { window.location.reload(); } catch (e) { /* ignora */ }
+  }
+
+  function atualizarAvisoHome() {
+    if (telaAtual !== 'home') { return; }
+    var salva = VLTV.sessao.ler();
+    var ehLista = salva && salva.modo === 'm3u';
+    var avisos = VLTV.licenca.avisos(ehLista ? 0 : (VLTV.conta && VLTV.conta.exp_date));
+    var elAviso = $('home-aviso');
+    elAviso.textContent = avisos.join('  •  ');
+    elAviso.classList.toggle('escondida', avisos.length === 0);
+  }
+
+  function vigiarLicenca() {
+    if (vigiando) { return; }
+    if (TELAS_SEM_VIGIA.indexOf(telaAtual) !== -1) { return; }
+    var salva = VLTV.sessao.ler();
+    if (!salva) { return; }
+    vigiando = true;
+    function fim() { vigiando = false; }
+
+    // Lista de código de parceiro: o código precisa continuar ativo no painel.
+    if (salva.modo === 'parceiro' && salva.codigo) {
+      VLTV.parceiro.resolver(salva.codigo).then(function (p) {
+        fim();
+        if (p && (p.estado === 'codigo_invalido' || p.estado === 'suspenso')) { recarregarPorLicenca(); }
+      }, fim);
+      return;
+    }
+
+    // Lista comum: a licença da TV precisa continuar valendo (teste ou ativa).
+    var antes = JSON.stringify(VLTV.licenca.estado());
+    VLTV.licenca.verificar('').then(function (lic) {
+      fim();
+      if (!lic || lic.estado === 'erro') { return; }          // sem internet/VPS fora: não derruba o cliente
+      if (!VLTV.licenca.liberaListaComum(lic)) { recarregarPorLicenca(); return; }
+      if (JSON.stringify(VLTV.licenca.estado()) !== antes) { atualizarAvisoHome(); }   // renovou/mudou de plano
+    }, fim);
+  }
+  setInterval(vigiarLicenca, VIGIA_MS);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { vigiarLicenca(); }
+  });
+
   function iniciar() {
     if (!VLTV.platform.compativel) { iniciarApp(); return; }
     verificarLicenca();

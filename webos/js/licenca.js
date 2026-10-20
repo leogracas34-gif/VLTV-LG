@@ -5,6 +5,7 @@
 
   var CH_ID = 'vltv_dev_id';
   var CH_CACHE = 'vltv_licenca';
+  var CH_PARC_OK = 'vltv_lic_parc_ok';    // '1' = a VPS já confirmou o código de parceiro atual
   var CH_PARC = 'vltv_lic_parc';          // código de parceiro da lista em uso ('' = lista que não é de parceiro)
   var TOLERANCIA_OFFLINE_S = 3 * 86400;   // sem internet: vale o último estado por até 3 dias
 
@@ -15,13 +16,40 @@
 
   // Avisa a VPS (painel) se a lista em uso é de parceiro: o painel mostra "Ativo parceiro" em vez de teste/vencido.
   // codigo = código do parceiro, ou '' quando a lista em uso não é de parceiro.
+  // O aviso só conta como entregue quando a VPS responde 200. Se falhar (sem internet, token vencido, VPS reiniciando),
+  // continua pendente e é reenviado: na próxima consulta de licença (que sempre leva o código) e em novas tentativas.
   function informarParceiro(codigo) {
     var c = String(codigo || '').toUpperCase();
-    if (ler(CH_PARC) === c) { return; }
     gravar(CH_PARC, c);
+    gravar(CH_PARC_OK, '0');
+    enviarParceiro(c, 0);
+  }
+  function enviarParceiro(c, tentativa) {
+    if (ler(CH_PARC) !== c) { return; }          // a lista mudou nesse meio tempo: vale o aviso mais novo
+    function depois() {
+      if (tentativa < 5) { setTimeout(function () { enviarParceiro(c, tentativa + 1); }, 4000 * (tentativa + 1)); }
+    }
     var cc = cache();
-    if (!cc || !cc.token) { return; }       // sem token ainda: o aviso vai junto no próximo registro/consulta
-    chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(c), null, cc.token).catch(function () { /* o próximo registro avisa */ });
+    if (!cc || !cc.token) {
+      // Sem token ainda: a consulta de licença se apresenta à VPS já com o código.
+      verificar().then(function (r) { if (!(r && r.estado !== 'erro')) { depois(); } }, depois);
+      return;
+    }
+    chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(c), null, cc.token).then(function (r) {
+      if (r.status === 200 && r.json && r.json.estado) {
+        if (ler(CH_PARC) === c) { gravar(CH_PARC_OK, '1'); }
+        return;
+      }
+      if (r.status === 401 || r.status === 404) {          // token vencido: se apresenta de novo (leva o código junto)
+        verificar().then(function (x) { if (!(x && x.estado !== 'erro')) { depois(); } }, depois);
+        return;
+      }
+      depois();
+    }, depois);
+  }
+  // Aviso pendente (não confirmado pela VPS): chamada na abertura e a cada consulta periódica.
+  function reenviarParceiroPendente() {
+    if (ler(CH_PARC) !== null && ler(CH_PARC_OK) === '0') { enviarParceiro(ler(CH_PARC) || '', 0); }
   }
   // Lista que não é de parceiro: precisa de licença da TV valendo (teste de 7 dias contado desde a 1ª abertura, ou ativa).
   function liberaListaComum(lic) {
@@ -121,7 +149,7 @@
         function registrar() {
           chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO, parceiro: ler(CH_PARC) || '' })
             .then(function (r) {
-              if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); resolve(estadoAtual); return; }
+              if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); gravar(CH_PARC_OK, '1'); resolve(estadoAtual); return; }
               if (r.status >= 500 || r.status === 0) { offline(); return; }
               resolve({ estado: 'erro', texto: r.json && r.json.error });
             })
@@ -130,7 +158,7 @@
 
         if (c && c.token && c.id === ident.id) {
           chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(ler(CH_PARC) || ''), null, c.token).then(function (r) {
-            if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); resolve(estadoAtual); }
+            if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); gravar(CH_PARC_OK, '1'); resolve(estadoAtual); }
             else if (r.status === 401 || r.status === 404) { registrar(); }   // token vencido: se apresenta de novo
             else { offline(); }
           }).catch(offline);
@@ -222,6 +250,7 @@
     definirParceiro: definirParceiro,
     liberaListaComum: liberaListaComum,
     informarParceiro: informarParceiro,
+    reenviarParceiroPendente: reenviarParceiroPendente,
     ehAtivo: ehAtivo,
     ehParceiro: function () { return ehParceiro; },
     avisos: avisos,

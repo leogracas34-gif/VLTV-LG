@@ -279,7 +279,7 @@
     // Lista que não é de parceiro e a TV sem licença valendo: ativação, sem mostrar teste nem erro da lista.
     if (res.estado === 'sem_licenca') {
       VLTV.licenca.definirParceiro(false);
-      bloquearSemLicenca(res.lic, '');
+      bloquearSemLicenca(res.lic, '', ctx);   // guarda a lista que tentou entrar: o "verificar" tenta ESSA de novo
       return;
     }
 
@@ -818,17 +818,31 @@
     pararPollLicenca();
     pollLicenca = setInterval(function () {
       if (telaAtual !== 'licenca') { pararPollLicenca(); return; }
-      VLTV.licenca.verificar().then(function (lic) {
+      var pendente = bloqueioAtual && bloqueioAtual.ctx;
+      VLTV.licenca.verificar(pendente ? '' : undefined).then(function (lic) {
         if (telaAtual !== 'licenca') { return; }
-        if (VLTV.licenca.liberaListaComum(lic)) { liberarApp(); }
+        if (VLTV.licenca.liberaListaComum(lic)) {
+          if (pendente) { retomarListaBloqueada(); } else { liberarApp(); }
+        }
       });
     }, 20000);
   }
 
   // Lista sem direito de uso (não é de parceiro e a TV não tem licença): mostra a tela de ativação.
-  function bloquearSemLicenca(lic, msg) {
-    bloqueioAtual = { lic: lic, msg: msg || '' };
+  // ctx (opcional): a lista que o cliente tentou abrir. Depois de ativar, é ELA que abre, não a lista salva antes.
+  function bloquearSemLicenca(lic, msg, ctx) {
+    bloqueioAtual = { lic: lic, msg: msg || '', ctx: ctx || null };
     mostrarLicenca(lic, msg);
+  }
+
+  // Tenta de novo a lista que ficou bloqueada. Se a licença ainda não vale, volta para a tela de ativação.
+  function retomarListaBloqueada() {
+    var ctx = bloqueioAtual && bloqueioAtual.ctx;
+    if (!ctx) { liberarApp(); return; }
+    pararPollLicenca();
+    $('carregando-msg').textContent = 'Verificando licença...';
+    mostrarTela('carregando');
+    autenticar(ctx).then(function (res) { concluir(res, ctx); });
   }
 
   function usarOutraLista() {
@@ -869,6 +883,8 @@
   var verificando = false;
   function verificarLicenca() {
     if (verificando) { return; }
+    // Veio da tela de ativação de uma lista que não é de parceiro: só abre ESSA lista, e só se a licença valer.
+    if (bloqueioAtual && bloqueioAtual.ctx) { retomarListaBloqueada(); return; }
     verificando = true;
     pararPollLicenca();
     $('carregando-msg').textContent = 'Verificando licença...';

@@ -38,6 +38,9 @@
     chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(c), null, cc.token).then(function (r) {
       if (r.status === 200 && r.json && r.json.estado) {
         if (ler(CH_PARC) === c) { gravar(CH_PARC_OK, '1'); }
+        // A VPS devolve o estado novo (já sabendo se a lista é de parceiro ou não): atualiza o que a TV mostra.
+        if (!r.json.token) { r.json.token = cc.token; }
+        guardar(r.json, cc.id);
         return;
       }
       if (r.status === 401 || r.status === 404) {          // token vencido: se apresenta de novo (leva o código junto)
@@ -127,10 +130,14 @@
   }
 
   // Resolve { estado: 'trial'|'active'|'expired'|'blocked'|'erro', codigo, dias, pagar_url }
-  function verificar() {
+  // parceiroForcado (opcional): código a informar nesta consulta. '' = "a lista que vai entrar NÃO é de parceiro".
+  // Sem ele, usa o código da lista que estava em uso (o que pode estar velho ao trocar de lista).
+  function verificar(parceiroForcado) {
     return new Promise(function (resolve) {
       identidade(function (ident) {
         var c = cache();
+        var parc = parceiroForcado !== undefined ? String(parceiroForcado || '').toUpperCase() : (ler(CH_PARC) || '');
+        function confirmou() { if (parc === (ler(CH_PARC) || '')) { gravar(CH_PARC_OK, '1'); } }
 
         function offline() {
           // Sem resposta do servidor: confia no último estado por pouco tempo, para não travar quem está sem internet.
@@ -147,9 +154,9 @@
         }
 
         function registrar() {
-          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO, parceiro: ler(CH_PARC) || '' })
+          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO, parceiro: parc })
             .then(function (r) {
-              if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); gravar(CH_PARC_OK, '1'); resolve(estadoAtual); return; }
+              if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); confirmou(); resolve(estadoAtual); return; }
               if (r.status >= 500 || r.status === 0) { offline(); return; }
               resolve({ estado: 'erro', texto: r.json && r.json.error });
             })
@@ -157,8 +164,8 @@
         }
 
         if (c && c.token && c.id === ident.id) {
-          chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(ler(CH_PARC) || ''), null, c.token).then(function (r) {
-            if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); gravar(CH_PARC_OK, '1'); resolve(estadoAtual); }
+          chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(parc), null, c.token).then(function (r) {
+            if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); confirmou(); resolve(estadoAtual); }
             else if (r.status === 401 || r.status === 404) { registrar(); }   // token vencido: se apresenta de novo
             else { offline(); }
           }).catch(offline);
@@ -253,6 +260,7 @@
     reenviarParceiroPendente: reenviarParceiroPendente,
     ehAtivo: ehAtivo,
     ehParceiro: function () { return ehParceiro; },
+    parceiroAtual: function () { return ler(CH_PARC) || ''; },
     avisos: avisos,
     textoCurto: textoCurto,
     mostrarNoLogin: mostrarNoLogin,

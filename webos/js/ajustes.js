@@ -144,6 +144,8 @@
     if (lic) {
       linha('Código da TV (ativação)', lic.codigo);
       linha('Licença do aplicativo', VLTV.licenca.textoCurto(), VLTV.licenca.ehAtivo() ? 'ok' : '');
+    } else {
+      linha('Licença do aplicativo', 'Não verificada (sem resposta do servidor)', 'erro');
     }
   }
 

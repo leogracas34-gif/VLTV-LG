@@ -218,8 +218,14 @@
   // senão vem { estado: 'sem_licenca' } e o app mostra a tela de ativação, antes mesmo de abrir a lista.
   function autenticar(ctx) {
     if (ctx.modo === 'parceiro') { return autenticarLista(ctx); }
-    return VLTV.licenca.verificar().then(function (lic) {
+    // Informa à VPS que ESTA lista não é de parceiro (''), senão ela ainda responde pelo código de parceiro antigo
+    // (da lista anterior) e libera a lista comum sem licença.
+    var codigoAntigo = VLTV.licenca.parceiroAtual();
+    var eraParceiro = VLTV.licenca.ehParceiro();
+    return VLTV.licenca.verificar('').then(function (lic) {
       if (VLTV.licenca.liberaListaComum(lic)) { return autenticarLista(ctx); }
+      // Não entrou: se a lista de parceiro em uso continua valendo, devolve o aviso dela para a VPS.
+      if (eraParceiro && codigoAntigo) { VLTV.licenca.informarParceiro(codigoAntigo); }
       return { estado: 'sem_licenca', lic: lic };
     });
   }
@@ -306,17 +312,24 @@
     if (ctx.modo === 'parceiro' && (res.estado === 'codigo_invalido' || res.estado === 'suspenso')) {
       VLTV.licenca.definirParceiro(false);
       VLTV.licenca.informarParceiro('');
-      var licSemParceiro = VLTV.licenca.estado();
-      if (licSemParceiro && licSemParceiro.estado === 'expired') {
-        if (!adicionando) {
-          VLTV.sessao.limpar();
-          VLTV.m3u.limpar();
+      // Confere na VPS a licença REAL da TV, já sem o código de parceiro (o estado guardado pode ser o de parceiro).
+      VLTV.licenca.verificar('').then(function (licSemParceiro) {
+        if (licSemParceiro && licSemParceiro.estado !== 'erro' && !VLTV.licenca.liberaListaComum(licSemParceiro)) {
+          if (!adicionando) {
+            VLTV.sessao.limpar();
+            VLTV.m3u.limpar();
+          }
+          bloquearSemLicenca(licSemParceiro, 'O código de parceiro desta lista não está mais ativo. Para continuar, ative a licença desta TV.');
+          return;
         }
-        bloquearSemLicenca(licSemParceiro, 'O código de parceiro desta lista não está mais ativo. Para continuar, ative a licença desta TV.');
-        return;
-      }
+        voltarAoLoginComErro(res, ctx);
+      });
+      return;
     }
+    voltarAoLoginComErro(res, ctx);
+  }
 
+  function voltarAoLoginComErro(res, ctx) {
     // Se o login foi aberto por "Adicionar nova lista", a lista que já estava em uso continua valendo.
     if (!adicionando) {
       VLTV.sessao.limpar();

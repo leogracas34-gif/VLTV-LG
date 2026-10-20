@@ -6,7 +6,7 @@
   <feature name="http://tizen.org/feature/screen.size.all"/>
   <icon src="icon.png"/>
   <name>VLTV Play</name>
-  <description>Seu player de TV, filmes e séries</description>
+  <description>Your TV, movies and series player</description>
   <author>VLTV Play</author>
   <access origin="*" subdomains="true"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>

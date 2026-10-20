@@ -1,4 +1,4 @@
-// VLTV Play | Idioma: português do Brasil (padrão) e inglês.
+// VLTV Play | Idioma: inglês (padrão) e português do Brasil.
 // Como funciona: o aplicativo continua escrito em português por dentro. Quando o idioma é inglês, este arquivo
 // traduz na tela cada texto do aplicativo (os que já estão na página e os que aparecem depois).
 // Categorias e gêneros (vindos do provedor) são traduzidos pelas palavras conhecidas; títulos, sinopses, logos e nomes de
@@ -20,7 +20,7 @@ window.VLTV = window.VLTV || {};
       var v = window.localStorage.getItem(CHAVE);
       if (v === 'en' || v === 'pt-BR') { return v; }
     } catch (e) { /* TV sem armazenamento: fica no padrão */ }
-    return 'pt-BR';
+    return 'en';   // idioma padrão: inglês (troque para 'pt-BR' quando o padrão voltar a ser português)
   }
 
   var atual = ler();

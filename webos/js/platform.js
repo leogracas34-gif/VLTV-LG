@@ -64,6 +64,7 @@
       ano: ano,
       sdk: sdk,
       chrome: chrome,
+      marca: ehTV ? 'LG' : '',
       modelo: modelo,
       compativel: compativel,
       motivo: motivo,

@@ -112,6 +112,7 @@
     ano: null,
     sdk: tizenVer,
     chrome: base.chrome || null,
+    marca: 'Samsung',
     modelo: modelo,
     compativel: ok,
     motivo: ok ? '' : 'O VLTV Play funciona em TVs Samsung de 2018 em diante (Tizen ' + MIN_TIZEN + ' ou mais novo). Detectado: Tizen ' + tizenVer + '.',

@@ -154,7 +154,7 @@
         }
 
         function registrar() {
-          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', version: VLTV.config.VERSAO, parceiro: parc })
+          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', brand: (VLTV.platform && VLTV.platform.marca) || '', version: VLTV.config.VERSAO, parceiro: parc })
             .then(function (r) {
               if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); confirmou(); resolve(estadoAtual); return; }
               if (r.status >= 500 || r.status === 0) { offline(); return; }

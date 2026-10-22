@@ -7,12 +7,29 @@
   var CH_CACHE = 'vltv_licenca';
   var CH_PARC_OK = 'vltv_lic_parc_ok';    // '1' = a VPS já confirmou o código de parceiro atual
   var CH_PARC = 'vltv_lic_parc';          // código de parceiro da lista em uso ('' = lista que não é de parceiro)
+  var CH_LOGIN = 'vltv_lic_login';        // login (só o usuário, nunca a senha) da lista em uso, para o painel
+  var CH_MODO = 'vltv_lic_modo';          // usuario | xtream | parceiro | m3u
   var TOLERANCIA_OFFLINE_S = 3 * 86400;   // sem internet: vale o último estado por até 3 dias
 
   var estadoAtual = null;
   // Lista de código de parceiro em uso: o app fica "Ativo" sem teste, sem vencimento e sem vitalício.
   var ehParceiro = false;
   function definirParceiro(v) { ehParceiro = !!v; }
+
+
+  // Login em uso (só o usuário) e tipo de lista: vão junto com cada consulta à VPS, para o painel mostrar na TV.
+  // M3U não informa usuário. A senha nunca sai da TV.
+  function definirLogin(login, modo) {
+    gravar(CH_LOGIN, String(login || ''));
+    gravar(CH_MODO, String(modo || ''));
+  }
+  function consulta(parc) {
+    var q = '?parceiro=' + encodeURIComponent(parc);
+    var l = ler(CH_LOGIN), m = ler(CH_MODO);
+    if (l) { q += '&login=' + encodeURIComponent(l); }
+    if (m) { q += '&modo=' + encodeURIComponent(m); }
+    return q;
+  }
 
   // Avisa a VPS (painel) se a lista em uso é de parceiro: o painel mostra "Ativo parceiro" em vez de teste/vencido.
   // codigo = código do parceiro, ou '' quando a lista em uso não é de parceiro.
@@ -35,7 +52,7 @@
       verificar().then(function (r) { if (!(r && r.estado !== 'erro')) { depois(); } }, depois);
       return;
     }
-    chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(c), null, cc.token).then(function (r) {
+    chamar('GET', '/lg/status' + consulta(c), null, cc.token).then(function (r) {
       if (r.status === 200 && r.json && r.json.estado) {
         if (ler(CH_PARC) === c) { gravar(CH_PARC_OK, '1'); }
         // A VPS devolve o estado novo (já sabendo se a lista é de parceiro ou não): atualiza o que a TV mostra.
@@ -154,7 +171,7 @@
         }
 
         function registrar() {
-          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', brand: (VLTV.platform && VLTV.platform.marca) || '', version: VLTV.config.VERSAO, parceiro: parc })
+          chamar('POST', '/lg/register', { device_id: ident.id, mac: ident.mac, model: (VLTV.platform && VLTV.platform.modelo) || '', brand: (VLTV.platform && VLTV.platform.marca) || '', version: VLTV.config.VERSAO, parceiro: parc, login: ler(CH_LOGIN) || '', modo: ler(CH_MODO) || '' })
             .then(function (r) {
               if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); confirmou(); resolve(estadoAtual); return; }
               if (r.status >= 500 || r.status === 0) { offline(); return; }
@@ -164,7 +181,7 @@
         }
 
         if (c && c.token && c.id === ident.id) {
-          chamar('GET', '/lg/status?parceiro=' + encodeURIComponent(parc), null, c.token).then(function (r) {
+          chamar('GET', '/lg/status' + consulta(parc), null, c.token).then(function (r) {
             if (r.status === 200 && r.json && r.json.estado) { guardar(r.json, ident.id); confirmou(); resolve(estadoAtual); }
             else if (r.status === 401 || r.status === 404) { registrar(); }   // token vencido: se apresenta de novo
             else { offline(); }
@@ -255,6 +272,7 @@
 
   VLTV.licenca = {
     definirParceiro: definirParceiro,
+    definirLogin: definirLogin,
     liberaListaComum: liberaListaComum,
     informarParceiro: informarParceiro,
     reenviarParceiroPendente: reenviarParceiroPendente,

@@ -291,6 +291,7 @@
       // Código de parceiro válido = aplicativo ativo (sem teste, sem vencimento).
       var ehParceiro = ctx.modo === 'parceiro';
       VLTV.licenca.definirParceiro(ehParceiro);
+      VLTV.licenca.definirLogin(ctx.modo === 'm3u' ? '' : ctx.user, ctx.modo);   // o painel mostra o login desta TV
       VLTV.licenca.informarParceiro(ehParceiro ? ctx.codigo : '');
       bloqueioAtual = null;
       nomeParceiro = res.nome || '';
@@ -514,6 +515,7 @@
     // Sair tira da TV a lista que estava em uso. Se sobrar outra, o app mostra a tela de listas.
     var ativa = VLTV.listas.idAtiva();
     if (ativa) { VLTV.listas.remover(ativa); }
+    VLTV.licenca.definirLogin('', '');
     VLTV.licenca.informarParceiro('');
     VLTV.sessao.limpar();
     VLTV.m3u.limpar();

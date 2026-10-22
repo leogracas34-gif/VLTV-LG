@@ -161,6 +161,19 @@
       </div>
     </div>
 
+    <!-- Sair do aplicativo (Voltar na Home). Pop-up próprio em HTML, exigido pela política da Samsung.
+         Diferente do "Deseja sair?" acima, que é o logout (remove a lista). -->
+    <div id="confirma-fechar" class="confirma escondida" role="dialog" aria-modal="true" aria-labelledby="fechar-titulo">
+      <div class="confirma-caixa">
+        <h2 id="fechar-titulo">Sair do aplicativo?</h2>
+        <p>Deseja fechar o VLTV Play?</p>
+        <div class="confirma-botoes">
+          <button id="fechar-nao" type="button" class="botao-conf">Não</button>
+          <button id="fechar-sim" type="button" class="botao-conf perigo">Sim</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Minhas listas -->
     <section id="tela-listas" class="tela tela-topo escondida">
       <div class="live">

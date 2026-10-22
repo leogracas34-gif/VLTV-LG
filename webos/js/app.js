@@ -37,6 +37,10 @@
   var telaConfirma = $('confirma-sair');
   var btnSairNao = $('sair-nao');
   var btnSairSim = $('sair-sim');
+  var telaFechar = $('confirma-fechar');   // pop-up "Sair do aplicativo?" (Voltar na Home)
+  var btnFecharNao = $('fechar-nao');
+  var btnFecharSim = $('fechar-sim');
+  var focoAntesFechar = null;
   var statusLogin = $('login-status');
   var tileLive = $('tile-live');
   var tileFilmes = $('tile-filmes');
@@ -467,6 +471,44 @@
     return false;   // OK: o clique do botão em foco resolve
   }
 
+  // ── Sair do aplicativo (tecla Voltar nas telas de entrada) ─────────
+  // Samsung (Return Key Policy): na tela inicial o Voltar abre um pop-up de confirmação feito em HTML;
+  // o app só fecha se o usuário escolher "Sim". Nas telas internas o Voltar já volta uma tela
+  // (cada tela trata a própria tecla).
+  // LG: webOS 6.0 ou mais novo (TVs 2021+) pede um pop-up de saída; webOS 5.0 ou mais antigo
+  // (TVs até 2020) manda direto para a tela inicial da TV (window.close), como a LG define no guia do botão Voltar.
+  function lgSemPopup() {
+    var p = VLTV.platform || {};
+    if (p.marca !== 'LG') { return false; }
+    if (p.ano !== null && p.ano !== undefined) { return p.ano < 2021; }
+    if (p.sdk !== null && p.sdk !== undefined) { return p.sdk < 6; }
+    return false;   // não sabe a versão: usa o pop-up (fechar com window.close continua valendo)
+  }
+  function fechandoApp() { return !telaFechar.classList.contains('escondida'); }
+  function pedirFecharApp() {
+    if (lgSemPopup()) { fecharApp(); return; }
+    if (fechandoApp()) { return; }
+    focoAntesFechar = document.activeElement;
+    telaFechar.classList.remove('escondida');
+    btnFecharNao.focus();   // foco no "Não": o usuário não sai sem querer
+  }
+  function cancelarFecharApp() {
+    telaFechar.classList.add('escondida');
+    // Devolve o foco para onde estava (se ainda existir na tela).
+    if (focoAntesFechar && focoAntesFechar.focus && document.body.contains(focoAntesFechar)) {
+      focoAntesFechar.focus();
+    }
+    focoAntesFechar = null;
+  }
+  function teclaFechar(k) {
+    if (k === TECLA_ESQ) { btnFecharNao.focus(); return true; }
+    if (k === TECLA_DIR) { btnFecharSim.focus(); return true; }
+    if (k === TECLA_CIMA || k === TECLA_BAIXO) { return true; }
+    if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { cancelarFecharApp(); return true; }
+    return false;   // OK: o clique do botão em foco resolve (Não cancela, Sim fecha)
+  }
+  // Voltar nas telas sem tratamento próprio (carregando, incompatível, licença, home, login): pede para sair.
+
   function sair() {
     telaConfirma.classList.add('escondida');
     // Sair tira da TV a lista que estava em uso. Se sobrar outra, o app mostra a tela de listas.
@@ -607,10 +649,11 @@
   var TRATADORES = {
     carregando: function (k) {
       if (k === 13 && $('carregando-dica').textContent) { cancelarEntrada(); return true; }
-      if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { fecharApp(); return true; }
+      if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { pedirFecharApp(); return true; }
       return false;
     },
     licenca: function (k) {
+      if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) { pedirFecharApp(); return true; }
       var btnOutra = $('lic-listas');
       var temOutra = !btnOutra.classList.contains('escondida');
       if (temOutra && (k === TECLA_CIMA || k === TECLA_BAIXO)) {
@@ -640,6 +683,12 @@
       return;
     }
 
+    // Pop-up "Sair do aplicativo?" fica por cima de qualquer tela de entrada.
+    if (fechandoApp()) {
+      if (teclaFechar(k)) { e.preventDefault(); }
+      return;
+    }
+
     // Janela "Deseja sair?" fica por cima da Home.
     if (confirmando()) {
       if (teclaConfirma(k)) { e.preventDefault(); }
@@ -660,7 +709,7 @@
       abrirListas();
     } else if (k === TECLA_VOLTAR_WEBOS || k === TECLA_ESC) {
       e.preventDefault();
-      fecharApp();
+      pedirFecharApp();   // Home, login ou aparelho incompatível: pergunta antes de fechar
     } else if (telaAtual === 'home' && (k === TECLA_ESQ || k === TECLA_DIR || k === TECLA_CIMA || k === TECLA_BAIXO)) {
       e.preventDefault();
       navegarHome(k);
@@ -721,6 +770,11 @@
   tileSair.addEventListener('click', pedirConfirmacaoSair);
   btnSairNao.addEventListener('click', fecharConfirmacaoSair);
   btnSairSim.addEventListener('click', sair);
+  btnFecharNao.addEventListener('click', cancelarFecharApp);
+  btnFecharSim.addEventListener('click', function () {
+    telaFechar.classList.add('escondida');
+    fecharApp();   // só aqui o app fecha (Samsung: tizen exit() via tizen-shim; LG: window.close)
+  });
   btnListas.addEventListener('click', function () { abrirListas(); });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {

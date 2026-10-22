@@ -5,7 +5,23 @@
   'use strict';
 
   // Ordem de tentativa do formato do canal (se um falhar, tenta o próximo).
-  var EXTENSOES = ['m3u8', 'ts', ''];
+  var EXT_TS_PRIMEIRO = ['ts', 'm3u8', ''];
+  var EXT_HLS_PRIMEIRO = ['m3u8', 'ts', ''];
+  var CH_TS_FALHAS = 'vltv_live_ts_falhas_' + ((VLTV.config && VLTV.config.VERSAO) || '');   // vezes seguidas em que o .ts não abriu e o .m3u8 tocou (a cada versão nova do app tenta o .ts de novo)
+  var ordemTsPrimeiro = false;                // a ordem usada no canal que está abrindo
+  var formatoContado = false;                 // já contou o resultado deste canal (reconexões não contam de novo)
+
+  function lerTsFalhas() {
+    try { return parseInt(localStorage.getItem(CH_TS_FALHAS) || '0', 10) || 0; } catch (e) { return 0; }
+  }
+  function gravarTsFalhas(n) {
+    try { localStorage.setItem(CH_TS_FALHAS, String(n)); } catch (e) { /* ignora */ }
+  }
+  function ordemExtensoes() {
+    var pref = String((VLTV.config && VLTV.config.FORMATO_LIVE) || 'ts').toLowerCase();
+    ordemTsPrimeiro = pref !== 'm3u8' && lerTsFalhas() < 2;
+    return ordemTsPrimeiro ? EXT_TS_PRIMEIRO : EXT_HLS_PRIMEIRO;
+  }
   var TAMANHO_LOTE = 150;
   var TEMPO_INFO_MS = 4000;
   var ICONE_ESTRELA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
@@ -30,6 +46,7 @@
   var overlay = $('live-overlay');
   var infoCheio = $('live-info-cheio');
   var infoNome = $('live-nome');
+  var infoQualidade = $('live-qualidade');
   var infoAgora = $('live-agora');
   var infoDesc = $('live-descricao');
   var infoProximos = $('live-proximos');
@@ -455,11 +472,48 @@
   }
 
   // ── Reprodução ────────────────────────────────────────────────────
-  // O motor tenta os formatos (m3u8, ts, sem extensão), depois as bibliotecas e o player da Samsung,
+  // O motor tenta os formatos (ts, m3u8, sem extensão; a ordem vem do config), depois as bibliotecas e o player da Samsung,
   // reconecta sozinho se o canal travar e explica o motivo quando não toca.
+  // ── Formato e resolução reais do sinal (para conferir a qualidade na TV) ──
+  var textoDaQualidade = '';
+  function rotuloResolucao(h) {
+    return h >= 2000 ? '4K' : h >= 1000 ? 'Full HD' : h >= 700 ? 'HD' : h > 0 ? 'SD' : '';
+  }
+  function textoQualidade(t) {
+    textoDaQualidade = t;
+    if (!infoQualidade) { return; }
+    infoQualidade.textContent = t;
+    infoQualidade.classList.toggle('escondida', !t);
+  }
+  function atualizarQualidade() {
+    if (!VLTV.config || !VLTV.config.MOSTRAR_QUALIDADE) { return; }
+    if (!tocando || !motor.atual) { textoQualidade(''); return; }
+    var tipo = motor.atual.tipo;
+    var fmt = tipo === 'hls' ? 'HLS' : (tipo === 'ts' || tipo === 'sem-ext') ? 'TS' : String(tipo || '').toUpperCase();
+    var w = video.videoWidth, h = video.videoHeight;
+    var res = w && h ? w + 'x' + h + (rotuloResolucao(h) ? ' ' + rotuloResolucao(h) : '') : '';
+    textoQualidade(fmt + (res ? ' · ' + res : ''));
+    if (!infoCheio.classList.contains('escondida')) { desenharInfoCheio(); }
+  }
+  video.addEventListener('loadedmetadata', atualizarQualidade);
+  video.addEventListener('resize', atualizarQualidade);
+
+  // Aprende com o resultado: se o .ts não abriu e o .m3u8 é que tocou 2 vezes seguidas, esta TV passa a começar pelo m3u8.
+  function contarFormato() {
+    if (formatoContado || !tocando || tocando.url || !ordemTsPrimeiro || !motor.atual) { return; }
+    formatoContado = true;
+    var tipo = motor.atual.tipo;
+    if (tipo === 'ts') { if (lerTsFalhas() !== 0) { gravarTsFalhas(0); } }
+    else if (tipo === 'hls') { gravarTsFalhas(lerTsFalhas() + 1); }
+  }
+
   var motor = VLTV.motor.criar(video, {
     modo: 'live',
-    aoPlaying: function () { esconderOverlay(); },
+    aoPlaying: function () {
+      esconderOverlay();
+      contarFormato();
+      setTimeout(atualizarQualidade, 1200);   // a TV leva um instante para informar a resolução real
+    },
     aoEspera: function () { if (tocando) { mostrarOverlay('Carregando...'); } },
     aoReconectando: function (msg) { if (tocando) { mostrarOverlay(msg); } },
     aoFalha: function (msg) { if (tocando) { mostrarOverlay(msg, 'erro'); } }
@@ -471,8 +525,10 @@
     if (tocando.url) {
       urls.push(tocando.url);   // canal de lista M3U tem endereço próprio
     } else {
-      EXTENSOES.forEach(function (e) { urls.push(VLTV.api.urlCanal(tocando.stream_id, e)); });
+      ordemExtensoes().forEach(function (e) { urls.push(VLTV.api.urlCanal(tocando.stream_id, e)); });
     }
+    formatoContado = false;
+    textoQualidade('');
     motor.abrir(urls);
   }
 
@@ -492,6 +548,7 @@
     clearTimeout(timerInfo);
     tocando = null;
     listaTocando = null;
+    textoQualidade('');
     motor.parar();
     esconderOverlay();
     marcarTocando();
@@ -508,6 +565,12 @@
     agora.className = 'info-linha';
     agora.textContent = textoAgora;
     infoCheio.appendChild(nome);
+    if (textoDaQualidade) {
+      var qual = document.createElement('div');
+      qual.className = 'info-linha info-qualidade';
+      qual.textContent = textoDaQualidade;
+      infoCheio.appendChild(qual);
+    }
     infoCheio.appendChild(agora);
   }
 

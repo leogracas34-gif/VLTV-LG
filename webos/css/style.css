@@ -366,6 +366,7 @@ input:focus,
 .info-nome { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
 .info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
 .info-agora { color: var(--destaque-claro); font-weight: 700; }
+.info-qualidade { font-size: 24px; opacity: 0.85; letter-spacing: 0.5px; }
 .info-desc {
   font-size: 24px;
   line-height: 1.35;

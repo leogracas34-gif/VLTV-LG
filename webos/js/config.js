@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.2.8',
+  VERSAO: '1.2.9',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -37,6 +37,15 @@ VLTV.config = {
   // Motor de reprodução. false = igual ao app antigo (só a tag <video>): é o modo seguro.
   // true = liga hls.js, mpegts.js, AVPlay (Samsung) e reconexão automática. Só ligue depois de testar na TV do cliente.
   MOTOR_AVANCADO: false,
+
+  // Canal ao vivo: qual formato o app tenta PRIMEIRO. 'ts' = sinal original do provedor (costuma ser mais nítido);
+  // 'm3u8' = HLS (o que o app usava antes). Se o 'ts' não abrir na TV, o app cai no m3u8 sozinho e, depois de 2 vezes
+  // seguidas, passa a começar pelo m3u8 nessa TV (para o canal não demorar a abrir).
+  FORMATO_LIVE: 'ts',
+
+  // true = mostra, junto do nome do canal, o formato e a resolução real do sinal (ex.: TS · 1920x1080 Full HD).
+  // Bom para testar a qualidade; coloque false na versão de clientes.
+  MOSTRAR_QUALIDADE: true,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
   DIAGNOSTICO: false,

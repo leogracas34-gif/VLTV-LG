@@ -1606,6 +1606,19 @@ input::placeholder { color: #5f5f6b; }
 .tela-topo .destaque .ds-logo { max-width: 520px; max-height: 130px; }
 .tela-topo .destaque .ds-titulo { max-height: 130px; font-size: 46px; }
 .tela-topo .destaque .ds-meta { margin-top: 12px; font-size: 24px; }
+.tela-topo .destaque .ds-sinopse {
+  display: block;
+  margin-top: 12px;
+  max-height: 96px;
+  overflow: hidden;
+  font-size: 22px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.tela-topo .destaque .ds-sinopse:not(.escondida) { display: -webkit-box; }
 .tela-topo .destaque .ds-botao { height: 66px; margin-top: 22px; padding: 0 36px; font-size: 28px; border-radius: 33px; }
 
 

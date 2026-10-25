@@ -107,26 +107,44 @@
         </div>
       </header>
 
-      <button id="banner" type="button" class="banner vazio" aria-label="Destaque">
-        <span class="bn-vazio"><span class="bn-vazio-logo">VLTV <span>PLAY</span></span></span>
-        <span id="bn-fundo" class="bn-fundo desfocado"></span>
-        <span class="bn-grad"></span>
-        <span id="bn-conteudo" class="bn-conteudo">
-          <span class="bn-texto">
-            <span class="bn-titulo-caixa">
-              <img id="bn-logo" class="bn-logo escondida" alt="">
-              <span id="bn-titulo" class="bn-titulo"></span>
+      <div id="banners" class="banners">
+        <button id="banner" type="button" class="banner vazio" aria-label="Destaque">
+          <span class="bn-vazio"><span class="bn-vazio-logo">VLTV <span>PLAY</span></span></span>
+          <span id="bn-fundo" class="bn-fundo desfocado"></span>
+          <span class="bn-grad"></span>
+          <span id="bn-conteudo" class="bn-conteudo">
+            <span class="bn-texto">
+              <span class="bn-titulo-caixa">
+                <img id="bn-logo" class="bn-logo escondida" alt="">
+                <span id="bn-titulo" class="bn-titulo"></span>
+              </span>
+              <span id="bn-meta" class="bn-meta"></span>
+              <span class="bn-botao">
+                <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
+                <span id="bn-botao-txt">ASSISTIR</span>
+              </span>
             </span>
-            <span id="bn-meta" class="bn-meta"></span>
-            <span class="bn-botao">
-              <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
-              <span id="bn-botao-txt">ASSISTIR</span>
+            <span class="bn-poster"><img id="bn-poster" alt=""></span>
+          </span>
+          <span id="bn-pontos" class="bn-pontos"></span>
+        </button>
+        <button id="destaque" type="button" class="destaque escondida" aria-label="Destaque da semana">
+          <span id="ds-fundo" class="ds-fundo desfocado"></span>
+          <span class="ds-grad"></span>
+          <span id="ds-conteudo" class="ds-conteudo">
+            <span class="ds-etiqueta">DESTAQUE DA SEMANA</span>
+            <span class="bn-titulo-caixa ds-titulo-caixa">
+              <img id="ds-logo" class="bn-logo ds-logo escondida" alt="">
+              <span id="ds-titulo" class="bn-titulo ds-titulo"></span>
+            </span>
+            <span id="ds-meta" class="bn-meta ds-meta"></span>
+            <span class="bn-botao ds-botao">
+              <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
+              <span id="ds-botao-txt">ASSISTIR</span>
             </span>
           </span>
-          <span class="bn-poster"><img id="bn-poster" alt=""></span>
-        </span>
-        <span id="bn-pontos" class="bn-pontos"></span>
-      </button>
+        </button>
+      </div>
 
       <nav class="tiles">
         <button id="tile-live" type="button" class="tile">
@@ -424,6 +442,7 @@
   <script src="js/player.js"></script>
   <script src="js/ajustes.js"></script>
   <script src="js/banner.js"></script>
+  <script src="js/destaque.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

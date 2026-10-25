@@ -203,6 +203,7 @@
       if (cor(v.cor_destaque)) { raiz.style.setProperty('--destaque', v.cor_destaque); raiz.style.setProperty('--destaque-claro', v.cor_destaque); }
       if (cor(v.cor_fundo)) { raiz.style.setProperty('--fundo', v.cor_fundo); }
       VLTV.visual = v;
+      if (VLTV.destaque) { VLTV.destaque.atualizar(); }   // destaque da semana ligado/desligado pelo painel
       var faixa = document.getElementById('faixa-campanha');
       if (faixa) {
         var ate = v.aviso_ate ? new Date(v.aviso_ate + 'T23:59:59') : null;

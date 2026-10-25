@@ -84,6 +84,7 @@ window.VLTV = window.VLTV || {};
     'Configurações': 'Settings',
     'Destaque': 'Featured',
     'ASSISTIR': 'WATCH',
+    'DESTAQUE DA SEMANA': 'FEATURED THIS WEEK',
     'TV ao vivo': 'Live TV',
     'Canais e programação': 'Channels and guide',
     'Filmes': 'Movies',

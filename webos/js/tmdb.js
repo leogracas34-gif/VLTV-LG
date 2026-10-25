@@ -356,6 +356,26 @@
     return p;
   }
 
-  VLTV.tmdb = { ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+  // Logo, fundo e título direto pelo ID do TMDB (sem procurar pelo nome). tipo: 'filmes' ou 'series'.
+  // Resolve com { logo, fundo, titulo } (cada um pode ser null) ou null. Nunca rejeita.
+  function imagensPorId(tipo, tid) {
+    tid = String(tid || '').replace(/[^0-9]/g, '');
+    if (!tid || !ativo()) { return Promise.resolve(null); }
+    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+    var id = idiomaTmdb();
+    var url = API + '/' + tipoTmdb + '/' + tid + '?api_key=' + chave() + '&language=' + id.lingua +
+      '&append_to_response=images&include_image_language=' + (id.logos === 'en' ? 'en,null' : 'pt-BR,pt,null');
+    return pegarJson(url).then(function (j) {
+      if (!j) { return null; }
+      var caminhoLogo = j.images && j.images.logos ? escolherLogo(j.images.logos) : null;
+      return {
+        logo: caminhoLogo ? endereco(caminhoLogo) : null,
+        fundo: j.backdrop_path ? enderecoFundo(j.backdrop_path) : null,
+        titulo: j.title || j.name || ''
+      };
+    }).catch(function () { return null; });
+  }
+
+  VLTV.tmdb = { imagensPorId: imagensPorId, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
 
 })();

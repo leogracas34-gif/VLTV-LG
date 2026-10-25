@@ -49,6 +49,7 @@
   var btnListas = $('btn-listas');
   var btnConfig = $('btn-config');
   var elBanner = $('banner');
+  var elDestaque = $('destaque');
   var elHora = $('home-hora');
   var ultimoTile = tileLive;
 
@@ -143,6 +144,7 @@
     });
 
     VLTV.banner.carregar(false);
+    VLTV.destaque.atualizar();
     mostrarTela('home');
   }
 
@@ -622,23 +624,32 @@
     var i = tiles.indexOf(ativo);
 
     var temBanner = VLTV.banner.visivel();
+    var temDestaque = VLTV.destaque.visivel();
     if (i !== -1) {
       if (k === TECLA_ESQ || k === TECLA_DIR) {
         var novo = Math.max(0, Math.min(tiles.length - 1, i + (k === TECLA_ESQ ? -1 : 1)));
         ultimoTile = tiles[novo];
         ultimoTile.focus();
       } else if (k === TECLA_CIMA) {
-        if (temBanner) { elBanner.focus(); } else { btnConfig.focus(); }
+        // O destaque da semana fica em cima do cartão da direita (Séries).
+        if (temDestaque && ativo === tileSeries) { elDestaque.focus(); }
+        else if (temBanner) { elBanner.focus(); }
+        else if (temDestaque) { elDestaque.focus(); }
+        else { btnConfig.focus(); }
       } else {
         btnListas.focus();
       }
     } else if (ativo === elBanner) {
       if (k === TECLA_ESQ) { VLTV.banner.mover(-1); }
-      else if (k === TECLA_DIR) { VLTV.banner.mover(1); }
+      else if (k === TECLA_DIR) { if (temDestaque) { elDestaque.focus(); } else { VLTV.banner.mover(1); } }
       else if (k === TECLA_CIMA) { btnConfig.focus(); }
       else { ultimoTile.focus(); }
+    } else if (ativo === elDestaque) {
+      if (k === TECLA_ESQ) { if (temBanner) { elBanner.focus(); } }
+      else if (k === TECLA_CIMA) { btnConfig.focus(); }
+      else if (k === TECLA_BAIXO) { (tileSeries.disabled ? ultimoTile : tileSeries).focus(); }
     } else if (ativo === btnConfig && k === TECLA_BAIXO) {
-      if (temBanner) { elBanner.focus(); } else { ultimoTile.focus(); }
+      if (temBanner) { elBanner.focus(); } else if (temDestaque) { elDestaque.focus(); } else { ultimoTile.focus(); }
     } else if ((ativo === tileSair || ativo === btnListas) && k === TECLA_CIMA) {
       ultimoTile.focus();
     } else if (ativo === btnListas && k === TECLA_DIR) {
@@ -769,6 +780,14 @@
     });
   }, function () { /* o layout é fixo */ });
   elBanner.addEventListener('click', function () { VLTV.banner.abrirAtual(); });
+  VLTV.destaque.configurar(function (tipo, raw, lista) {
+    mostrarTela('detalhes');
+    VLTV.detalhes.abrir(tipo, raw, lista, {
+      sair: function () { mostrarTela('home'); },
+      reproduzir: function (itens, indice, inicioSeg) { tocar(itens, indice, 'detalhes', inicioSeg); }
+    });
+  });
+  elDestaque.addEventListener('click', function () { VLTV.destaque.abrir(); });
   tileSair.addEventListener('click', pedirConfirmacaoSair);
   btnSairNao.addEventListener('click', fecharConfirmacaoSair);
   btnSairSim.addEventListener('click', sair);

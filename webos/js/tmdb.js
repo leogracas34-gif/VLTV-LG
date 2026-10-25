@@ -371,7 +371,8 @@
       return {
         logo: caminhoLogo ? endereco(caminhoLogo) : null,
         fundo: j.backdrop_path ? enderecoFundo(j.backdrop_path) : null,
-        titulo: j.title || j.name || ''
+        titulo: j.title || j.name || '',
+        sinopse: j.overview || ''
       };
     }).catch(function () { return null; });
   }

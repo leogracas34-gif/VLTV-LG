@@ -21,6 +21,7 @@
   var elLogo = $('ds-logo');
   var elTitulo = $('ds-titulo');
   var elMeta = $('ds-meta');
+  var elSinopse = $('ds-sinopse');
   var elBotaoTxt = $('ds-botao-txt');
   var elConteudo = $('ds-conteudo');
 
@@ -64,12 +65,13 @@
     var v = VLTV.visual || {};
     var c;
     if (v.destaque_ativo !== undefined && v.destaque_ativo !== null) {
-      c = { ativo: verdadeiro(v.destaque_ativo), tipo: tipoCerto(v.destaque_tipo), nome: String(v.destaque_nome || ''), imagem: String(v.destaque_imagem || ''), tmdb: String(v.destaque_tmdb || '') };
+      c = { ativo: verdadeiro(v.destaque_ativo), tipo: tipoCerto(v.destaque_tipo), nome: String(v.destaque_nome || ''), imagem: String(v.destaque_imagem || ''), tmdb: String(v.destaque_tmdb || ''), sinopse: String(v.destaque_sinopse || '') };
       guardarCfg(c);
     } else {
-      c = lerCfgGuardada() || { ativo: !!local.ativo, tipo: tipoCerto(local.tipo), nome: String(local.nome || ''), imagem: String(local.imagem || ''), tmdb: String(local.tmdb || '') };
+      c = lerCfgGuardada() || { ativo: !!local.ativo, tipo: tipoCerto(local.tipo), nome: String(local.nome || ''), imagem: String(local.imagem || ''), tmdb: String(local.tmdb || ''), sinopse: String(local.sinopse || '') };
     }
     c.nome = c.nome.replace(/^\s+|\s+$/g, '');
+    c.sinopse = String(c.sinopse || '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '').slice(0, 500);
     c.tmdb = String(c.tmdb || '').replace(/[^0-9]/g, '');
     c.imagem = enderecoImagem((c.imagem || '').replace(/^\s+|\s+$/g, ''));
     c.ativo = !!c.ativo && c.nome !== '' && cfg.BANNER_ATIVO !== false;
@@ -87,7 +89,7 @@
       var b = localStorage.getItem(CHAVE_CACHE);
       if (!b) { return null; }
       var x = JSON.parse(b);
-      if (!x || x.chave !== chave || x.tipo !== c.tipo || x.nomeCfg !== c.nome || (x.imagemCfg || '') !== c.imagem || (x.tmdbCfg || '') !== c.tmdb || !x.raw) { return null; }
+      if (!x || x.chave !== chave || x.tipo !== c.tipo || x.nomeCfg !== c.nome || (x.imagemCfg || '') !== c.imagem || (x.tmdbCfg || '') !== c.tmdb || (x.sinopseCfg || '') !== c.sinopse || !x.raw) { return null; }
       return x;
     } catch (e) { return null; }
   }
@@ -134,6 +136,9 @@
       if (s.ano) { meta.push(s.ano); }
       meta.push(s.tipo === 'series' ? 'Série' : 'Filme');
       elMeta.textContent = meta.join('   •   ');
+      var sin = s.sinopseCfg || s.sinopseTmdb || s.plano || '';
+      elSinopse.textContent = sin;
+      elSinopse.classList.toggle('escondida', sin === '');
     } catch (e) { /* mantém o que já estava na tela */ }
   }
 
@@ -159,6 +164,9 @@
       nomeCfg: c.nome,
       imagemCfg: c.imagem,
       tmdbCfg: c.tmdb,
+      sinopseCfg: c.sinopse,
+      sinopseTmdb: '',
+      plano: String(raw.plot || ''),
       raw: raw,
       nome: VLTV.titulo.limpar(raw.name || c.nome),
       capa: capa,
@@ -185,8 +193,12 @@
       if (u) { s.fundo = u; return null; }
       return carregarImagem(s.imagemCfg).then(function (p) { s.fundo = p; });
     });
-    var txt = !VLTV.idioma.ehIngles() ? Promise.resolve(null)
-      : (r && r.titulo ? Promise.resolve(r) : VLTV.tmdb.textos(s.tipo, id, s.raw.name)).then(function (t) { if (t && t.titulo) { s.nomeEn = t.titulo; } });
+    // Título em inglês e sinopse do TMDB (a sinopse só vale se você não digitou uma no painel).
+    var txt = (r && r.titulo ? Promise.resolve(r) : VLTV.tmdb.textos(s.tipo, id, s.raw.name)).then(function (t) {
+      if (!t) { return; }
+      if (VLTV.idioma.ehIngles() && t.titulo) { s.nomeEn = t.titulo; }
+      if (t.sinopse) { s.sinopseTmdb = t.sinopse; }
+    });
     return Promise.all([logo, fundo, txt]).catch(function () { return null; });
   }
 
@@ -223,7 +235,7 @@
     if (!c.ativo || chave === '') { esconder(); return; }
 
     // Já está na tela com o título certo: nada a fazer.
-    if (item && item.chave === chave && item.tipo === c.tipo && item.nomeCfg === c.nome && (item.imagemCfg || '') === c.imagem && (item.tmdbCfg || '') === c.tmdb && mostrando) { return; }
+    if (item && item.chave === chave && item.tipo === c.tipo && item.nomeCfg === c.nome && (item.imagemCfg || '') === c.imagem && (item.tmdbCfg || '') === c.tmdb && (item.sinopseCfg || '') === c.sinopse && mostrando) { return; }
 
     var meu = ++idCarga;
     var g = lerCache(chave, c);

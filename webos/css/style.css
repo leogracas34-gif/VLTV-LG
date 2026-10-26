@@ -1606,6 +1606,16 @@ input::placeholder { color: #5f5f6b; }
 .tela-topo .destaque .ds-logo { max-width: 520px; max-height: 130px; }
 .tela-topo .destaque .ds-titulo { max-height: 130px; font-size: 46px; }
 .tela-topo .destaque .ds-meta { margin-top: 12px; font-size: 24px; }
+.ds-diag {
+  position: fixed;
+  left: 50%;
+  bottom: 30px;
+  width: 1100px;
+  margin-left: -550px;
+  text-align: center;
+  font-size: 22px;
+  color: #ffd700;
+}
 .tela-topo .destaque .ds-sinopse {
   display: block;
   margin-top: 12px;

@@ -25,6 +25,16 @@
   var elBotaoTxt = $('ds-botao-txt');
   var elConteudo = $('ds-conteudo');
 
+  var elDiag = $('ds-diag');
+
+  // Só aparece com DESTAQUE_DIAGNOSTICO = true no config.js (para descobrir por que o destaque não aparece).
+  function diag(texto) {
+    if (!elDiag) { return; }
+    var ligado = !!(VLTV.config && VLTV.config.DESTAQUE_DIAGNOSTICO);
+    elDiag.textContent = ligado ? ('Destaque: ' + texto + '  (v' + VLTV.config.VERSAO + ')') : '';
+    elDiag.classList.toggle('escondida', !ligado);
+  }
+
   var item = null;          // { chave, tipo, nomeCfg, raw, nome, capa, logo, fundo, nota, ano, nomeEn, t }
   var lista = null;         // categoria do título (só quando acabou de ser procurado)
   var abrirItem = null;
@@ -63,17 +73,22 @@
     var cfg = VLTV.config || {};
     var local = cfg.DESTAQUE_SEMANA || {};
     var v = VLTV.visual || {};
-    var c;
+    var c, fonte = 'padrão';
     if (v.destaque_ativo !== undefined && v.destaque_ativo !== null) {
+      fonte = 'painel';
       c = { ativo: verdadeiro(v.destaque_ativo), tipo: tipoCerto(v.destaque_tipo), nome: String(v.destaque_nome || ''), imagem: String(v.destaque_imagem || ''), tmdb: String(v.destaque_tmdb || ''), sinopse: String(v.destaque_sinopse || '') };
       guardarCfg(c);
     } else {
-      c = lerCfgGuardada() || { ativo: !!local.ativo, tipo: tipoCerto(local.tipo), nome: String(local.nome || ''), imagem: String(local.imagem || ''), tmdb: String(local.tmdb || ''), sinopse: String(local.sinopse || '') };
+      var g = lerCfgGuardada();
+      if (g) { fonte = 'guardada na TV (o painel não respondeu)'; }
+      c = g || { ativo: !!local.ativo, tipo: tipoCerto(local.tipo), nome: String(local.nome || ''), imagem: String(local.imagem || ''), tmdb: String(local.tmdb || ''), sinopse: String(local.sinopse || '') };
     }
     c.nome = c.nome.replace(/^\s+|\s+$/g, '');
     c.sinopse = String(c.sinopse || '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '').slice(0, 500);
     c.tmdb = String(c.tmdb || '').replace(/[^0-9]/g, '');
     c.imagem = enderecoImagem((c.imagem || '').replace(/^\s+|\s+$/g, ''));
+    c.fonte = fonte;
+    c.desligadoPor = !c.ativo ? 'desligado' : c.nome === '' ? 'sem nome' : cfg.BANNER_ATIVO === false ? 'banner desligado no config' : '';
     c.ativo = !!c.ativo && c.nome !== '' && cfg.BANNER_ATIVO !== false;
     return c;
   }
@@ -207,12 +222,12 @@
     try { achou = VLTV.indice.achar(c.tipo, c.nome); } catch (e) { achou = Promise.resolve(undefined); }
     achou.then(function (r) {
       if (meu !== idCarga) { return; }
-      if (r === null) { esconder(); return; }   // a conta não tem este título
+      if (r === null) { esconder(); diag('o título "' + c.nome + '" não foi achado na lista desta conta (confira o nome e o tipo)'); return; }   // a conta não tem este título
       return r;
     }, function () { return undefined; }).then(function (r) {
       if (!r || meu !== idCarga) { return; }
       var novo = montar(chave, c, r);
-      if (!novo.capa) { esconder(); return; }
+      if (!novo.capa) { esconder(); diag('o título foi achado, mas está sem capa na lista'); return; }
       return Promise.race([
         preparar(novo),
         new Promise(function (resolve) { setTimeout(resolve, ESPERA_TMDB_MS); })
@@ -223,6 +238,7 @@
         gravarCache(novo);
         desenhar();
         aplicarLayout(true);
+        diag('OK, aparecendo');
       });
     });
   }
@@ -232,12 +248,14 @@
   function atualizar() {
     var c = configEfetiva();
     var chave = chaveSessao();
-    if (!c.ativo || chave === '') { esconder(); return; }
+    if (!c.ativo) { esconder(); diag('não ligado (' + c.desligadoPor + '; config vinda de: ' + c.fonte + ')'); return; }
+    if (chave === '') { esconder(); diag('aguardando o login'); return; }
 
     // Já está na tela com o título certo: nada a fazer.
     if (item && item.chave === chave && item.tipo === c.tipo && item.nomeCfg === c.nome && (item.imagemCfg || '') === c.imagem && (item.tmdbCfg || '') === c.tmdb && (item.sinopseCfg || '') === c.sinopse && mostrando) { return; }
 
     var meu = ++idCarga;
+    diag('procurando "' + c.nome + '" na lista...');
     var g = lerCache(chave, c);
     if (g) {
       item = g;

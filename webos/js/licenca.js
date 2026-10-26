@@ -8,6 +8,7 @@
   var CH_PARC_OK = 'vltv_lic_parc_ok';    // '1' = a VPS já confirmou o código de parceiro atual
   var CH_PARC = 'vltv_lic_parc';          // código de parceiro da lista em uso ('' = lista que não é de parceiro)
   var CH_LOGIN = 'vltv_lic_login';        // login (só o usuário, nunca a senha) da lista em uso, para o painel
+  var CH_MAC = 'vltv_lic_mac';            // MAC lido da TV (quando a identidade não é baseada nele)
   var CH_MODO = 'vltv_lic_modo';          // usuario | xtream | parceiro | m3u
   var TOLERANCIA_OFFLINE_S = 3 * 86400;   // sem internet: vale o último estado por até 3 dias
 
@@ -75,6 +76,18 @@
   function liberaListaComum(lic) {
     return !!lic && (lic.estado === 'active' || lic.estado === 'trial');
   }
+  // Estado guardado que ainda vale (teste ou ativa, não vencido, visto há menos de 3 dias): deixa o app abrir na hora,
+  // enquanto a VPS é conferida por trás. Sem isso (ou com outro estado), a abertura espera a VPS como sempre.
+  function estadoRapido() {
+    var c = cache(), id = ler(CH_ID);
+    if (!c || !c.e || !id || c.id !== id) { return null; }
+    var e = c.e;
+    if (e.estado !== 'trial' && e.estado !== 'active') { return null; }
+    if (e.expira_em && e.expira_em < agoraS()) { return null; }
+    if (agoraS() - c.em > TOLERANCIA_OFFLINE_S) { return null; }
+    estadoAtual = e;
+    return e;
+  }
   function ehAtivo() { return ehParceiro || !!(estadoAtual && estadoAtual.estado === 'active'); }
 
   function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -112,6 +125,9 @@
 
   // Identidade da TV: fica guardada; se a TV informa o MAC, ele é a base (sobrevive a reinstalar o app).
   function identidade(pronto) {
+    // TV já conhecida: não espera a TV informar o MAC de novo (isso podia levar até 2,5 s a cada abertura do app).
+    var jaId = ler(CH_ID);
+    if (jaId) { pronto({ id: jaId, mac: jaId.indexOf('mac-') === 0 ? jaId.slice(4) : (ler(CH_MAC) || '') }); return; }
     lerMac(function (mac) {
       var limpo = mac.replace(/[^0-9A-F]/g, '');
       var id = ler(CH_ID);
@@ -119,6 +135,7 @@
         id = limpo.length === 12 ? 'mac-' + limpo : 'uid-' + aleatorio(24);
         gravar(CH_ID, id);
       }
+      if (limpo.length === 12) { gravar(CH_MAC, limpo); }
       pronto({ id: id, mac: limpo.length === 12 ? limpo : '' });
     });
   }
@@ -194,8 +211,15 @@
   }
 
   // ── Visual remoto (cores, logo, campanha) ──
+  var ultimoVisual = 0;
   function aplicarVisual() {
-    chamar('GET', '/lg/config?_=' + new Date().getTime()).then(function (r) {   // ?_= evita que a TV reutilize uma resposta velha (destaque desligado no painel continuava ligado)
+    // No máximo uma consulta a cada 40 s (a Home chama sempre que você volta para ela); no intervalo, só reconfere o destaque.
+    var agora = new Date().getTime();
+    if (agora - ultimoVisual < 40000) { if (VLTV.destaque) { VLTV.destaque.atualizar(); } return; }
+    ultimoVisual = agora;
+    // "?_=" evita pegar uma resposta velha guardada pela TV (o servidor deixa guardar por 5 minutos):
+    // sem isso, um destaque desligado no painel continuava ligado.
+    chamar('GET', '/lg/config?_=' + agora).then(function (r) {
       if (r.status !== 200) { return; }
       var v = r.json || {};
       var raiz = document.documentElement;
@@ -285,6 +309,7 @@
     mostrarNoLogin: mostrarNoLogin,
     verificar: verificar,
     estado: function () { return estadoAtual; },
-    aplicarVisual: aplicarVisual
+    aplicarVisual: aplicarVisual,
+    estadoRapido: estadoRapido
   };
 })();

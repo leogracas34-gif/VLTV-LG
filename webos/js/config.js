@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.2.9',
+  VERSAO: '1.3.0',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -23,6 +23,9 @@ VLTV.config = {
   // Destaque da semana: um segundo banner, ao lado do banner de destaques (que fica menor enquanto ele estiver ligado).
   // Desligado, a Home fica exatamente como era. Normalmente é ligado/desligado pelo painel (campos destaque_* de /lg/config);
   // estes valores valem só quando o painel não manda nada. tipo: 'filmes' ou 'series'. nome: nome do título (o app procura no painel da conta). imagem: JPEG próprio, usado só se o TMDB não achar fundo. sinopse: texto que aparece embaixo do título (vazio = usa a do TMDB). tmdb: ID do título no TMDB (opcional; com ele logo e fundo vêm direto do título certo).
+  // true = mostra na Home, em letras amarelas pequenas, por que o destaque da semana apareceu ou não (para testar).
+  // Depois que estiver funcionando, troque para false.
+  DESTAQUE_DIAGNOSTICO: false,
   DESTAQUE_SEMANA: { ativo: false, tipo: 'filmes', nome: '', imagem: '', tmdb: '', sinopse: '' },
 
   // Compatibilidade: TVs LG de 2018 em diante (webOS 4.0 ou mais novo, navegador Chrome 53+).

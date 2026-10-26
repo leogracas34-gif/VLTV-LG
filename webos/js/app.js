@@ -79,6 +79,7 @@
     if (nome === 'home') { VLTV.indice.aquecer(); }  // deixa a pesquisa de Filmes e Séries pronta em segundo plano
     if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
+    if (nome === 'home') { VLTV.licenca.aplicarVisual(); }   // voltou para a Home: pega na hora o que mudou no painel (destaque, cores, campanha)
     if (nome === 'home') {
       atualizarHora();
       if (ultimoTile.disabled) {
@@ -960,6 +961,20 @@
     if (verificando) { return; }
     // Veio da tela de ativação de uma lista que não é de parceiro: só abre ESSA lista, e só se a licença valer.
     if (bloqueioAtual && bloqueioAtual.ctx) { retomarListaBloqueada(); return; }
+    // Abertura rápida: a TV já tem uma licença válida guardada. Abre na hora e confere com a VPS por trás;
+    // se a VPS disser que bloqueou ou venceu, o app recarrega e mostra a tela certa.
+    if (VLTV.licenca.estadoRapido()) {
+      pararPollLicenca();
+      liberarApp();
+      VLTV.licenca.verificar().then(function (lic) {
+        if (!lic || lic.estado === 'erro') { return; }
+        var salvaRapida = VLTV.sessao.ler();
+        var comParceiro = !!(salvaRapida && salvaRapida.modo === 'parceiro');
+        // Bloqueada, ou vencida numa lista que não é de parceiro: recarrega para mostrar a tela certa.
+        if (lic.estado === 'blocked' || (lic.estado === 'expired' && !comParceiro)) { recarregarPorLicenca(); }
+      }, function () { /* sem internet: segue com o que está guardado */ });
+      return;
+    }
     verificando = true;
     pararPollLicenca();
     $('carregando-msg').textContent = 'Verificando licença...';
@@ -1027,6 +1042,8 @@
     }, fim);
   }
   setInterval(vigiarLicenca, VIGIA_MS);
+  // Parado na Home: a cada minuto confere o painel (destaque da semana ligado/desligado, campanha, cores).
+  setInterval(function () { if (telaAtual === 'home') { VLTV.licenca.aplicarVisual(); } }, 60000);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) { vigiarLicenca(); }
   });

@@ -10,7 +10,7 @@ VLTV.config = {
   SUPORTE: 'leandro_gracas@yahoo.com.br',
 
   // WhatsApp de suporte mostrado em Configurações > Sobre (ex: '+55 11 99999-9999'). Vazio = não mostra.
-  SUPORTE_WHATSAPP: '',
+  SUPORTE_WHATSAPP: '+55 31 99849-1711',
 
   // Gateway (DNS mascarado): o app fala SÓ com este endereço. Os DNS reais dos servidores
   // ficam escondidos na VPS (arquivo origens.json) e nunca chegam ao app.
@@ -53,7 +53,7 @@ VLTV.config = {
 
   // true = mostra, junto do nome do canal, o formato e a resolução real do sinal (ex.: TS · 1920x1080 Full HD).
   // Bom para testar a qualidade; coloque false na versão de clientes.
-  MOSTRAR_QUALIDADE: true,
+  MOSTRAR_QUALIDADE: false,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
   DIAGNOSTICO: false,

@@ -219,14 +219,14 @@
 
   // Fundo escolhido UMA vez por título (sem trocar depois, então não pisca):
   //  1) imagem de fundo que o painel mandou;
-  //  2) filmes sem ela: backdrop do TMDB (já guardado na TV = na hora; senão espera um pouco);
+  //  2) filmes e séries sem ela: backdrop do TMDB (já guardado na TV = na hora; senão espera um pouco);
   //  3) se o TMDB não responder a tempo ou falhar: capa do painel desfocada.
   var idFundo = 0;
   function escolherFundo() {
     var meu = ++idFundo;
     if (item.fundo) { definirFundo(item.fundo, false); return; }
 
-    var tmdbOk = item.tipo === 'filmes' && (VLTV.tmdb.ativo() || VLTV.tmdb.fundoGuardado('filmes', item.id));
+    var tmdbOk = VLTV.tmdb.ativo() || VLTV.tmdb.fundoGuardado(item.tipo, item.id);
     if (!tmdbOk) { definirFundo(item.capa, true); return; }
 
     definirFundo('', false);          // preto enquanto decide
@@ -260,7 +260,7 @@
     }
 
     setTimeout(usarCapa, VLTV.config.TMDB_FUNDO_ESPERA_MS || 1800);
-    VLTV.tmdb.fundo('filmes', item.id, item.nome).then(function (url) {
+    VLTV.tmdb.fundo(item.tipo, item.id, item.nome).then(function (url) {
       if (decidido || meu !== idFundo) { return; }
       if (url) { usarTmdb(url); } else { usarCapa(); }
     });

@@ -195,7 +195,7 @@
 
   // ── Visual remoto (cores, logo, campanha) ──
   function aplicarVisual() {
-    chamar('GET', '/lg/config').then(function (r) {
+    chamar('GET', '/lg/config?_=' + new Date().getTime()).then(function (r) {   // ?_= evita que a TV reutilize uma resposta velha (destaque desligado no painel continuava ligado)
       if (r.status !== 200) { return; }
       var v = r.json || {};
       var raiz = document.documentElement;

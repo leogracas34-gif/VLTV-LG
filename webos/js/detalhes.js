@@ -1431,10 +1431,24 @@
     ul.style.transform = 'translateY(' + (-atual) + 'px)';
   }
 
+  // Tela principal: se a opção marcada passaria do fim da tela, o bloco inteiro sobe só o necessário
+  // (as opções vão subindo em vez de o foco sair da tela). De volta ao topo, ele desce de novo.
+  function rolarPrincipal() {
+    var bloco = elPrincipal.querySelector('.det-bloco');
+    if (!bloco) { return; }
+    var y = 0;
+    if (elFocoAtual) {
+      var fundo = bloco.offsetTop + elFocoAtual.offsetTop + elFocoAtual.offsetHeight;
+      y = Math.max(0, fundo - (1080 - 40));
+    }
+    bloco.style.transform = y > 0 ? 'translateY(' + (-y) + 'px)' : '';
+  }
+
   function marcarFoco() {
     if (elFocoAtual) { elFocoAtual.classList.remove('foco'); }
     elFocoAtual = elementoFoco() || null;
     if (elFocoAtual) { elFocoAtual.classList.add('foco'); }
+    if (modo === 'principal') { rolarPrincipal(); }
     if (!elFocoAtual) { return; }
     if (modo === 'eps') {
       if (zonaEps === 'eps') { rolarLista(elEpsJanela, elEps, elFocoAtual); }

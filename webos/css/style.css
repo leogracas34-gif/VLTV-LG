@@ -2073,3 +2073,6 @@ input::placeholder { color: #5f5f6b; }
 .det-aval-ic.ativo { color: #ffd700; }
 .det-aval-ic.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
 .det-aval-ic.ativo.foco { color: #b8860b; }
+
+/* Menu da tela de detalhes: quando o foco desce além do fim da tela, o bloco todo sobe (rolagem) */
+.det-bloco { -webkit-transition: -webkit-transform 0.2s ease; transition: transform 0.2s ease; }

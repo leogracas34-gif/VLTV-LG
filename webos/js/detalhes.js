@@ -11,6 +11,8 @@
   var PASSO_PAGINA_EPS = 5;     // CH+/CH- pulam esta quantidade de episódios
   var MAX_SUG = 14;             // quantas sugestões mostrar
   var MAX_SUG_AMEI = 21;        // quantas mostrar quando o título aberto está com "Amei!"
+  var PONTOS_MIN_PAINEL = 6;    // reforço pelo painel: pelo menos dois gêneros em comum (ou gênero + elenco/direção)
+  var MIN_SUG_TMDB = 8;         // com menos que isto vindo do TMDB, o painel reforça a lista
   var RESUME_MIN_FILME_S = 30;  // só oferece "continuar" depois de 30 s assistidos
   var RESUME_MIN_EP_S = 30;
   var INTERVALO_FUNDO_MS = 9000; // de quanto em quanto tempo o fundo troca de imagem
@@ -65,6 +67,7 @@
   var elCredMenu = $('det-cred-menu');
   var elCredConteudo = $('det-cred-conteudo');
   var elSug = $('det-sug');
+  var elIdade = $('det-idade');
 
   var item = null;          // título aberto: { tipo, id, nome, capa, ... }
   var acoes = null;         // { sair, reproduzir(lista, indice, inicioSeg) }
@@ -92,9 +95,16 @@
   var idSug = 0;             // conta as montagens da lista de semelhantes (resposta antiga do TMDB é ignorada)
   var pediuIndice = false;   // já pediu o índice de títulos para as sugestões (uma vez por título aberto)
   var sugCarregando = false; // esperando o índice chegar para mostrar as sugestões
+  var ficha = null;          // dados do TMDB do título aberto (criação, elenco, gêneros, idade, semelhantes) ou null
+  var fichaPendente = true;  // ainda esperando o TMDB responder
+  var idFicha = 0;           // conta os pedidos ao TMDB (resposta antiga é ignorada)
+  var idPedidoPainel = '';   // ID do TMDB que o painel mandou e que já foi pedido
+  var semelhantesTmdb = null; // semelhantes do TMDB já achados no catálogo da conta (null = ainda procurando)
+  var idSem = 0;             // conta as buscas de semelhantes no catálogo
   var itensTemps = [];
   var itensEps = [];
   var itensSug = [];
+  var tidDoTitulo = {};     // 'tipo_id' do painel -> ID do TMDB (para buscar a classificação etária de cada semelhante)
   var elFocoAtual = null;
 
   // ── Utilidades ────────────────────────────────────────────────────
@@ -452,40 +462,71 @@
     });
   }
 
+  // ── Dados do TMDB (ficha) misturados com o que o painel mandou ────
+  // Para criação, elenco e gêneros vale o TMDB (completo, como na Netflix); o painel entra quando o TMDB não tem.
+  function listaCriacao() {
+    if (ficha) {
+      var l = item.tipo === 'series' ? ficha.criadores : ficha.direcao;
+      if (l && l.length > 0) { return l; }
+    }
+    return listaDeNomes(info.director || item.direcao);
+  }
+
+  function listaElenco() {
+    if (ficha && ficha.elenco && ficha.elenco.length > 0) { return ficha.elenco; }
+    return listaDeNomes(info.cast || info.actors || item.elenco);
+  }
+
+  function listaGeneros() {
+    var l = [];
+    if (ficha && ficha.generos && ficha.generos.length > 0) {
+      l = ficha.generos.map(function (id) { return VLTV.tmdb.nomeGenero(id); }).filter(function (g) { return g !== ''; });
+    }
+    if (l.length > 0) { return l; }
+    return String(info.genre || item.genero || '').split(/\s*[,\/;|]\s*/).filter(function (g) { return g !== ''; })
+      .map(function (g) { return VLTV.idioma.categoria(g); });
+  }
+
+  // Idade que o painel mandou (ignora vazio, "0" e "n/a").
+  function idadeDoPainel() {
+    var raw = item && item.raw ? item.raw : {};
+    var fontes = [info.age, info.mpaa_rating, info.age_rating, info.certification, raw.age, raw.mpaa_rating, raw.certification];
+    for (var i = 0; i < fontes.length; i++) {
+      var v = String(fontes[i] === undefined || fontes[i] === null ? '' : fontes[i]).replace(/^\s+|\s+$/g, '');
+      if (v === '' || /^0+$/.test(v) || /^(n\/?a|null|none|undefined)$/i.test(v)) { continue; }
+      var cod = VLTV.tmdb.idadeDeTexto(v);
+      if (cod !== '') { return cod; }
+    }
+    return '';
+  }
+
+  // Classificação etária do título aberto: { rotulo, classe, texto } ou null.
+  // A brasileira do TMDB vale primeiro; depois a do painel; por último a americana do TMDB (convertida).
+  function idadeAtual() {
+    var cod = '';
+    if (ficha && ficha.idade && ficha.idadeBr) { cod = ficha.idade; }
+    if (cod === '') { cod = idadeDoPainel(); }
+    if (cod === '' && ficha && ficha.idade) { cod = ficha.idade; }
+    return dadosIdade(cod);
+  }
+
+  function dadosIdade(cod) {
+    if (!cod) { return null; }
+    if (cod === 'L') { return { rotulo: 'L', classe: 'i-l', texto: 'Livre para todos os públicos' }; }
+    return { rotulo: cod, classe: 'i-' + cod, texto: 'Não recomendado para menores de ' + parseInt(cod, 10) + ' anos' };
+  }
+
+  // Selo da classificação (quadradinho colorido, igual ao da Netflix). Sem classificação: fica escondido.
+  function pintarSelo(el, idade, extra) {
+    if (!idade) { el.className = 'idade-sel escondida'; el.textContent = ''; return; }
+    el.className = 'idade-sel ' + (extra ? extra + ' ' : '') + idade.classe;
+    el.textContent = idade.rotulo;
+  }
+
   // ── Topo: título, nota, ano, gêneros, sinopse, elenco ─────────────
   function renderTopo() {
     var nome = limparTitulo(info.name || item.nome);
     elTitulo.textContent = nome;
-
-    var nota = parseFloat(String(info.rating || item.nota || '').replace(',', '.'));
-    var temNota = !isNaN(nota) && nota > 0;
-    elNota.textContent = temNota ? nota.toFixed(1) : '';
-    mostrar(elNotaBloco, temNota);
-
-    var dataTxt = info.releasedate || info.releaseDate || info.release_date || item.lancamento || '';
-    var m = /(\d{4})/.exec(String(dataTxt));
-    var ano = m ? m[1] : anoDoNome(item.nome);
-    elAno.textContent = ano;
-    mostrar(elAno, !!ano);
-
-    var textoDur = '';
-    if (item.tipo === 'series') {
-      if (temporadas.length > 0) {
-        textoDur = temporadas.length + (temporadas.length === 1 ? ' temporada' : ' temporadas');
-      }
-    } else {
-      textoDur = formatarDuracao(parseInt(info.duration_secs, 10) || segundosDe(info.duration));
-    }
-    elDuracao.textContent = textoDur;
-    mostrar(elDuracao, !!textoDur);
-
-    elQual.textContent = /\b(4k|uhd)\b/i.test(item.nome) ? '4K' : 'HD';
-
-    // No máximo 3 gêneros, para a linha não ficar comprida.
-    var generos = String(info.genre || item.genero || '').split(/\s*[,\/]\s*/).filter(function (g) { return g !== ''; }).slice(0, 3);
-    var genero = VLTV.idioma.categoria(generos.join('  •  '));
-    elGenero.textContent = genero;
-    mostrar(elGenero, !!genero);
 
     var sinopse = info.plot || info.description || item.sinopse || '';
     elSinopse.textContent = sinopse || 'Sem sinopse disponível.';
@@ -494,7 +535,43 @@
       if (r.sinopse) { elSinopse.textContent = r.sinopse; }
     });
 
+    renderMeta();
+  }
+
+  // Linha de ano, gêneros, duração/temporadas, HD e classificação etária, mais criação e elenco.
+  // É refeita quando o TMDB responde (não mexe no título nem na sinopse).
+  function renderMeta() {
+    var nota = parseFloat(String(info.rating || item.nota || '').replace(',', '.'));
+    var temNota = !isNaN(nota) && nota > 0;
+    elNota.textContent = temNota ? nota.toFixed(1) : '';
+    mostrar(elNotaBloco, temNota);
+
+    var dataTxt = info.releasedate || info.releaseDate || info.release_date || item.lancamento || '';
+    var m = /(\d{4})/.exec(String(dataTxt));
+    var ano = m ? m[1] : (anoDoNome(item.nome) || (ficha && ficha.ano) || '');
+    elAno.textContent = ano;
+    mostrar(elAno, !!ano);
+
+    var textoDur = '';
+    if (item.tipo === 'series') {
+      var nTemps = temporadas.length > 0 ? temporadas.length : (ficha ? ficha.temps : 0);
+      if (nTemps > 0) { textoDur = nTemps + (nTemps === 1 ? ' temporada' : ' temporadas'); }
+    } else {
+      textoDur = formatarDuracao(parseInt(info.duration_secs, 10) || segundosDe(info.duration) || ((ficha && ficha.duracao) ? ficha.duracao * 60 : 0));
+    }
+    elDuracao.textContent = textoDur;
+    mostrar(elDuracao, !!textoDur);
+
+    elQual.textContent = /\b(4k|uhd)\b/i.test(item.nome) ? '4K' : 'HD';
+    pintarSelo(elIdade, idadeAtual());
+
+    // No máximo 3 gêneros, para a linha não ficar comprida.
+    var genero = listaGeneros().slice(0, 3).join('  •  ');
+    elGenero.textContent = genero;
+    mostrar(elGenero, !!genero);
+
     renderCreditos();
+    atualizarCabecalhos();
   }
 
   function linhaCredito(rotulo, valor) {
@@ -519,8 +596,8 @@
 
   function renderCreditos() {
     esvaziar(elCreditos);
-    linhaCredito('Elenco', primeirosNomes(info.cast || info.actors || item.elenco, 4));
-    linhaCredito('Direção', primeirosNomes(info.director || item.direcao, 2));
+    linhaCredito('Elenco', listaElenco().slice(0, 4).join(', '));
+    linhaCredito(item.tipo === 'series' ? 'Criação' : 'Direção', listaCriacao().slice(0, 2).join(', '));
   }
 
   // ── Botão principal, barra de progresso e Assistir desde o início ─
@@ -818,50 +895,227 @@
     return todos;
   }
 
-  // Títulos semelhantes, ordenados por semelhança. Quem marcou "Não é para mim" sai da lista.
-  // Com Gostei ou Amei no título aberto, a lista fica maior (Amei mostra mais um bloco de capas).
-  function escolherSemelhantes() {
+  // ── Semelhantes pelo TMDB ─────────────────────────────────────────
+  // O TMDB diz quais títulos são parecidos (recomendados e semelhantes, na ordem de relevância). A TV procura
+  // cada um deles no catálogo desta conta pelo nome (e ano) e só mostra os que existem aí.
+  // Quem não é infantil nunca recebe desenho animado como sugestão.
+  function normEsp(t) {
+    var x = String(t || '').toLowerCase();
+    try { x = x.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch (e) { /* TV sem normalize */ }
+    return x.replace(/[^a-z0-9]+/g, ' ').replace(/^\s+|\s+$/g, '');
+  }
+
+  // Nome já limpo (sem ano, HD, dublado...) e sem espaços, para comparar títulos.
+  function nomeColado(nome) {
+    return normEsp(VLTV.titulo.limpar(nome)).replace(/ /g, '');
+  }
+
+  function temGeneroInfantil(ids) {
+    return !!ids && (ids.indexOf(16) >= 0 || ids.indexOf(10762) >= 0);
+  }
+
+  function tmdbIdDoPainel() {
+    var raw = item && item.raw ? item.raw : {};
+    var fontes = [info.tmdb_id, info.tmdb, info.tmdbid, raw.tmdb_id, raw.tmdb];
+    for (var i = 0; i < fontes.length; i++) {
+      var n = String(fontes[i] === undefined || fontes[i] === null ? '' : fontes[i]).replace(/[^0-9]/g, '');
+      if (n !== '' && n !== '0') { return n; }
+    }
+    return '';
+  }
+
+  // Pede ao TMDB a ficha do título aberto. idPainel: ID do TMDB que o painel mandou ('' = procura pelo nome).
+  function pedirFicha(idPainel) {
+    var meu = ++idFicha;
+    var itemMeu = item;
+    fichaPendente = true;
+    if (!VLTV.tmdb.ativo()) {
+      ficha = null;
+      fichaPendente = false;
+      ++idSem;
+      semelhantesTmdb = [];      // sem TMDB: os semelhantes saem só dos dados do painel
+      return;
+    }
+    VLTV.tmdb.ficha(item.tipo, item.id, item.nome, idPainel).then(function (f) {
+      if (meu !== idFicha || itemMeu !== item) { return; }
+      ficha = f;
+      fichaPendente = false;
+      renderMeta();
+      if (modo === 'cred') { atualizarCreditosTela(); }
+      calcularSemelhantes();
+    });
+  }
+
+  // O painel mandou o ID do TMDB depois do primeiro pedido (que foi pelo nome): confere se é o mesmo título.
+  function conferirIdPainel() {
+    var pid = tmdbIdDoPainel();
+    if (pid === '' || pid === idPedidoPainel) { return; }
+    if (ficha && String(ficha.tid) === pid) { idPedidoPainel = pid; return; }
+    idPedidoPainel = pid;
+    pedirFicha(pid);
+  }
+
+  function calcularSemelhantes() {
+    var meu = ++idSem;
+    var itemMeu = item;
+    function fim(lista) {
+      if (meu !== idSem || itemMeu !== item) { return; }
+      semelhantesTmdb = lista || [];
+      sugCarregando = false;
+      atualizarSugestoes();
+    }
+    if (!ficha || !ficha.recs || ficha.recs.length === 0) { fim([]); return; }
+    semelhantesTmdb = null;
+    sugCarregando = true;
+    var seguir = function () { casarComCatalogo(meu).then(fim, function () { fim([]); }); };
+    try { VLTV.indice.preparar(item.tipo, true).then(seguir, seguir); } catch (e) { seguir(); }
+  }
+
+  // Procura no catálogo da conta cada título que o TMDB indicou. Poucos por vez, para a TV não travar.
+  function casarComCatalogo(meu) {
+    return new Promise(function (resolve) {
+      var tipo = item.tipo;
+      var todos = [];
+      var nomes = [];
+      try { todos = VLTV.indice.titulos(tipo) || []; nomes = VLTV.indice.nomes(tipo) || []; } catch (e) { todos = []; }
+      var total = Math.min(todos.length, nomes.length);
+      var refInfantil = temGeneroInfantil(ficha.generos);
+      var recs = ficha.recs.filter(function (r) { return refInfantil || !temGeneroInfantil(r[4]); });
+      if (total === 0 || recs.length === 0) { resolve([]); return; }
+
+      var meta = MAX_SUG_AMEI + 4;
+      var proprio = nomeColado(item.nome);
+      var achados = [];
+      var ids = {};
+      var i = 0;
+
+      function procurar(r) {
+        var chaves = [];
+        [r[1], r[2]].forEach(function (t) {
+          var k = normEsp(t);
+          if (k.length >= 2 && chaves.indexOf(k) < 0) { chaves.push(k); }
+        });
+        for (var c = 0; c < chaves.length; c++) {
+          var k = chaves[c];
+          var cola = k.replace(/ /g, '');
+          var fimK = ' ' + k;
+          for (var x = 0; x < total; x++) {
+            var n = nomes[x];
+            if (!n || n.length < k.length) { continue; }
+            if (n !== k && n.indexOf(k + ' ') !== 0 && n.indexOf(fimK + ' ') < 0 && n.slice(-fimK.length) !== fimK) { continue; }
+            var cand = todos[x];
+            var idc = idDe(cand);
+            if (String(idc) === String(item.id) || ids[idc]) { continue; }
+            if (VLTV.dados.avaliacao(tipo, idc) === 'n') { continue; }
+            var b = VLTV.titulo.paraBusca(cand.name);
+            if (normEsp(b.query).replace(/ /g, '') !== cola) { continue; }
+            if (cola === proprio) { continue; }                          // outra versão do próprio título
+            var ac = parseInt(b.ano, 10) || anoDoRaw(cand);
+            if (r[3] && ac && Math.abs(ac - r[3]) > 1) { continue; }    // mesmo nome, outro filme (refilmagem)
+            ids[idc] = true;
+            tidDoTitulo[tipo + '_' + idc] = r[0];
+            return cand;
+          }
+        }
+        return null;
+      }
+
+      function passo() {
+        if (meu !== idSem) { resolve(null); return; }
+        var ate = Math.min(recs.length, i + 3);
+        while (i < ate && achados.length < meta) {
+          var raw = procurar(recs[i++]);
+          if (raw) { achados.push(raw); }
+        }
+        if (i >= recs.length || achados.length >= meta) { resolve(achados); } else { setTimeout(passo, 0); }
+      }
+      passo();
+    });
+  }
+
+  // Reforço quando o TMDB achou poucos no catálogo: títulos do painel que dividem gênero, elenco ou direção.
+  // Exige semelhança de verdade (nada de completar a lista com o que vier) e não mistura desenho com série adulta.
+  var REGEX_INFANTIL = /anima|anime|infantil|kids|desenho|cartoon|crianc/;
+
+  function semelhantesDoPainel(usados, quantos) {
     var pool = reservatorio();
-    var pos = -1;
-    var i;
-    for (i = 0; i < pool.length; i++) {
-      if (String(idDe(pool[i])) === String(item.id)) { pos = i; break; }
+    var generosRef = listaNorm(info.genre || item.genero, /\s*[,\/;|]\s*/);
+    if (ficha && ficha.generos) {
+      ficha.generos.forEach(function (id) {
+        var g = semAcento(VLTV.tmdb.nomeGenero(id, true)).replace(/\s+/g, ' ').trim();
+        if (g !== '' && generosRef.indexOf(g) < 0) { generosRef.push(g); }
+      });
     }
     var ref = {
-      generos: listaNorm(info.genre || item.genero, /\s*[,\/;|]\s*/),
+      generos: generosRef,
       elenco: listaNorm(info.cast || info.actors || item.elenco, /\s*,\s*/),
       direcao: listaNorm(info.director || item.direcao, /\s*,\s*/),
       ano: anoDoRaw(info) || anoDoRaw(item.raw || {}),
       palavra: primeiraPalavra(item.nome)
     };
+    var refInfantil = (ficha && temGeneroInfantil(ficha.generos)) || REGEX_INFANTIL.test(generosRef.join(' '));
+    var proprio = nomeColado(item.nome);
     var candidatos = [];
     for (var k = 0; k < pool.length; k++) {
-      var idx = pos >= 0 ? (pos + 1 + k) % pool.length : k;
-      var raw = pool[idx];
-      if (String(idDe(raw)) === String(item.id)) { continue; }
+      var raw = pool[k];
+      var idr = String(idDe(raw));
+      if (idr === String(item.id) || usados[idr]) { continue; }
       if (VLTV.dados.avaliacao(item.tipo, idDe(raw)) === 'n') { continue; }
-      candidatos.push({ raw: raw, ordem: k, pts: pontosSemelhanca(raw, ref) });
+      if (!refInfantil && REGEX_INFANTIL.test(semAcento(raw.genre))) { continue; }
+      var pts = pontosSemelhanca(raw, ref);
+      if (pts < PONTOS_MIN_PAINEL) { continue; }
+      if (nomeColado(raw.name) === proprio) { continue; }                // outra versão do próprio título
+      candidatos.push({ raw: raw, ordem: k, pts: pts });
     }
     candidatos.sort(function (a, b) { return (b.pts - a.pts) || (a.ordem - b.ordem); });
+    return candidatos.slice(0, quantos).map(function (c) { return c.raw; });
+  }
+
+  // Títulos semelhantes: primeiro os do TMDB que existem no catálogo da conta, na ordem do TMDB; se forem
+  // poucos, reforço pelo painel. Quem marcou "Não é para mim" sai da lista. Amei mostra mais um bloco de capas.
+  function escolherSemelhantes() {
+    if (semelhantesTmdb === null) { return []; }     // ainda procurando no catálogo
     var minha = VLTV.dados.avaliacao(item.tipo, item.id);
     var limite = minha === 'a' ? MAX_SUG_AMEI : MAX_SUG;
-    return candidatos.slice(0, limite).map(function (c) { return c.raw; });
+    var lista = [];
+    var usados = {};
+    semelhantesTmdb.forEach(function (raw) {
+      var idr = String(idDe(raw));
+      if (usados[idr] || VLTV.dados.avaliacao(item.tipo, idDe(raw)) === 'n') { return; }
+      usados[idr] = true;
+      lista.push(raw);
+    });
+    lista = lista.slice(0, limite);
+    if (lista.length < MIN_SUG_TMDB) {
+      lista = lista.concat(semelhantesDoPainel(usados, limite - lista.length));
+    }
+    return lista;
   }
 
   // Refaz a lista sem atrapalhar quem já está navegando nela.
   function atualizarSugestoes() {
-    if (modo !== 'sug') { renderSugestoes(); }
+    if (modo !== 'sug' || itensSug.length === 0) { renderSugestoes(); }
   }
 
-  function textoMetaSug(raw) {
-    var partes = [];
+  // Linha de baixo do título de cada semelhante: nota, ano, classificação etária e gêneros.
+  // Devolve o selo da classificação (escondido até a idade ser conhecida).
+  function montarMetaSug(meta, raw) {
+    function parte(texto) {
+      var sp = document.createElement('span');
+      sp.className = 'sug-parte';
+      sp.textContent = texto;
+      meta.appendChild(sp);
+    }
     var nota = parseFloat(String(raw.rating || '').replace(',', '.'));
-    if (!isNaN(nota) && nota > 0) { partes.push('\u2605 ' + nota.toFixed(1)); }
+    if (!isNaN(nota) && nota > 0) { parte('\u2605 ' + nota.toFixed(1)); }
     var ano = anoDoRaw(raw);
-    if (ano) { partes.push(String(ano)); }
+    if (ano) { parte(String(ano)); }
+    var selo = document.createElement('span');
+    selo.className = 'idade-sel escondida';
+    meta.appendChild(selo);
     var gen = String(raw.genre || '').split(/\s*[,\/;|]\s*/).filter(function (g) { return g !== ''; }).slice(0, 2).join(', ');
-    if (gen) { partes.push(VLTV.idioma.categoria(gen)); }
-    return partes.join('   ');
+    if (gen) { parte(VLTV.idioma.categoria(gen)); }
+    return selo;
   }
 
   function criarLinhaSug(raw) {
@@ -896,7 +1150,9 @@
     tit.textContent = limparTitulo(nomeItem);
     var meta = document.createElement('div');
     meta.className = 'sug-meta';
-    meta.textContent = textoMetaSug(raw);
+    var selo = montarMetaSug(meta, raw);
+    var idadePainel = VLTV.tmdb.idadeDeTexto(raw.age || raw.mpaa_rating || raw.certification);
+    if (idadePainel !== '' && !/^0+$/.test(String(raw.age || raw.mpaa_rating || raw.certification || '').replace(/\s/g, ''))) { pintarSelo(selo, dadosIdade(idadePainel)); }
     var sin = document.createElement('div');
     sin.className = 'sug-sin';
     sin.textContent = String(raw.plot || raw.description || '');
@@ -908,6 +1164,7 @@
     li.appendChild(txt);
     li._tit = tit;
     li._sin = sin;
+    li._selo = selo;
     li._semFundo = !fundo;
     return li;
   }
@@ -951,6 +1208,32 @@
     proxima();
   }
 
+  // Selo de idade de cada linha: usa o ID do TMDB que já se sabe (ou o guardado) e consulta só a classificação.
+  function completarIdades(lis, meuId) {
+    if (!VLTV.tmdb.ativo()) { return; }
+    var tipo = item.tipo;
+    var i = 0;
+    function proxima() {
+      if (meuId !== idSug || i >= lis.length) { return; }
+      var li = lis[i++];
+      if (li._selo.className.indexOf('escondida') < 0) { proxima(); return; }    // o painel já mandou a idade
+      var id = idDe(li._raw);
+      var tid = tidDoTitulo[tipo + '_' + id];
+      if (!tid) {
+        var g = VLTV.tmdb.textosGuardados(tipo, id);
+        tid = g && g.tid ? g.tid : 0;
+      }
+      var passo = tid ? Promise.resolve(tid) : VLTV.tmdb.textos(tipo, id, li._raw.name).then(function (r) { return r && r.tid ? r.tid : 0; });
+      passo.then(function (t) {
+        if (!t || meuId !== idSug) { return null; }
+        return VLTV.tmdb.idadePorTid(tipo, t);
+      }).then(function (cod) {
+        if (cod && meuId === idSug) { pintarSelo(li._selo, dadosIdade(cod)); }
+      }).then(proxima, proxima);
+    }
+    proxima();
+  }
+
   function renderSugestoes() {
     esvaziar(elSug);
     elSug._y = 0;
@@ -963,7 +1246,7 @@
     elSugQtd.textContent = lista.length > 0 ? lista.length + (lista.length === 1 ? ' título' : ' títulos') : '';
 
     if (lista.length === 0) {
-      mensagem(elSug, sugCarregando ? 'Carregando...' : 'Sem sugestões por enquanto.');
+      mensagem(elSug, (sugCarregando || semelhantesTmdb === null) ? 'Carregando...' : 'Sem sugestões por enquanto.');
       return;
     }
     lista.forEach(function (raw) {
@@ -973,19 +1256,45 @@
       itensSug.push(li);
     });
     completarSugestoes(itensSug.slice(), meuId);
+    completarIdades(itensSug.slice(), meuId);
   }
 
-  // Lado esquerdo da tela: a logo (ou o nome) do título aberto e a linha de ano/duração.
+  // Lado esquerdo da tela: a logo (ou o nome) do título aberto e a linha de ano, duração/temporadas e classificação.
   function montarCabecalho(lg, nm, mt) {
     var temLogo = !elLogo.classList.contains('escondida') && !!elLogo.getAttribute('src');
     if (temLogo) { lg.src = elLogo.getAttribute('src'); } else { lg.removeAttribute('src'); }
     mostrar(lg, temLogo);
     nm.textContent = elTitulo.textContent || limparTitulo(item.nome);
     mostrar(nm, !temLogo);
+
+    esvaziar(mt);
     var partes = [];
     if (elAno.textContent) { partes.push(elAno.textContent); }
     if (elDuracao.textContent) { partes.push(elDuracao.textContent); }
-    mt.textContent = partes.join('   \u00b7   ');
+    partes.forEach(function (texto, i) {
+      if (i > 0) {
+        var sep = document.createElement('span');
+        sep.className = 'sug-sep';
+        sep.textContent = '\u00b7';
+        mt.appendChild(sep);
+      }
+      var sp = document.createElement('span');
+      sp.textContent = texto;
+      mt.appendChild(sp);
+    });
+    var idade = idadeAtual();
+    if (idade) {
+      var selo = document.createElement('span');
+      pintarSelo(selo, idade, 'idade-cab');
+      mt.appendChild(selo);
+    }
+  }
+
+  // Os dados do TMDB (ou do painel) chegaram com Títulos semelhantes ou Créditos já abertos: refaz o cabeçalho.
+  function atualizarCabecalhos() {
+    if (!item) { return; }
+    if (modo === 'sug') { montarCabecalho(elSugLogo, elSugNome, elSugMeta); }
+    else if (modo === 'cred') { montarCabecalho(elCredLogo, elCredNome, elCredMeta); }
   }
 
   // ── Créditos e mais informações ───────────────────────────────────
@@ -993,26 +1302,24 @@
     return String(texto || '').split(/\s*,\s*/).filter(function (n) { return n !== ''; });
   }
 
-  // Cada bloco: { rotulo, linhas } ou { rotulo, idade, texto }. Só entram os que o painel mandou.
+  // Os quatro blocos de sempre (igual à Netflix): criação (séries) ou direção (filmes), elenco, gêneros e
+  // classificação etária. Cada bloco: { rotulo, linhas } ou { rotulo, idade, classe, texto }.
+  // Dado que nem o TMDB nem o painel têm aparece como "Não informado" (e "Carregando..." enquanto o TMDB responde).
   function dadosCreditos() {
-    var blocos = [];
-    var dir = listaDeNomes(info.director || item.direcao);
-    if (dir.length > 0) { blocos.push({ rotulo: item.tipo === 'series' ? 'Criação' : 'Direção', linhas: dir }); }
-    var elenco = listaDeNomes(info.cast || info.actors || item.elenco);
-    if (elenco.length > 0) { blocos.push({ rotulo: 'Elenco', linhas: elenco }); }
-    var generos = String(info.genre || item.genero || '').split(/\s*[,\/;|]\s*/).filter(function (g) { return g !== ''; })
-      .map(function (g) { return VLTV.idioma.categoria(g); });
-    if (generos.length > 0) { blocos.push({ rotulo: 'Gêneros', linhas: generos }); }
-    var idadeTxt = String(info.age || info.mpaa_rating || info.age_rating || info.certification || '').trim();
-    if (idadeTxt !== '') {
-      var m = /(\d{1,2})/.exec(idadeTxt);
-      var n = m ? parseInt(m[1], 10) : 0;
-      blocos.push({
-        rotulo: 'Classificação etária',
-        idade: n > 0 ? String(n) : idadeTxt.toUpperCase().slice(0, 4),
-        classe: n > 0 ? (n <= 10 ? 'i-10' : n <= 12 ? 'i-12' : n <= 14 ? 'i-14' : n <= 16 ? 'i-16' : 'i-18') : 'i-l',
-        texto: n > 0 ? 'Não recomendado para menores de ' + n + ' anos' : ''
-      });
+    var vazio = [fichaPendente ? 'Carregando...' : 'Não informado'];
+    var cri = listaCriacao();
+    var elenco = listaElenco();
+    var generos = listaGeneros();
+    var blocos = [
+      { rotulo: item.tipo === 'series' ? 'Criação' : 'Direção', linhas: cri.length > 0 ? cri : vazio },
+      { rotulo: 'Elenco', linhas: elenco.length > 0 ? elenco : vazio },
+      { rotulo: 'Gêneros', linhas: generos.length > 0 ? generos : vazio }
+    ];
+    var idade = idadeAtual();
+    if (idade) {
+      blocos.push({ rotulo: 'Classificação etária', idade: idade.rotulo, classe: idade.classe, texto: idade.texto });
+    } else {
+      blocos.push({ rotulo: 'Classificação etária', linhas: [fichaPendente ? 'Carregando...' : 'Sem classificação'] });
     }
     return blocos;
   }
@@ -1345,6 +1652,7 @@
   // ── Carregamento ──────────────────────────────────────────────────
   function montarSerie(dados) {
     info = dados.info || {};
+    conferirIdPainel();
     atualizarSugestoes();
     atualizarCreditosTela();
     temporadas = dados.temporadas || [];
@@ -1400,6 +1708,7 @@
 
   function montarFilme(dados) {
     info = dados || {};
+    conferirIdPainel();
     atualizarSugestoes();
     atualizarCreditosTela();
     renderTopo();
@@ -1450,6 +1759,11 @@
     sugIdx = 0;
     pediuIndice = false;
     sugCarregando = false;
+    ficha = null;
+    idPedidoPainel = '';
+    semelhantesTmdb = null;
+    ++idSem;
+    pedirFicha('');          // TMDB: criação, elenco, gêneros, classificação e semelhantes (pelo nome; o ID do painel confere depois)
     credIdx = 0;
     menuIdx = 1;   // começa em Assistir/Continuar (a avaliação fica em cima)
     avalTopoIdx = 1;

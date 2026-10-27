@@ -371,5 +371,8 @@
   // Todos os títulos já reunidos no índice (sem repetir). Vazio enquanto o índice ainda não chegou.
   function titulos(tipo) { return estado(tipo).unico; }
 
-  VLTV.indice = { preparar: preparar, aquecer: aquecer, pausar: pausar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar, titulos: titulos };
+  // Nome de cada título já "varrido" para comparar (minúsculo, sem acento), na mesma ordem de titulos(tipo).
+  function nomes(tipo) { return estado(tipo).nomes; }
+
+  VLTV.indice = { preparar: preparar, aquecer: aquecer, pausar: pausar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar, titulos: titulos, nomes: nomes };
 })();

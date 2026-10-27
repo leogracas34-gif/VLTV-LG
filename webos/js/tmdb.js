@@ -423,6 +423,199 @@
     }).catch(function () { return null; });
   }
 
-  VLTV.tmdb = { imagensPorId: imagensPorId, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundos: fundos, fundoGuardado: fundoPronto };
+
+  // ── Ficha completa do título: criação, elenco, gêneros, classificação etária e semelhantes ──
+  // Uma única consulta ao TMDB por título (pelo ID do TMDB quando o painel manda, senão pelo nome).
+  // Os nomes de pessoas, a classificação e os gêneros (só o número) não dependem do idioma; os gêneros viram
+  // texto no idioma do app na hora de mostrar. A lista de semelhantes vem em português (nome do painel)
+  // e com o nome original, para a TV achar o mesmo título no catálogo da conta.
+  // Fica guardada na TV por 14 dias.
+  var PREFIXO_FICHA = 'vltv_ficha1_';
+  var VALIDADE_FICHA_MS = 14 * 24 * 3600 * 1000;
+  var MAX_RECS = 40;
+  var MAX_ELENCO = 20;
+  var emAndamentoFicha = {};
+
+  // Gêneros do TMDB (filmes e séries): [português, inglês]
+  var GENEROS = {
+    28: ['Ação', 'Action'], 12: ['Aventura', 'Adventure'], 16: ['Animação', 'Animation'], 35: ['Comédia', 'Comedy'],
+    80: ['Crime', 'Crime'], 99: ['Documentário', 'Documentary'], 18: ['Drama', 'Drama'], 10751: ['Família', 'Family'],
+    14: ['Fantasia', 'Fantasy'], 36: ['História', 'History'], 27: ['Terror', 'Horror'], 10402: ['Música', 'Music'],
+    9648: ['Mistério', 'Mystery'], 10749: ['Romance', 'Romance'], 878: ['Ficção científica', 'Science Fiction'],
+    10770: ['Cinema TV', 'TV Movie'], 53: ['Suspense', 'Thriller'], 10752: ['Guerra', 'War'], 37: ['Faroeste', 'Western'],
+    10759: ['Ação e Aventura', 'Action & Adventure'], 10762: ['Infantil', 'Kids'], 10763: ['Notícias', 'News'],
+    10764: ['Reality', 'Reality'], 10765: ['Ficção científica e Fantasia', 'Sci-Fi & Fantasy'], 10766: ['Novela', 'Soap'],
+    10767: ['Talk show', 'Talk'], 10768: ['Guerra e Política', 'War & Politics']
+  };
+
+  // Nome do gênero no idioma do app (ou em português, se pedir). '' se o número não é conhecido.
+  function nomeGenero(id, emPortugues) {
+    var g = GENEROS[id];
+    if (!g) { return ''; }
+    return (emPortugues || !emIngles()) ? g[0] : g[1];
+  }
+
+  // Classificação etária brasileira a partir de um texto: '' | 'L' | '10' | '12' | '14' | '16' | '18'.
+  // Entende o número brasileiro ("16", "A16", "+18", "L") e os códigos americanos (PG-13, TV-MA...).
+  var IDADE_US = { 'G': 'L', 'TV-Y': 'L', 'TV-G': 'L', 'PG': '10', 'TV-Y7': '10', 'TV-Y7-FV': '10', 'TV-PG': '10',
+    'PG-13': '14', 'TV-14': '14', 'R': '16', 'TV-MA': '16', 'NC-17': '18', 'X': '18' };
+
+  function idadeDeTexto(texto) {
+    var t = String(texto === undefined || texto === null ? '' : texto).replace(/^\s+|\s+$/g, '').toUpperCase();
+    if (t === '') { return ''; }
+    if (/^(L|LIVRE|AL|ALL|TODOS)$/.test(t)) { return 'L'; }
+    if (Object.prototype.hasOwnProperty.call(IDADE_US, t)) { return IDADE_US[t]; }
+    var m = /(\d{1,2})/.exec(t);
+    if (!m) { return ''; }
+    var n = parseInt(m[1], 10);
+    if (n === 0) { return 'L'; }
+    if (n >= 18) { return '18'; }
+    if (n >= 16) { return '16'; }
+    if (n >= 14) { return '14'; }
+    if (n >= 12) { return '12'; }
+    return '10';
+  }
+
+  function fichaGuardada(chave) {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(PREFIXO_FICHA + chave) || 'null');
+      if (!c) { return null; }
+      var idade = new Date().getTime() - c.t;
+      if (c.vazio) { return idade < VALIDADE_SEM_LOGO_MS ? { vazio: true } : null; }
+      return (c.f && idade < VALIDADE_FICHA_MS) ? c.f : null;
+    } catch (e) { return null; }
+  }
+
+  function gravarFicha(chave, f) {
+    try { window.localStorage.setItem(PREFIXO_FICHA + chave, JSON.stringify(f ? { f: f, t: new Date().getTime() } : { vazio: true, t: new Date().getTime() })); }
+    catch (e) { /* TV sem espaço: segue sem guardar */ }
+  }
+
+  function nomesUnicos(lista, max) {
+    var saida = [];
+    for (var i = 0; i < lista.length && saida.length < max; i++) {
+      var n = lista[i] && lista[i].name;
+      if (n && saida.indexOf(n) < 0) { saida.push(n); }
+    }
+    return saida;
+  }
+
+  // Certificação do país (BR primeiro, depois US). Devolve { texto, br }.
+  function certificacao(tipoTmdb, j) {
+    var paises = {};
+    var i, k;
+    if (tipoTmdb === 'tv') {
+      var lista = (j.content_ratings && j.content_ratings.results) || [];
+      for (i = 0; i < lista.length; i++) { if (lista[i].rating) { paises[lista[i].iso_3166_1] = lista[i].rating; } }
+    } else {
+      var rs = (j.release_dates && j.release_dates.results) || [];
+      for (i = 0; i < rs.length; i++) {
+        var datas = rs[i].release_dates || [];
+        for (k = 0; k < datas.length; k++) {
+          if (datas[k].certification) { paises[rs[i].iso_3166_1] = datas[k].certification; break; }
+        }
+      }
+    }
+    if (idadeDeTexto(paises.BR) !== '') { return { texto: paises.BR, br: true }; }
+    if (idadeDeTexto(paises.US) !== '') { return { texto: paises.US, br: false }; }
+    return { texto: '', br: false };
+  }
+
+  function montarFicha(tipoTmdb, j) {
+    var cr = j.credits || {};
+    var elenco = (cr.cast || []).slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+    var direcao = (cr.crew || []).filter(function (p) { return p.job === 'Director'; });
+    var cert = certificacao(tipoTmdb, j);
+
+    var recs = [];
+    var vistos = {};
+    var fontes = [(j.recommendations && j.recommendations.results) || [], (j.similar && j.similar.results) || []];
+    fontes.forEach(function (lista) {
+      lista.forEach(function (r) {
+        if (!r || !r.id || vistos[r.id] || recs.length >= MAX_RECS) { return; }
+        vistos[r.id] = true;
+        var titulo = r.title || r.name || '';
+        var original = r.original_title || r.original_name || '';
+        if (!titulo && !original) { return; }
+        // [id, título em português, título original, ano, números dos gêneros]
+        recs.push([r.id, titulo, original, anoDe(r), r.genre_ids || []]);
+      });
+    });
+
+    return {
+      tid: j.id,
+      ano: String(j.release_date || j.first_air_date || '').slice(0, 4),
+      temps: j.number_of_seasons || 0,
+      duracao: j.runtime || 0,
+      criadores: nomesUnicos(j.created_by || [], 4),
+      direcao: nomesUnicos(direcao, 3),
+      elenco: nomesUnicos(elenco, MAX_ELENCO),
+      generos: (j.genres || []).map(function (g) { return g.id; }),
+      idade: idadeDeTexto(cert.texto),
+      idadeBr: cert.br,
+      recs: recs
+    };
+  }
+
+  // tipo: 'filmes' ou 'series'. id: id do título no painel. nome: nome do painel. tmdbId: ID do TMDB que o painel
+  // mandou (opcional). Resolve com a ficha (veja montarFicha) ou null. Nunca rejeita.
+  function ficha(tipo, id, nome, tmdbId) {
+    var tid = String(tmdbId || '').replace(/[^0-9]/g, '');
+    if (tid === '0') { tid = ''; }
+    var chave = tipo + '_' + id + (tid ? '_t' + tid : '');
+    var g = fichaGuardada(chave);
+    if (g) { return Promise.resolve(g.vazio ? null : g); }
+    if (!ativo()) { return Promise.resolve(null); }
+    if (emAndamentoFicha[chave]) { return emAndamentoFicha[chave]; }
+
+    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+    var p = new Promise(function (resolve) {
+      // Pelo ID do painel, senão pelo que a TV já descobriu (sinopse/título), senão procura pelo nome.
+      var achar;
+      if (tid) {
+        achar = Promise.resolve(tid);
+      } else {
+        var t = textosGuardados(tipo, id);
+        achar = (t && t.tid) ? Promise.resolve(String(t.tid)) : procurarMelhor(tipoTmdb, VLTV.titulo.paraBusca(nome)).then(function (a) { return a ? String(a.id) : ''; });
+      }
+      achar.then(function (idTmdb) {
+        if (!idTmdb) { return null; }
+        var url = API + '/' + tipoTmdb + '/' + idTmdb + '?api_key=' + chaveApi() + '&language=pt-BR' +
+          '&append_to_response=credits,recommendations,similar,' + (tipoTmdb === 'tv' ? 'content_ratings' : 'release_dates');
+        return pegarJson(url).then(function (j) { return j && j.id ? montarFicha(tipoTmdb, j) : null; });
+      }).then(function (f) { gravarFicha(chave, f); return f; })
+        .catch(function () { return undefined; })       // falha de rede: não grava, tenta de novo outra hora
+        .then(function (f) { delete emAndamentoFicha[chave]; resolve(f || null); });
+    });
+    emAndamentoFicha[chave] = p;
+    return p;
+  }
+
+
+  // Só a classificação etária de um título pelo ID do TMDB (uma consulta pequena), guardada na TV.
+  // Resolve com '', 'L', '10'... Nunca rejeita. Usado no selo de cada título semelhante.
+  var PREFIXO_IDADE = 'vltv_idade1_';
+
+  function idadePorTid(tipo, tid) {
+    tid = String(tid || '').replace(/[^0-9]/g, '');
+    if (!tid || !ativo()) { return Promise.resolve(''); }
+    var k = PREFIXO_IDADE + tipo + '_' + tid;
+    try {
+      var c = JSON.parse(window.localStorage.getItem(k) || 'null');
+      if (c && (new Date().getTime() - c.t) < (c.c ? VALIDADE_FICHA_MS : VALIDADE_SEM_LOGO_MS)) { return Promise.resolve(c.c || ''); }
+    } catch (e) { /* segue e consulta */ }
+    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+    var url = API + '/' + tipoTmdb + '/' + tid + (tipoTmdb === 'tv' ? '/content_ratings' : '/release_dates') + '?api_key=' + chave();
+    return pegarJson(url).then(function (j) {
+      var cert = certificacao(tipoTmdb, { content_ratings: j, release_dates: j });
+      var cod = idadeDeTexto(cert.texto);
+      try { window.localStorage.setItem(k, JSON.stringify({ c: cod, t: new Date().getTime() })); } catch (e) { /* sem espaço */ }
+      return cod;
+    }).catch(function () { return ''; });
+  }
+
+  function chaveApi() { return chave(); }
+
+  VLTV.tmdb = { imagensPorId: imagensPorId, ficha: ficha, idadePorTid: idadePorTid, idadeDeTexto: idadeDeTexto, nomeGenero: nomeGenero, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundos: fundos, fundoGuardado: fundoPronto };
 
 })();

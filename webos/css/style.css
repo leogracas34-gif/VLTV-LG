@@ -811,6 +811,31 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 6px;
 }
 
+/* Selo da classificação etária (L, 10, 12, 14, 16, 18), igual ao da Netflix */
+.idade-sel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  min-width: 42px;
+  height: 34px;
+  padding: 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: #e5484d;
+  border-radius: 5px;
+}
+.idade-sel.i-l { background: #2e9e4f; }
+.idade-sel.i-10 { background: #1f78c8; }
+.idade-sel.i-12 { background: #d9a400; }
+.idade-sel.i-14 { background: #e07b1a; }
+.idade-sel.i-16 { background: #e5484d; }
+.idade-sel.i-18 { background: #222; border: 2px solid #fff; }
+.idade-sel.idade-cab { margin-left: 18px; }
+
 .det-sinopse {
   max-width: 900px;
   margin-bottom: 14px;
@@ -1057,7 +1082,8 @@ input::placeholder { color: #5f5f6b; }
 
 /* Títulos semelhantes: o título aberto à esquerda, a lista de semelhantes à direita (como Episódios) */
 .det-sug-logo { display: block; max-width: 420px; max-height: 150px; margin-bottom: 18px; object-fit: contain; object-position: left center; }
-.det-sug-meta { margin-bottom: 34px; font-size: 26px; color: #c9c9d2; }
+.det-sug-meta { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 34px; font-size: 26px; color: #c9c9d2; }
+.sug-sep { margin: 0 14px; }
 .det-sug-pilula {
   display: flex;
   align-items: center;
@@ -1131,13 +1157,18 @@ input::placeholder { color: #5f5f6b; }
   text-overflow: ellipsis;
 }
 .sug-meta {
+  display: flex;
+  align-items: center;
   margin-top: 8px;
   font-size: 24px;
   color: #a8a8b4;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
+.sug-meta > * + * { margin-left: 18px; }
+.sug-meta .sug-parte { flex: none; }
+.sug-meta .sug-parte:last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sug-meta .idade-sel { min-width: 34px; height: 28px; font-size: 20px; border-radius: 4px; }
 .sug-sin {
   margin-top: 12px;
   font-size: 24px;

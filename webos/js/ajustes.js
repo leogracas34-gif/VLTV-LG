@@ -327,7 +327,7 @@
       var apagar = [];
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
-        if (k && (k === 'vltv_dns_lista' || k === 'vltv_banner_cache' || k.indexOf('vltv_logo_') === 0)) { apagar.push(k); }
+        if (k && (k === 'vltv_dns_lista' || k === 'vltv_banner_cache' || k.indexOf('vltv_logo_') === 0 || k.indexOf('vltv_ficha1_') === 0)) { apagar.push(k); }
       }
       apagar.forEach(function (k) { localStorage.removeItem(k); });
     } catch (e) { /* ignora */ }

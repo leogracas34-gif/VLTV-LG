@@ -378,16 +378,31 @@
         <div class="pp-dica">Aperte OK para assistir agora</div>
       </div>
 
+      <!-- Tela de pausa (estilo Netflix): só aparece com o vídeo pausado. Nome em cima, logo do título, e embaixo o ícone, tempo e barra -->
+      <div id="player-pausa" class="pausa escondida">
+        <div class="pausa-topo">
+          <div id="pa-nome" class="pa-nome"></div>
+          <div id="pa-ep" class="pa-ep escondida"></div>
+        </div>
+        <div class="pausa-logo">
+          <img id="pa-logo-img" class="pa-logo-img escondida" alt="">
+          <div id="pa-logo-txt" class="pa-logo-txt escondida"></div>
+        </div>
+      </div>
+
       <div id="player-controles" class="controles na-barra escondida">
         <div id="player-titulo" class="ctrl-titulo"></div>
-        <div class="barra-wrap">
-          <div class="barra"><div id="player-progresso" class="barra-cheia"></div></div>
-          <div id="player-previa" class="barra-previa escondida"></div>
-        </div>
-        <div class="tempos">
-          <span id="player-tempo">0:00</span>
-          <span id="player-estado"></span>
-          <span id="player-duracao"></span>
+        <div class="ctrl-linha">
+          <div id="player-icone" class="ctrl-icone">
+            <svg class="ic-play" width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path fill="#000" d="M8 5.5v13l11-6.5z"/></svg>
+            <svg class="ic-pause" width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><rect fill="#000" x="6.5" y="5" width="3.8" height="14" rx="1"/><rect fill="#000" x="13.7" y="5" width="3.8" height="14" rx="1"/></svg>
+          </div>
+          <span id="player-tempo" class="ctrl-tempo">0:00</span>
+          <div class="barra-wrap">
+            <div class="barra"><div id="player-progresso" class="barra-cheia"></div></div>
+            <div id="player-previa" class="barra-previa escondida"></div>
+          </div>
+          <span id="player-duracao" class="ctrl-duracao"></span>
         </div>
       </div>
     </section>

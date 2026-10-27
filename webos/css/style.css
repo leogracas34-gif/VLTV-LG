@@ -957,7 +957,7 @@ input::placeholder { color: #5f5f6b; }
 }
 .det-aval-btn .av-ic { margin-right: 14px; }
 .det-aval-btn .av-ic.baixo { -webkit-transform: scaleY(-1) scaleX(-1); transform: scaleY(-1) scaleX(-1); }
-.det-aval-btn .av-ic.segundo { margin-left: -22px; margin-right: 14px; }
+.det-aval-btn .av-ic.amei { width: 48px; height: 35px; }
 .det-aval-btn.ativo { background: rgba(255, 255, 255, 0.92); color: #000; }
 .det-aval-btn.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
 .det-aval-txt { margin-top: 22px; font-size: 26px; color: #d0d0d8; text-shadow: 0 2px 8px #000; }
@@ -1927,7 +1927,7 @@ input::placeholder { color: #5f5f6b; }
 }
 .det-aval-ic .av-ic { width: 38px; height: 38px; margin: 0; }
 .det-aval-ic .av-ic.baixo { -webkit-transform: scaleY(-1) scaleX(-1); transform: scaleY(-1) scaleX(-1); }
-.det-aval-ic .av-ic.segundo { margin-left: -24px; }
+.det-aval-ic .av-ic.amei { width: 54px; height: 39px; }
 .det-aval-ic.ativo { color: #ffd700; }
 .det-aval-ic.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
 .det-aval-ic.ativo.foco { color: #b8860b; }

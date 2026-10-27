@@ -889,7 +889,7 @@ input::placeholder { color: #5f5f6b; }
 }
 
 /* Episódios e mais: temporadas fixas à esquerda, episódios em lista à direita */
-.det-eps-tela, .det-sug-tela {
+.det-eps-tela, .det-sug-tela, .det-cred-tela {
   position: absolute;
   top: 0;
   left: 0;
@@ -1055,39 +1055,150 @@ input::placeholder { color: #5f5f6b; }
 }
 .ep.fim .ep-tit { color: #d0d0d8; }
 
-/* Títulos semelhantes */
-.det-sug-titulo {
-  position: absolute;
-  top: 70px;
-  left: 110px;
-  font-size: 48px;
-  font-weight: 800;
+/* Títulos semelhantes: o título aberto à esquerda, a lista de semelhantes à direita (como Episódios) */
+.det-sug-logo { display: block; max-width: 420px; max-height: 150px; margin-bottom: 18px; object-fit: contain; object-position: left center; }
+.det-sug-meta { margin-bottom: 34px; font-size: 26px; color: #c9c9d2; }
+.det-sug-pilula {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 440px;
+  height: 76px;
+  padding: 0 30px;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 38px;
 }
+.det-sug-qtd { font-size: 24px; font-weight: 500; color: #e2e2ea; }
 .det-sug-janela {
   position: absolute;
-  top: 170px;
-  left: 110px;
-  width: 1700px;
-  height: 860px;
+  top: 90px;
+  left: 640px;
+  width: 1220px;
+  height: 940px;
   overflow: hidden;
 }
 .det-sug {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
   list-style: none;
-  padding: 10px 0 0 6px;
+  padding: 8px 6px 0 6px;
   -webkit-transition: -webkit-transform 0.2s ease;
   transition: transform 0.2s ease;
 }
-.det-sug .celula { margin-right: 10px; }
 .det-sug li.msg {
-  width: 100%;
   padding: 24px 8px;
   font-size: 30px;
   color: var(--suave);
 }
+
+/* Cada semelhante: imagem, título, ano/nota/gênero e sinopse */
+.sug-lin {
+  display: flex;
+  align-items: center;
+  height: 250px;
+  margin-bottom: 14px;
+  padding: 0 20px 0 8px;
+  border-radius: 18px;
+}
+.sug-thumb {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 400px;
+  height: 225px;
+  margin-right: 34px;
+  font-size: 64px;
+  color: var(--suave);
+  background: var(--painel-2);
+  border: 4px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.sug-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sug-thumb.poster img { object-fit: contain; }
+.sug-lin.foco .sug-thumb { border-color: #fff; box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.45); }
+.sug-txt { flex: 1; min-width: 0; }
+.sug-tit {
+  font-size: 34px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sug-meta {
+  margin-top: 8px;
+  font-size: 24px;
+  color: #a8a8b4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sug-sin {
+  margin-top: 12px;
+  font-size: 24px;
+  line-height: 1.3;
+  color: #c9c9d2;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Créditos e mais informações: opções à esquerda (pílula branca no foco), dados de todas à direita */
+.det-cred-menu { list-style: none; margin-top: 46px; }
+.det-cred-menu li {
+  display: flex;
+  align-items: center;
+  width: 460px;
+  height: 76px;
+  margin-bottom: 14px;
+  padding: 0 34px;
+  font-size: 32px;
+  color: #e0e0e8;
+  border-radius: 38px;
+}
+.det-cred-menu li.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
+.det-cred-janela {
+  position: absolute;
+  top: 90px;
+  left: 700px;
+  width: 1120px;
+  height: 940px;
+  overflow: hidden;
+}
+.det-cred-conteudo {
+  position: relative;
+  padding-bottom: 900px;
+  -webkit-transition: -webkit-transform 0.2s ease;
+  transition: transform 0.2s ease;
+}
+.cred-sec { margin-bottom: 56px; }
+.cred-tit { margin-bottom: 18px; font-size: 30px; font-weight: 700; color: #d0d0dc; }
+.cred-lin { font-size: 32px; line-height: 1.45; color: #fff; }
+.cred-idade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  height: 84px;
+  padding: 0 14px;
+  font-size: 44px;
+  font-weight: 800;
+  color: #fff;
+  background: #e5484d;
+  border-radius: 8px;
+}
+.cred-idade.i-l { background: #2e9e4f; }
+.cred-idade.i-10 { background: #1f78c8; }
+.cred-idade.i-12 { background: #d9a400; }
+.cred-idade.i-14 { background: #e07b1a; }
+.cred-idade.i-18 { background: #222; border: 3px solid #fff; }
+.cred-idade-txt { margin-top: 16px; font-size: 30px; line-height: 1.5; color: #fff; }
 
 /* ── Botões do player e aviso ────────────────────────── */
 

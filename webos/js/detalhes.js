@@ -1431,17 +1431,33 @@
     ul.style.transform = 'translateY(' + (-atual) + 'px)';
   }
 
-  // Tela principal: se a opção marcada passaria do fim da tela, o bloco inteiro sobe só o necessário
-  // (as opções vão subindo em vez de o foco sair da tela). De volta ao topo, ele desce de novo.
+  // Tela principal (estilo Netflix): logo, informações e fundo ficam PARADOS.
+  // Só a lista de opções sobe dentro da sua janela e o item que sai vai sumindo em cima.
+  var menuY = 0;
   function rolarPrincipal() {
     var bloco = elPrincipal.querySelector('.det-bloco');
-    if (!bloco) { return; }
-    var y = 0;
-    if (elFocoAtual) {
-      var fundo = bloco.offsetTop + elFocoAtual.offsetTop + elFocoAtual.offsetHeight;
-      y = Math.max(0, fundo - (1080 - 40));
+    var janela = $('det-menu');
+    var trilho = $('det-menu-trilho');
+    if (!bloco || !janela || !trilho) { return; }
+    bloco.style.transform = '';
+    // A janela vai do começo do menu até o fim da tela (menos uma margem de 40px)
+    var topoJanela = bloco.offsetTop + janela.offsetTop + 8;
+    var h = Math.max(160, 1080 - 40 - topoJanela);
+    janela.style.height = (h + 14) + 'px';
+    var y = menuY;
+    if (elFocoAtual && elFocoAtual.offsetHeight) {
+      var topo = elFocoAtual.offsetTop;
+      var fundo = topo + elFocoAtual.offsetHeight;
+      var passo = 86; // altura de um item + espaço, deixa o item anterior aparecendo esmaecido
+      if (fundo <= h) { y = 0; }
+      else if (fundo > y + h) { y = fundo - h; }
+      else if (topo - passo < y) { y = Math.max(0, topo - passo); }
+    } else {
+      y = 0;
     }
-    bloco.style.transform = y > 0 ? 'translateY(' + (-y) + 'px)' : '';
+    menuY = y;
+    trilho.style.transform = y > 0 ? 'translateY(' + (-y) + 'px)' : '';
+    janela.className = 'det-menu' + (y > 0 ? ' rolado' : '');
   }
 
   function marcarFoco() {

@@ -934,12 +934,40 @@ input::placeholder { color: #5f5f6b; }
 .det-temps li.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
 .det-temps li.msg { color: var(--suave); border-left-color: transparent; }
 
-.det-eps-janela {
+/* Avaliação (Não é para mim / Gostei / Amei!) no topo da lista de episódios */
+.det-aval {
   position: absolute;
-  top: 60px;
+  top: 56px;
   left: 590px;
   width: 1250px;
-  height: 960px;
+  height: 170px;
+}
+.det-aval-botoes { display: flex; }
+.det-aval-btn {
+  display: flex;
+  align-items: center;
+  height: 72px;
+  margin-right: 22px;
+  padding: 0 34px;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(120, 120, 130, 0.55);
+  border-radius: 36px;
+}
+.det-aval-btn .av-ic { margin-right: 14px; }
+.det-aval-btn .av-ic.baixo { -webkit-transform: scaleY(-1) scaleX(-1); transform: scaleY(-1) scaleX(-1); }
+.det-aval-btn .av-ic.segundo { margin-left: -22px; margin-right: 14px; }
+.det-aval-btn.ativo { background: rgba(255, 255, 255, 0.92); color: #000; }
+.det-aval-btn.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
+.det-aval-txt { margin-top: 22px; font-size: 26px; color: #d0d0d8; text-shadow: 0 2px 8px #000; }
+
+.det-eps-janela {
+  position: absolute;
+  top: 250px;
+  left: 590px;
+  width: 1250px;
+  height: 790px;
   overflow: hidden;
 }
 .det-eps {
@@ -1890,3 +1918,16 @@ input::placeholder { color: #5f5f6b; }
 .botao-conf.perigo { background: var(--destaque); border-color: transparent; }
 .botao-conf:focus,
 .botao-conf:hover { border-color: #fff; box-shadow: 0 0 0 6px rgba(229, 9, 20, 0.5); }
+
+/* Avaliação só com os ícones, em cima do botão Assistir/Continuar */
+.det-item.det-aval-topo { height: 72px; padding: 0 0 0 4px; border-radius: 0; background: none; box-shadow: none; color: #fff; }
+.det-aval-ic {
+  display: flex; align-items: center; justify-content: center;
+  width: 84px; height: 64px; margin-right: 14px; border-radius: 32px; color: #fff;
+}
+.det-aval-ic .av-ic { width: 38px; height: 38px; margin: 0; }
+.det-aval-ic .av-ic.baixo { -webkit-transform: scaleY(-1) scaleX(-1); transform: scaleY(-1) scaleX(-1); }
+.det-aval-ic .av-ic.segundo { margin-left: -24px; }
+.det-aval-ic.ativo { color: #ffd700; }
+.det-aval-ic.foco { color: #000; background: #fff; box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.55); }
+.det-aval-ic.ativo.foco { color: #b8860b; }

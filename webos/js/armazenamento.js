@@ -167,7 +167,24 @@
     return achados.map(function (a) { return a.raw; });
   }
 
+  // ── Avaliação (Não é para mim / Gostei / Amei!) ──────────────────
+  // Guardada por título: { 'series:123': 'n' | 'g' | 'a' }. Escolher a mesma opção de novo remove a avaliação.
+  function avaliacao(tipo, id) {
+    var todas = ler(chave('aval'), {});
+    return todas[tipo + ':' + id] || '';
+  }
+
+  function definirAvaliacao(tipo, id, valor) {
+    var todas = ler(chave('aval'), {});
+    var k = tipo + ':' + id;
+    if (!valor || todas[k] === valor) { delete todas[k]; } else { todas[k] = valor; }
+    gravar(chave('aval'), todas);
+    return todas[k] || '';
+  }
+
   VLTV.dados = {
+    avaliacao: avaliacao,
+    definirAvaliacao: definirAvaliacao,
     progresso: progresso,
     registrarContinuar: registrarContinuar,
     continuarDe: continuarDe,

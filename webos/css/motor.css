@@ -133,3 +133,7 @@ html.avplay-ativo .player.cheio {
   text-transform: uppercase;
   text-shadow: 0 4px 18px rgba(0, 0, 0, 0.85);
 }
+
+/* Avaliação na tela de pausa, logo abaixo da logo do título */
+.pausa-aval { position: absolute; left: 100px; top: 650px; width: 1500px; }
+.pausa-aval .det-aval-txt { font-size: 28px; }

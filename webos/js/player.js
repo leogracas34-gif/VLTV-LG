@@ -7,6 +7,7 @@
   'use strict';
 
   var TEMPO_CONTROLES_MS = 6000;
+  var ATRASO_PAUSA_MS = 5000;       // a tela de pausa (logo + nome) só aparece depois de 5 s pausado, igual à Netflix
   var INTERVALO_SALVAR_MS = 5000;
   var APLICAR_PULO_MS = 700;        // espera o usuário parar de apertar antes de pular de fato
   var REPETIR_PULO_MS = 450;        // apertos dentro deste intervalo aceleram o pulo
@@ -46,6 +47,9 @@
   var elPausaEp = $('pa-ep');
   var elPausaLogo = $('pa-logo-img');
   var elPausaTxt = $('pa-logo-txt');
+  var botoesAval = Array.prototype.slice.call($('pa-aval').querySelectorAll('.det-aval-btn'));
+  var avalFoco = false;      // true quando o usuário subiu (seta para cima) para escolher a avaliação
+  var avalPos = 1;
 
   var itens = [];
   var idx = 0;
@@ -56,6 +60,9 @@
   var timerPulo = null;
   var timerAviso = null;
   var timerProximo = null;
+  var timerPausa = null;
+  var pausaLiberada = false;  // true depois de ATRASO_PAUSA_MS com o vídeo pausado
+  var jaTocou = false;        // só vale como "pausa" depois que o vídeo realmente começou a tocar
   var inicioPendente = 0;   // segundos: ponto onde o vídeo deve começar
   var ultimoSalvo = 0;
 
@@ -247,9 +254,51 @@
 
   // ── Tela de pausa (estilo Netflix) ────────────────────────────────
   // Aparece só com o vídeo pausado e a barra na tela (e sem o menu de áudio/legenda aberto).
+  // Avaliação na tela de pausa (mesma gravação da tela de detalhes: tipo + id do título).
+  function desenharAval() {
+    var it = itens[idx];
+    var atual = it && it.logoId ? VLTV.dados.avaliacao(it.logoTipo, it.logoId) : '';
+    botoesAval.forEach(function (el, i) {
+      el.classList.toggle('ativo', el.getAttribute('data-v') === atual);
+      el.classList.toggle('foco', avalFoco && i === avalPos);
+    });
+  }
+
+  function pausaNaTela() { return !pausa.classList.contains('escondida'); }
+
+  function teclaAval(k) {
+    if (k === TECLA.ESQ) { avalPos = Math.max(0, avalPos - 1); }
+    else if (k === TECLA.DIR) { avalPos = Math.min(botoesAval.length - 1, avalPos + 1); }
+    else if (k === TECLA.ENTER) {
+      var it = itens[idx];
+      if (it && it.logoId) { VLTV.dados.definirAvaliacao(it.logoTipo, it.logoId, botoesAval[avalPos].getAttribute('data-v')); }
+    }
+    else { avalFoco = false; }   // baixo, cima ou voltar: sai da avaliação
+    desenharAval();
+    mostrarControles();
+  }
+
   function atualizarPausa() {
-    var mostrar = ativo && controlesVisiveis() && motor.pausado() && !faixasAberto;
-    pausa.classList.toggle('escondida', !mostrar);
+    var pausadoDeVerdade = ativo && jaTocou && motor.pausado() && !faixasAberto;
+    if (!pausadoDeVerdade) {
+      // Tocando (ou ainda carregando): a tela de pausa some na hora e o contador zera.
+      clearTimeout(timerPausa);
+      timerPausa = null;
+      pausaLiberada = false;
+      avalFoco = false;
+      pausa.classList.add('escondida');
+      return;
+    }
+    // Pausou: espera ATRASO_PAUSA_MS antes de mostrar a logo (a barra de controles já fica na tela).
+    if (!pausaLiberada && timerPausa === null) {
+      timerPausa = setTimeout(function () {
+        timerPausa = null;
+        pausaLiberada = true;
+        atualizarPausa();
+      }, ATRASO_PAUSA_MS);
+    }
+    pausa.classList.toggle('escondida', !(pausaLiberada && controlesVisiveis()));
+    desenharAval();
   }
 
   // Prepara os textos e a logo do item que vai tocar. Sem logo (ou sem chave do TMDB), mostra o nome grande.
@@ -554,6 +603,8 @@
     idPlay++;
     inicioPendente = inicioSeg > 0 ? inicioSeg : 0;
     ultimoSalvo = 0;
+    jaTocou = false;
+    atualizarPausa();
 
     clearTimeout(timerPulo);
     timerPulo = null;
@@ -579,6 +630,10 @@
   function parar() {
     idPlay++;
     ativo = false;
+    jaTocou = false;
+    clearTimeout(timerPausa);
+    timerPausa = null;
+    pausaLiberada = false;
     clearTimeout(timerControles);
     clearTimeout(timerPulo);
     clearTimeout(timerAviso);
@@ -609,6 +664,7 @@
     modo: 'vod',
     aoMetadados: aplicarInicio,
     aoPlaying: function () {
+      jaTocou = true;
       esconderOverlay();
       aplicarInicio();
       mostrarControles();
@@ -649,11 +705,13 @@
 
   function tecla(k) {
     if (faixasAberto) { return teclaFaixas(k); }
+    if (avalFoco && (k === TECLA.VOLTAR || k === TECLA.ESC)) { teclaAval(k); return true; }
     if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); return true; }
 
     // Teclas de mídia do controle (sempre iguais, em qualquer foco)
     if (k === TECLA.PLAY) { if (motor.pausado()) { alternarPausa(); } return true; }
     if (k === TECLA.PAUSE) { if (!motor.pausado()) { alternarPausa(); } return true; }
+    if (avalFoco) { teclaAval(k); return true; }
     if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S, true); return true; }
     if (k === TECLA.AVANCA) { pular(PULO_LONGO_S, true); return true; }
 
@@ -666,7 +724,11 @@
       else { alternarPausa(); }
     }
     else if (k === TECLA.BAIXO || k === TECLA.AMARELO) { abrirFaixas(); }
-    else if (k === TECLA.CIMA) { mostrarControles(); }
+    else if (k === TECLA.CIMA) {
+      // Com a tela de pausa na tela e o título conhecido, a seta para cima vai para a avaliação.
+      if (pausaNaTela() && itens[idx] && itens[idx].logoId) { avalFoco = true; desenharAval(); }
+      mostrarControles();
+    }
     return true;
   }
 

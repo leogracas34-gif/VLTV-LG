@@ -46,6 +46,11 @@
   var elTemps = $('det-temps');
   var elEpsJanela = $('det-eps-janela');
   var elEps = $('det-eps');
+  var elAval = $('det-aval');
+  var itensAval = Array.prototype.slice.call(elAval.querySelectorAll('.det-aval-btn'));
+  var elAvalTopo = $('det-aval-topo');
+  var itensAvalTopo = Array.prototype.slice.call(elAvalTopo.querySelectorAll('.det-aval-ic'));
+  var avalTopoIdx = 1;
   var elSugTela = $('det-sug-tela');
   var elSugJanela = $('det-sug-janela');
   var elSug = $('det-sug');
@@ -65,7 +70,8 @@
 
   var modo = 'principal';   // 'principal' | 'eps' | 'sug'
   var menuIdx = 0;
-  var zonaEps = 'eps';      // 'eps' (lista de episódios) | 'temps' (coluna das temporadas)
+  var zonaEps = 'eps';      // 'eps' (lista de episódios) | 'temps' (coluna das temporadas) | 'aval' (avaliação)
+  var avalIdx = 1;
   var tempIdx = 0;
   var epIdx = 0;
   var sugIdx = 0;
@@ -558,7 +564,7 @@
   }
 
   function itensMenu() {
-    return [elPlay, elReiniciar, elBtnEps, elBtnSug, elFav].filter(function (el) {
+    return [elAvalTopo, elPlay, elReiniciar, elBtnEps, elBtnSug, elFav].filter(function (el) {
       return !el.classList.contains('escondida');
     });
   }
@@ -790,8 +796,14 @@
   }
 
   function elementoFoco() {
-    if (modo === 'principal') { return itensMenu()[menuIdx] || null; }
-    if (modo === 'eps') { return zonaEps === 'eps' ? itensEps[epIdx] : itensTemps[tempIdx]; }
+    if (modo === 'principal') {
+      var m = itensMenu()[menuIdx] || null;
+      return m === elAvalTopo ? itensAvalTopo[avalTopoIdx] : m;
+    }
+    if (modo === 'eps') {
+      if (zonaEps === 'aval') { return itensAval[avalIdx]; }
+      return zonaEps === 'eps' ? itensEps[epIdx] : itensTemps[tempIdx];
+    }
     return itensSug[sugIdx] || null;
   }
 
@@ -816,7 +828,7 @@
     if (!elFocoAtual) { return; }
     if (modo === 'eps') {
       if (zonaEps === 'eps') { rolarLista(elEpsJanela, elEps, elFocoAtual); }
-      else { rolarLista(elTempsJanela, elTemps, elFocoAtual); }
+      else if (zonaEps === 'temps') { rolarLista(elTempsJanela, elTemps, elFocoAtual); }
     } else if (modo === 'sug') {
       rolarLista(elSugJanela, elSug, elFocoAtual);
     }
@@ -828,8 +840,22 @@
     marcarFoco();
   }
 
+  // Avaliação do título (Não é para mim / Gostei / Amei!), guardada na TV.
+  function atualizarAval() {
+    var atual = item ? VLTV.dados.avaliacao(item.tipo, item.id) : '';
+    itensAval.concat(itensAvalTopo).forEach(function (el) { el.classList.toggle('ativo', el.getAttribute('data-v') === atual); });
+  }
+
+  function alternarAval(topo) {
+    var el = topo ? itensAvalTopo[avalTopoIdx] : itensAval[avalIdx];
+    if (!el) { return; }
+    VLTV.dados.definirAvaliacao(item.tipo, item.id, el.getAttribute('data-v'));
+    atualizarAval();
+  }
+
   function abrirEpisodios() {
     if (item.tipo !== 'series') { return; }
+    atualizarAval();
     zonaEps = (falha || temporadas.length === 0) ? 'temps' : 'eps';
     trocarModo('eps');
   }
@@ -903,7 +929,8 @@
   // ── Controle remoto ───────────────────────────────────────────────
   function ativarMenu() {
     var el = itensMenu()[menuIdx];
-    if (el === elPlay) { tocarPrincipal(false); }
+    if (el === elAvalTopo) { alternarAval(true); }
+    else if (el === elPlay) { tocarPrincipal(false); }
     else if (el === elReiniciar) { tocarPrincipal(true); }
     else if (el === elBtnEps) { abrirEpisodios(); }
     else if (el === elBtnSug) { abrirSugestoes(); }
@@ -912,7 +939,10 @@
 
   function teclaPrincipal(k) {
     var n = itensMenu().length;
-    if (k === TECLA.CIMA) { if (menuIdx > 0) { menuIdx--; } }
+    if (itensMenu()[menuIdx] === elAvalTopo && (k === TECLA.ESQ || k === TECLA.DIR)) {
+      avalTopoIdx = Math.max(0, Math.min(itensAvalTopo.length - 1, avalTopoIdx + (k === TECLA.ESQ ? -1 : 1)));
+    }
+    else if (k === TECLA.CIMA) { if (menuIdx > 0) { menuIdx--; } }
     else if (k === TECLA.BAIXO) { if (menuIdx < n - 1) { menuIdx++; } }
     else if (k === TECLA.ENTER) { ativarMenu(); }
   }
@@ -928,11 +958,19 @@
     }
   }
 
+  function teclaAval(k) {
+    if (k === TECLA.ESQ) { if (avalIdx > 0) { avalIdx--; } }
+    else if (k === TECLA.DIR) { if (avalIdx < itensAval.length - 1) { avalIdx++; } }
+    else if (k === TECLA.BAIXO) { if (itensEps.length > 0) { zonaEps = 'eps'; } else if (itensTemps.length > 0) { zonaEps = 'temps'; } }
+    else if (k === TECLA.ENTER) { alternarAval(); }
+  }
+
   function teclaEpisodios(k) {
     var n = itensEps.length;
     if (k === TECLA.CIMA) {
       if (epIdx > 0) { epIdx--; }
       else if (tempIdx > 0) { mudarTemporada(tempIdx - 1, 'ultimo'); }
+      else { zonaEps = 'aval'; }
     }
     else if (k === TECLA.BAIXO) {
       // Último episódio da temporada: cai no primeiro da próxima, e a temporada da esquerda desce junto.
@@ -983,7 +1021,11 @@
     if (!seta && !(pagina && modo !== 'principal')) { return false; }
 
     if (modo === 'principal') { teclaPrincipal(k); }
-    else if (modo === 'eps') { if (zonaEps === 'temps') { teclaTemporadas(k); } else { teclaEpisodios(k); } }
+    else if (modo === 'eps') {
+      if (zonaEps === 'aval') { teclaAval(k); }
+      else if (zonaEps === 'temps') { teclaTemporadas(k); }
+      else { teclaEpisodios(k); }
+    }
     else { teclaSugestoes(k); }
 
     marcarFoco();
@@ -1092,8 +1134,10 @@
     tempIdx = 0;
     epIdx = 0;
     sugIdx = 0;
-    menuIdx = 0;
+    menuIdx = 1;   // começa em Assistir/Continuar (a avaliação fica em cima)
+    avalTopoIdx = 1;
     zonaEps = 'eps';
+    avalIdx = 1;
     modo = 'principal';
     usandoCapa = !item.fundo;
     itensTemps = [];
@@ -1110,6 +1154,7 @@
     mostrarModo();
     atualizarProgresso();
     atualizarFav();
+    atualizarAval();
     marcarFoco();
     carregarInfo();
   }
@@ -1136,7 +1181,7 @@
       zonaEps = 'eps';
       trocarModo('eps');
     } else {
-      menuIdx = 0;
+      menuIdx = 1;
       trocarModo('principal');
     }
   }
@@ -1151,8 +1196,10 @@
     var i;
     if (modo === 'principal') {
       var m = itensMenu();
+      for (i = 0; i < itensAvalTopo.length; i++) { if (contem(itensAvalTopo[i], t)) { return { menuIdx: m.indexOf(elAvalTopo), sub: i }; } }
       for (i = 0; i < m.length; i++) { if (contem(m[i], t)) { return { menuIdx: i }; } }
     } else if (modo === 'eps') {
+      for (i = 0; i < itensAval.length; i++) { if (contem(itensAval[i], t)) { return { aval: i }; } }
       for (i = 0; i < itensTemps.length; i++) { if (contem(itensTemps[i], t)) { return { temp: i }; } }
       for (i = 0; i < itensEps.length; i++) { if (contem(itensEps[i], t)) { return { epIdx: i }; } }
     } else {
@@ -1162,7 +1209,9 @@
   }
 
   function mesmoAlvo(a) {
+    if (a.sub !== undefined) { return menuIdx === a.menuIdx && avalTopoIdx === a.sub; }
     if (a.menuIdx !== undefined) { return menuIdx === a.menuIdx; }
+    if (a.aval !== undefined) { return zonaEps === 'aval' && avalIdx === a.aval; }
     if (a.temp !== undefined) { return true; }       // só passar o cursor na temporada não muda nada
     if (a.epIdx !== undefined) { return zonaEps === 'eps' && epIdx === a.epIdx; }
     if (a.sugIdx !== undefined) { return sugIdx === a.sugIdx; }
@@ -1170,7 +1219,9 @@
   }
 
   function aplicarAlvo(a) {
+    if (a.sub !== undefined) { avalTopoIdx = a.sub; }
     if (a.menuIdx !== undefined) { menuIdx = a.menuIdx; }
+    if (a.aval !== undefined) { avalIdx = a.aval; zonaEps = 'aval'; }
     if (a.epIdx !== undefined) { epIdx = a.epIdx; zonaEps = 'eps'; }
     if (a.sugIdx !== undefined) { sugIdx = a.sugIdx; }
     marcarFoco();

@@ -334,6 +334,10 @@
               <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
               <span class="det-item-txt">Minha lista</span>
             </div>
+            <div id="det-btn-cred" class="det-item">
+              <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 9.5h9M7.5 13h9M7.5 16.5h5"/></svg>
+              <span class="det-item-txt">Créditos e mais informações</span>
+            </div>
           </div>
 
         </div>
@@ -360,11 +364,29 @@
         </div>
       </div>
 
-      <!-- Títulos semelhantes -->
+      <!-- Títulos semelhantes: o título aberto à esquerda, a lista de semelhantes à direita -->
       <div id="det-sug-tela" class="det-sug-tela escondida">
-        <div class="det-sug-titulo">Títulos semelhantes</div>
+        <div class="det-temps-col">
+          <img id="det-sug-logo" class="det-sug-logo escondida" alt="">
+          <div id="det-sug-nome" class="det-eps-nome"></div>
+          <div id="det-sug-meta" class="det-sug-meta"></div>
+          <div class="det-sug-pilula"><span>Títulos semelhantes</span><span id="det-sug-qtd" class="det-sug-qtd"></span></div>
+        </div>
         <div id="det-sug-janela" class="det-sug-janela">
           <ul id="det-sug" class="det-sug"></ul>
+        </div>
+      </div>
+
+      <!-- Créditos e mais informações: opções à esquerda, os dados de cada uma à direita -->
+      <div id="det-cred-tela" class="det-cred-tela escondida">
+        <div class="det-temps-col">
+          <img id="det-cred-logo" class="det-sug-logo escondida" alt="">
+          <div id="det-cred-nome" class="det-eps-nome"></div>
+          <div id="det-cred-meta" class="det-sug-meta"></div>
+          <ul id="det-cred-menu" class="det-cred-menu"></ul>
+        </div>
+        <div id="det-cred-janela" class="det-cred-janela">
+          <div id="det-cred-conteudo" class="det-cred-conteudo"></div>
         </div>
       </div>
     </section>

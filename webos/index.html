@@ -274,88 +274,82 @@
       </div>
     </section>
 
-    <!-- Detalhes de filmes e séries (mesmo layout do app do celular, em paisagem) -->
+    <!-- Detalhes de filmes e séries (estilo Netflix: informações à esquerda, fundo animado) -->
     <section id="tela-detalhes" class="tela escondida">
       <img id="det-fundo" class="det-fundo" alt="">
+      <img id="det-fundo2" class="det-fundo" alt="">
       <div class="det-grad"></div>
       <div id="det-grad-rolado" class="det-grad-rolado"></div>
 
-      <div class="det-janela">
-        <div id="det-pagina" class="det-pagina">
-          <div class="det-coluna">
+      <!-- Vista principal -->
+      <div id="det-principal" class="det-principal">
+        <div class="det-bloco">
 
-            <div class="det-titulo-caixa">
-              <img id="det-logo" class="det-logo escondida" alt="">
-              <div id="det-titulo" class="det-titulo"></div>
-            </div>
+          <div class="det-titulo-caixa">
+            <img id="det-logo" class="det-logo escondida" alt="">
+            <div id="det-titulo" class="det-titulo"></div>
+          </div>
 
-            <div class="det-meta">
-              <span id="det-nota-bloco" class="det-nota escondida">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
-                <span id="det-nota"></span>
-              </span>
-              <span id="det-ano" class="escondida"></span>
-              <span id="det-duracao" class="escondida"></span>
-              <span id="det-qual" class="det-tag">HD</span>
-            </div>
+          <div class="det-meta">
+            <span id="det-nota-bloco" class="det-nota escondida">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
+              <span id="det-nota"></span>
+            </span>
+            <span id="det-ano" class="escondida"></span>
+            <span id="det-genero" class="escondida"></span>
+            <span id="det-duracao" class="escondida"></span>
+            <span id="det-qual" class="det-tag">HD</span>
+          </div>
 
-            <div id="det-genero" class="det-genero escondida"></div>
+          <div id="det-sinopse" class="det-sinopse"></div>
+          <div id="det-creditos" class="det-creditos"></div>
 
-            <div id="det-progresso" class="det-progresso escondida">
-              <div class="det-barra"><div id="det-barra-cheia" class="det-barra-cheia"></div></div>
+          <div id="det-menu" class="det-menu">
+            <div id="det-play" class="det-item">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>
+              <span id="det-play-txt" class="det-item-txt">Assistir</span>
+              <span id="det-progresso" class="det-mini escondida"><span id="det-barra-cheia" class="det-mini-cheia"></span></span>
               <span id="det-restam" class="det-restam"></span>
             </div>
-
-            <div id="det-play" class="det-play">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>
-              <span id="det-play-txt">ASSISTIR</span>
+            <div id="det-reiniciar" class="det-item escondida">
+              <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V8h4.5"/></svg>
+              <span class="det-item-txt">Assistir desde o início</span>
             </div>
-
-            <div class="det-acoes">
-              <div id="det-reiniciar" class="det-acao escondida">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 3.5V8h4.5"/></svg>
-                <span>REINICIAR</span>
-              </div>
-              <div id="det-fav" class="det-acao">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
-                <span>MINHA LISTA</span>
-              </div>
+            <div id="det-btn-eps" class="det-item escondida">
+              <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3.5" width="13.5" height="10" rx="1.6"/><path d="M4 8v10.5a1.6 1.6 0 0 0 1.6 1.6H17"/></svg>
+              <span class="det-item-txt">Episódios e mais</span>
             </div>
-
-            <div id="det-sinopse" class="det-sinopse"></div>
-
-            <div id="det-abas" class="det-abas"></div>
-
-            <div id="det-conteudo" class="det-conteudo">
-              <div id="det-sec-eps" class="det-secao">
-                <div id="det-temp" class="det-temp">Temporada</div>
-                <div id="det-eps-janela" class="det-eps-janela">
-                  <ul id="det-eps" class="det-eps"></ul>
-                </div>
-              </div>
-
-              <div id="det-sec-sug" class="det-secao escondida">
-                <div id="det-sug-janela" class="det-sug-janela">
-                  <ul id="det-sug" class="det-sug"></ul>
-                </div>
-              </div>
-
-              <div id="det-sec-det" class="det-secao escondida"></div>
+            <div id="det-btn-sug" class="det-item">
+              <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.4"/></svg>
+              <span class="det-item-txt">Títulos semelhantes</span>
             </div>
-
+            <div id="det-fav" class="det-item">
+              <svg class="tr" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>
+              <span class="det-item-txt">Minha lista</span>
+            </div>
           </div>
+
         </div>
       </div>
 
-      <div id="det-fade-topo" class="det-fade-topo"></div>
-
-      <!-- Escolha da temporada -->
-      <div id="det-popup" class="det-popup escondida">
-        <div class="det-popup-caixa">
-          <h3>Temporada</h3>
-          <div id="det-popup-janela" class="det-popup-janela">
-            <ul id="det-popup-lista" class="det-popup-lista"></ul>
+      <!-- Episódios e mais: temporadas fixas à esquerda, episódios à direita -->
+      <div id="det-eps-tela" class="det-eps-tela escondida">
+        <div class="det-temps-col">
+          <div id="det-eps-nome" class="det-eps-nome"></div>
+          <div id="det-temps-janela" class="det-temps-janela">
+            <ul id="det-temps" class="det-temps"></ul>
           </div>
+        </div>
+        <div id="det-eps-janela" class="det-eps-janela">
+          <ul id="det-eps" class="det-eps"></ul>
+        </div>
+      </div>
+
+      <!-- Títulos semelhantes -->
+      <div id="det-sug-tela" class="det-sug-tela escondida">
+        <div class="det-sug-titulo">Títulos semelhantes</div>
+        <div id="det-sug-janela" class="det-sug-janela">
+          <ul id="det-sug" class="det-sug"></ul>
         </div>
       </div>
     </section>

@@ -217,7 +217,7 @@
     var k = PREFIXO_TEMP + idiomaTmdb().lingua + '_' + id + '_' + numero;
     function montar(c) {
       var saida = {};
-      for (var n in c) { if (Object.prototype.hasOwnProperty.call(c, n)) { saida[n] = { titulo: c[n][0] || '', imagem: c[n][1] ? enderecoImagem(c[n][1], cfg().TMDB_TAMANHO_EPISODIO || 'w300') : '' }; } }
+      for (var n in c) { if (Object.prototype.hasOwnProperty.call(c, n)) { saida[n] = { titulo: c[n][0] || '', imagem: c[n][1] ? enderecoImagem(c[n][1], cfg().TMDB_TAMANHO_EPISODIO || 'w300') : '', sinopse: c[n][2] || '' }; } }
       return saida;
     }
     try {
@@ -232,7 +232,7 @@
         var lista = (j && j.episodes) || [];
         for (var i = 0; i < lista.length; i++) {
           var x = lista[i];
-          if (x.episode_number !== null && x.episode_number !== undefined) { e[x.episode_number] = [x.name || '', x.still_path || '']; }
+          if (x.episode_number !== null && x.episode_number !== undefined) { e[x.episode_number] = [x.name || '', x.still_path || '', x.overview || '']; }
         }
         try { window.localStorage.setItem(k, JSON.stringify({ e: e, t: new Date().getTime() })); } catch (z) { /* sem espaço */ }
         return montar(e);
@@ -307,6 +307,48 @@
 
   function fundoPronto(tipo, id) { return fundoGuardado(tipo, id); }
 
+  // ── Vários fundos do mesmo título (fundo que troca devagar, como na Netflix) ───
+  var PREFIXO_FUNDOS = 'vltv_fundos1_';
+  var MAX_FUNDOS = 6;
+  var emAndamentoFundos = {};
+
+  function fundosGuardados(tipo, id) {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(PREFIXO_FUNDOS + tipo + '_' + id) || 'null');
+      if (!c || !c.l) { return null; }
+      var validade = c.l.length > 0 ? VALIDADE_TXT_MS : VALIDADE_SEM_LOGO_MS;
+      return (new Date().getTime() - c.t < validade) ? c.l : null;
+    } catch (e) { return null; }
+  }
+
+  // Resolve com uma lista de endereços de fundo (sem texto escrito na imagem, as melhores primeiro).
+  // Lista vazia = o TMDB não tem mais fundos. Nunca rejeita. Fica guardada na TV por 30 dias.
+  function fundos(tipo, id, nome) {
+    var guard = fundosGuardados(tipo, id);
+    if (guard) { return Promise.resolve(guard.map(enderecoFundo)); }
+    if (!ativo()) { return Promise.resolve([]); }
+    var k = tipo + '_' + id;
+    if (emAndamentoFundos[k]) { return emAndamentoFundos[k]; }
+
+    var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
+    var p = procurarMelhor(tipoTmdb, VLTV.titulo.paraBusca(nome)).then(function (achado) {
+      if (!achado) { return []; }
+      var url = API + '/' + tipoTmdb + '/' + achado.id + '/images?api_key=' + chave() + '&include_image_language=null';
+      return pegarJson(url).then(function (j) {
+        var lista = (j && j.backdrops) ? j.backdrops.slice() : [];
+        lista = lista.filter(function (b) { return b && b.file_path && (b.width || 0) >= 1280; });
+        lista.sort(function (a, b) { return (b.vote_average || 0) - (a.vote_average || 0); });
+        var caminhos = lista.slice(0, MAX_FUNDOS).map(function (b) { return b.file_path; });
+        try { window.localStorage.setItem(PREFIXO_FUNDOS + k, JSON.stringify({ l: caminhos, t: new Date().getTime() })); }
+        catch (e) { /* sem espaço */ }
+        return caminhos.map(enderecoFundo);
+      });
+    }).catch(function () { return []; })     // falha de rede: não grava, tenta de novo outra hora
+      .then(function (l) { delete emAndamentoFundos[k]; return l; });
+    emAndamentoFundos[k] = p;
+    return p;
+  }
+
   // ── Guia de programação (EPG) no idioma do app ────────────────────
   // O guia chega em português. Em inglês, programa que é filme ou série do TMDB ganha título e sinopse em inglês
   // (só vale quando o nome é igual ao do TMDB). Fica guardado na TV por 30 dias; quem o TMDB não conhece fica como veio.
@@ -377,6 +419,6 @@
     }).catch(function () { return null; });
   }
 
-  VLTV.tmdb = { imagensPorId: imagensPorId, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundoGuardado: fundoPronto };
+  VLTV.tmdb = { imagensPorId: imagensPorId, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundos: fundos, fundoGuardado: fundoPronto };
 
 })();

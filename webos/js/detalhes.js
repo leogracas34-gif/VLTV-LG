@@ -1,25 +1,26 @@
-// VLTV Play - webOS | Detalhes de filmes e séries.
-// Mesmo layout do app do celular, em paisagem: fundo com degradê, título, nota/ano, gênero,
-// barra de progresso, ASSISTIR/CONTINUAR, Minha Lista, sinopse e abas (Episódios, Sugestões, Detalhes).
+// VLTV Play - webOS | Detalhes de filmes e séries (estilo Netflix).
+// Tela principal: fundo que troca devagar (imagens do TMDB), título/logo, nota, ano, gêneros, sinopse, elenco e
+// um menu vertical (Assistir/Continuar, Assistir desde o início, Episódios e mais, Títulos semelhantes, Minha lista).
+// "Episódios e mais" (só séries): temporadas fixas na coluna da esquerda e episódios em lista na direita;
+// ao passar do último episódio da temporada, cai no primeiro da próxima e a temporada da esquerda acompanha.
 (function () {
   'use strict';
 
   var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40, PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428 };
 
-  var COL_EPS = 4;              // episódios por linha (grade)
-  var LINHAS_PAGINA_EPS = 2;    // CH+/CH- pulam esta quantidade de linhas
-  var COL_SUG = 6;              // capas por linha nas sugestões
-  var MAX_SUG = 12;             // quantas sugestões mostrar
-  var MARGEM_ABAS_PX = 110;     // onde as abas ficam na tela depois de rolar a página
+  var PASSO_PAGINA_EPS = 5;     // CH+/CH- pulam esta quantidade de episódios
+  var COL_SUG = 7;              // capas por linha nos títulos semelhantes
+  var MAX_SUG = 14;             // quantas sugestões mostrar
   var RESUME_MIN_FILME_S = 30;  // só oferece "continuar" depois de 30 s assistidos
   var RESUME_MIN_EP_S = 30;
+  var INTERVALO_FUNDO_MS = 9000; // de quanto em quanto tempo o fundo troca de imagem
 
   function $(id) { return document.getElementById(id); }
 
-  var elFundo = $('det-fundo');
+  var elTela = $('tela-detalhes');
+  var camadas = [$('det-fundo'), $('det-fundo2')];   // duas camadas: uma entra enquanto a outra sai
   var elGradRolado = $('det-grad-rolado');
-  var elFadeTopo = $('det-fade-topo');
-  var elPagina = $('det-pagina');
+  var elPrincipal = $('det-principal');
   var elTitulo = $('det-titulo');
   var elLogo = $('det-logo');
   var elNotaBloco = $('det-nota-bloco');
@@ -28,26 +29,26 @@
   var elDuracao = $('det-duracao');
   var elQual = $('det-qual');
   var elGenero = $('det-genero');
+  var elSinopse = $('det-sinopse');
+  var elCreditos = $('det-creditos');
+  var elPlay = $('det-play');
+  var elPlayTxt = $('det-play-txt');
   var elProgresso = $('det-progresso');
   var elBarra = $('det-barra-cheia');
   var elRestam = $('det-restam');
-  var elPlay = $('det-play');
-  var elPlayTxt = $('det-play-txt');
   var elReiniciar = $('det-reiniciar');
+  var elBtnEps = $('det-btn-eps');
+  var elBtnSug = $('det-btn-sug');
   var elFav = $('det-fav');
-  var elSinopse = $('det-sinopse');
-  var elAbas = $('det-abas');
-  var elSecEps = $('det-sec-eps');
-  var elTemp = $('det-temp');
+  var elEpsTela = $('det-eps-tela');
+  var elEpsNome = $('det-eps-nome');
+  var elTempsJanela = $('det-temps-janela');
+  var elTemps = $('det-temps');
   var elEpsJanela = $('det-eps-janela');
   var elEps = $('det-eps');
-  var elSecSug = $('det-sec-sug');
+  var elSugTela = $('det-sug-tela');
   var elSugJanela = $('det-sug-janela');
   var elSug = $('det-sug');
-  var elSecDet = $('det-sec-det');
-  var elPopup = $('det-popup');
-  var elPopupJanela = $('det-popup-janela');
-  var elPopupLista = $('det-popup-lista');
 
   var item = null;          // título aberto: { tipo, id, nome, capa, ... }
   var acoes = null;         // { sair, reproduzir(lista, indice, inicioSeg) }
@@ -62,20 +63,16 @@
   var idLogo = 0;
   var usandoCapa = false;
 
-  var abas = [];            // [{ id: 'eps' | 'sug' | 'det', el }]
-  var abaIdx = 0;
-  var zona = 'play';        // 'play' | 'sec' | 'abas' | 'temp' | 'lista'
-  var secIdx = 0;
+  var modo = 'principal';   // 'principal' | 'eps' | 'sug'
+  var menuIdx = 0;
+  var zonaEps = 'eps';      // 'eps' (lista de episódios) | 'temps' (coluna das temporadas)
   var tempIdx = 0;
   var epIdx = 0;
   var sugIdx = 0;
+  var itensTemps = [];
   var itensEps = [];
   var itensSug = [];
   var elFocoAtual = null;
-
-  var popupAberto = false;
-  var popupIdx = 0;
-  var itensPopup = [];
 
   // ── Utilidades ────────────────────────────────────────────────────
   function esvaziar(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
@@ -192,39 +189,103 @@
   }
 
   // ── Fundo ─────────────────────────────────────────────────────────
-  // O fundo é escolhido UMA vez ao abrir o título (imagem que já veio na lista do painel, ou a capa
-  // desfocada) e não troca mais: assim a tela não pisca. A logo do TMDB só substitui o nome.
+  // Primeira imagem escolhida UMA vez por título (a que veio no painel, o backdrop do TMDB ou a capa desfocada).
+  // Com o TMDB ligado, depois de alguns segundos o fundo passa a trocar devagar entre outras imagens do mesmo
+  // título (sem texto escrito), cada uma com um zoom lento. Não gasta conexão do cliente: são só imagens.
   var timerFundo = null;
-
-  function mostrarFundo() {
-    clearTimeout(timerFundo);
-    elFundo.style.opacity = '';
-  }
+  var camAtiva = 0;
+  var listaFundos = [];
+  var fundoIdx = 0;
+  var timerTroca = null;
+  var idTroca = 0;
 
   function definirFundo(url, ehCapa) {
     clearTimeout(timerFundo);
-    elFundo.className = 'det-fundo' + (ehCapa ? ' desfocado' : '');
+    var c = camadas[camAtiva];
+    var o = camadas[1 - camAtiva];
+    o.className = 'det-fundo';
+    o.onload = null;
+    c.className = 'det-fundo' + (ehCapa ? ' desfocado' : '');
     if (!url) {
-      elFundo.removeAttribute('src');
-      elFundo.style.visibility = 'hidden';
+      c.removeAttribute('src');
+      c.style.visibility = 'hidden';
       return;
     }
-    elFundo.style.visibility = 'visible';
-    elFundo.style.opacity = '0';          // entra suave quando terminar de carregar
-    elFundo.onload = mostrarFundo;
-    elFundo.src = url;
-    if (elFundo.complete && elFundo.naturalWidth > 0) { mostrarFundo(); }
-    timerFundo = setTimeout(mostrarFundo, 2500);   // se demorar muito, mostra mesmo assim
+    function pronto() {
+      clearTimeout(timerFundo);
+      c.classList.add('visivel');
+      if (!ehCapa) { c.classList.add('zoom'); }
+    }
+    c.style.visibility = 'visible';
+    c.onload = pronto;
+    c.src = url;
+    if (c.complete && c.naturalWidth > 0) { pronto(); }
+    timerFundo = setTimeout(pronto, 2500);   // se demorar muito, mostra mesmo assim
   }
 
-  // Fundo escolhido UMA vez por título (sem trocar depois, então não pisca):
+  function pararTroca() {
+    clearTimeout(timerTroca);
+    idTroca++;
+    listaFundos = [];
+  }
+
+  function agendarTroca(meu) {
+    clearTimeout(timerTroca);
+    timerTroca = setTimeout(function () { proximoFundo(meu); }, INTERVALO_FUNDO_MS);
+  }
+
+  function proximoFundo(meu) {
+    if (meu !== idTroca || listaFundos.length < 2) { return; }
+    if (elTela.classList.contains('escondida')) { agendarTroca(meu); return; }   // vídeo tocando: espera
+    var url = listaFundos[fundoIdx % listaFundos.length];
+    fundoIdx++;
+    var img = new Image();
+    img.onload = function () {
+      if (meu !== idTroca) { return; }
+      var velha = camadas[camAtiva];
+      var nova = camadas[1 - camAtiva];
+      nova.onload = null;
+      nova.className = 'det-fundo';
+      nova.style.visibility = 'visible';
+      nova.src = url;
+      void nova.offsetWidth;                       // reinicia a transição e o zoom
+      nova.classList.add('visivel');
+      nova.classList.add('zoom');
+      velha.classList.remove('visivel');
+      camAtiva = 1 - camAtiva;
+      setTimeout(function () {
+        if (meu === idTroca && velha !== camadas[camAtiva]) { velha.classList.remove('zoom'); }
+      }, 2000);
+      agendarTroca(meu);
+    };
+    img.onerror = function () { if (meu === idTroca) { agendarTroca(meu); } };   // pula essa imagem
+    img.src = url;
+  }
+
+  // urlAtual: o fundo que já está na tela (entra no rodízio). Só roda com o TMDB ligado.
+  function iniciarTroca(urlAtual) {
+    var meu = ++idTroca;
+    clearTimeout(timerTroca);
+    if (!VLTV.tmdb.ativo() || !item) { return; }
+    VLTV.tmdb.fundos(item.tipo, item.id, item.nome).then(function (urls) {
+      if (meu !== idTroca || !urls || urls.length === 0) { return; }
+      var fim = String(urlAtual || '').split('/').pop();
+      var outros = urls.filter(function (u) { return !fim || u.split('/').pop() !== fim; });
+      if (outros.length === 0) { return; }
+      listaFundos = urlAtual ? [urlAtual].concat(outros) : outros;
+      fundoIdx = urlAtual ? 1 : 0;
+      agendarTroca(meu);
+    });
+  }
+
+  // Fundo escolhido UMA vez por título (sem trocar de repente, então não pisca):
   //  1) imagem de fundo que o painel mandou;
   //  2) filmes e séries sem ela: backdrop do TMDB (já guardado na TV = na hora; senão espera um pouco);
   //  3) se o TMDB não responder a tempo ou falhar: capa do painel desfocada.
   var idFundo = 0;
   function escolherFundo() {
     var meu = ++idFundo;
-    if (item.fundo) { definirFundo(item.fundo, false); return; }
+    if (item.fundo) { definirFundo(item.fundo, false); iniciarTroca(item.fundo); return; }
 
     var tmdbOk = VLTV.tmdb.ativo() || VLTV.tmdb.fundoGuardado(item.tipo, item.id);
     if (!tmdbOk) { definirFundo(item.capa, true); return; }
@@ -245,6 +306,7 @@
         decidido = true;
         usandoCapa = true;            // se falhar depois de mostrado, não troca de novo
         definirFundo(url, false);
+        iniciarTroca(url);
       };
       img.onerror = function () {
         var cdn = VLTV.config.TMDB_IMAGENS_URL;
@@ -267,15 +329,20 @@
   }
 
   // Se a imagem de fundo falhar, usa a capa desfocada (ou fica só o preto).
-  elFundo.onerror = function () {
-    if (!usandoCapa && item && item.capa) {
-      usandoCapa = true;
-      definirFundo(item.capa, true);
-    } else {
-      mostrarFundo();
-      elFundo.style.visibility = 'hidden';
-    }
-  };
+  function aoFalharFundo(c) {
+    return function () {
+      if (c !== camadas[camAtiva]) { return; }
+      if (!usandoCapa && item && item.capa) {
+        usandoCapa = true;
+        definirFundo(item.capa, true);
+      } else {
+        c.classList.add('visivel');
+        c.style.visibility = 'hidden';
+      }
+    };
+  }
+  camadas[0].onerror = aoFalharFundo(camadas[0]);
+  camadas[1].onerror = aoFalharFundo(camadas[1]);
 
   // ── Logo no lugar do nome (TMDB) ──────────────────────────────────
   function mostrarNome() {
@@ -316,7 +383,6 @@
     });
   }
 
-  // ── Topo: título, nota, ano, gênero, sinopse ──────────────────────
   var idsTxt = { topo: 0, info: 0 };
   var basePlano = '';      // nome da série usado no começo do título de cada episódio do plano
   // O título em inglês chegou depois de o plano ser montado: troca o começo do nome dos episódios.
@@ -345,6 +411,7 @@
     });
   }
 
+  // ── Topo: título, nota, ano, gêneros, sinopse, elenco ─────────────
   function renderTopo() {
     var nome = limparTitulo(info.name || item.nome);
     elTitulo.textContent = nome;
@@ -373,7 +440,9 @@
 
     elQual.textContent = /\b(4k|uhd)\b/i.test(item.nome) ? '4K' : 'HD';
 
-    var genero = VLTV.idioma.categoria(String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, '  •  '));
+    // No máximo 3 gêneros, para a linha não ficar comprida.
+    var generos = String(info.genre || item.genero || '').split(/\s*[,\/]\s*/).filter(function (g) { return g !== ''; }).slice(0, 3);
+    var genero = VLTV.idioma.categoria(generos.join('  •  '));
     elGenero.textContent = genero;
     mostrar(elGenero, !!genero);
 
@@ -383,9 +452,37 @@
       if (r.titulo) { elTitulo.textContent = r.titulo; }
       if (r.sinopse) { elSinopse.textContent = r.sinopse; }
     });
+
+    renderCreditos();
   }
 
-  // ── Botão principal, barra de progresso e Reiniciar ───────────────
+  function linhaCredito(rotulo, valor) {
+    if (!valor) { return; }
+    var div = document.createElement('div');
+    div.className = 'det-linha';
+    var r = document.createElement('span');
+    r.className = 'det-rot';
+    r.textContent = rotulo + ':';
+    var v = document.createElement('span');
+    v.className = 'det-val';
+    v.textContent = valor;
+    div.appendChild(r);
+    div.appendChild(v);
+    elCreditos.appendChild(div);
+  }
+
+  // Primeiros nomes de uma lista separada por vírgula.
+  function primeirosNomes(texto, quantos) {
+    return String(texto || '').split(/\s*,\s*/).filter(function (n) { return n !== ''; }).slice(0, quantos).join(', ');
+  }
+
+  function renderCreditos() {
+    esvaziar(elCreditos);
+    linhaCredito('Elenco', primeirosNomes(info.cast || info.actors || item.elenco, 4));
+    linhaCredito('Direção', primeirosNomes(info.director || item.direcao, 2));
+  }
+
+  // ── Botão principal, barra de progresso e Assistir desde o início ─
   function calcularAlvoSerie() {
     if (plano.length === 0) { return null; }
 
@@ -395,19 +492,19 @@
       if (p && p.t && (!melhor || p.t > melhor.p.t)) { melhor = { i: i, p: p }; }
     });
 
-    if (!melhor) { return { indice: 0, continuar: false, pos: 0, dur: 0, rotulo: '' }; }
+    if (!melhor) { return { indice: 0, continuar: false, pos: 0, dur: 0, rotulo: 'T' + plano[0].tn + ': Ep. ' + plano[0].en }; }
 
     var e = plano[melhor.i];
     if (!melhor.p.fim && melhor.p.pos > RESUME_MIN_EP_S) {
       return {
         indice: melhor.i, continuar: true, pos: melhor.p.pos, dur: melhor.p.dur,
-        rotulo: 'T' + e.tn + ':E' + e.en
+        rotulo: 'T' + e.tn + ': Ep. ' + e.en
       };
     }
     // Terminou esse episódio: o botão leva ao próximo (ou ao primeiro, se acabou a série).
     var prox = melhor.i + 1 < plano.length ? melhor.i + 1 : 0;
     var n = plano[prox];
-    return { indice: prox, continuar: false, pos: 0, dur: 0, rotulo: 'T' + n.tn + ':E' + n.en };
+    return { indice: prox, continuar: false, pos: 0, dur: 0, rotulo: 'T' + n.tn + ': Ep. ' + n.en };
   }
 
   function atualizarProgresso() {
@@ -419,8 +516,7 @@
       alvo = { indice: 0, continuar: cont, pos: cont ? p.pos : 0, dur: cont ? p.dur : 0, rotulo: '' };
     }
 
-    var texto = 'ASSISTIR';
-    if (alvo && alvo.continuar) { texto = 'CONTINUAR'; }
+    var texto = (alvo && alvo.continuar) ? 'Continuar' : 'Assistir';
     if (alvo && alvo.rotulo) { texto += ' ' + alvo.rotulo; }
     elPlayTxt.textContent = texto;
     elPlay.classList.toggle('desab', item.tipo === 'series' && !alvo);
@@ -430,49 +526,42 @@
     if (mostrarBarra) {
       elBarra.style.width = Math.min(100, Math.round((alvo.pos / alvo.dur) * 100)) + '%';
       elRestam.textContent = textoRestam(alvo.dur - alvo.pos);
+    } else {
+      elRestam.textContent = '';
     }
     mostrar(elReiniciar, !!(alvo && alvo.continuar));
+    mostrar(elBtnEps, item.tipo === 'series');
+    var n = itensMenu().length;
+    if (menuIdx > n - 1) { menuIdx = Math.max(0, n - 1); }
   }
 
   function atualizarFav() {
     elFav.classList.toggle('ativo', VLTV.dados.ehFavorito(item.tipo, item.id));
   }
 
-  // ── Abas ──────────────────────────────────────────────────────────
-  function abaAtual() { return abas[abaIdx]; }
-
-  function montarAbas() {
-    var def = item.tipo === 'series'
-      ? [['eps', 'EPISÓDIOS'], ['sug', 'SUGESTÕES'], ['det', 'DETALHES']]
-      : [['sug', 'SUGESTÕES'], ['det', 'DETALHES']];
-    esvaziar(elAbas);
-    abas = [];
-    def.forEach(function (d) {
-      var el = document.createElement('div');
-      el.className = 'det-aba';
-      el.textContent = d[1];
-      elAbas.appendChild(el);
-      abas.push({ id: d[0], el: el });
+  function itensMenu() {
+    return [elPlay, elReiniciar, elBtnEps, elBtnSug, elFav].filter(function (el) {
+      return !el.classList.contains('escondida');
     });
-    abaIdx = 0;
-    marcarAbas();
   }
 
-  function marcarAbas() {
-    abas.forEach(function (a, i) { a.el.classList.toggle('sel', i === abaIdx); });
+  // ── Temporadas e episódios ────────────────────────────────────────
+  function renderTemporadas() {
+    esvaziar(elTemps);
+    elTemps._y = 0;
+    elTemps.style.transform = '';
+    itensTemps = [];
+    temporadas.forEach(function (t) {
+      var li = document.createElement('li');
+      li.textContent = 'Temporada ' + t.numero;
+      elTemps.appendChild(li);
+      itensTemps.push(li);
+    });
+    marcarTemporadaAtual();
   }
 
-  function mostrarSecao() {
-    var id = abaAtual().id;
-    mostrar(elSecEps, id === 'eps');
-    mostrar(elSecSug, id === 'sug');
-    mostrar(elSecDet, id === 'det');
-  }
-
-  // ── Episódios ─────────────────────────────────────────────────────
-  function renderTemporadaBtn() {
-    var t = temporadas[tempIdx];
-    elTemp.textContent = t ? 'Temporada ' + t.numero : 'Temporada';
+  function marcarTemporadaAtual() {
+    itensTemps.forEach(function (li, i) { li.classList.toggle('sel', i === tempIdx); });
   }
 
   function criarEpisodio(ep, i) {
@@ -482,6 +571,10 @@
     var li = document.createElement('li');
     li.className = 'ep';
 
+    var num = document.createElement('div');
+    num.className = 'ep-n';
+    num.textContent = String(numero);
+
     var thumb = document.createElement('div');
     thumb.className = 'ep-thumb';
     var url = inf.movie_image || inf.cover_big || '';
@@ -490,13 +583,10 @@
       img.alt = '';
       img.onerror = function () {
         if (img.parentNode) { img.parentNode.removeChild(img); }
-        thumb.insertBefore(document.createTextNode(String(numero)), thumb.firstChild);
         if (li._tmdbImg) { imagemEpisodio(li, li._tmdbImg); }
       };
       img.src = url;
       thumb.appendChild(img);
-    } else {
-      thumb.appendChild(document.createTextNode(String(numero)));
     }
     li._thumb = thumb;
 
@@ -516,26 +606,29 @@
       }
     }
 
-    var selo = document.createElement('div');
-    selo.className = 'ep-num';
-    selo.textContent = String(numero);
-    thumb.appendChild(selo);
-
     var txt = document.createElement('div');
     txt.className = 'ep-txt';
 
+    var linha1 = document.createElement('div');
+    linha1.className = 'ep-linha1';
     var tit = document.createElement('div');
     tit.className = 'ep-tit';
     tit.textContent = tituloEpisodio(ep, numero);
-    txt.appendChild(tit);
-
+    linha1.appendChild(tit);
     if (linhaDur) {
       var dur = document.createElement('div');
       dur.className = 'ep-dur';
       dur.textContent = linhaDur;
-      txt.appendChild(dur);
+      linha1.appendChild(dur);
     }
+    txt.appendChild(linha1);
 
+    var sin = document.createElement('div');
+    sin.className = 'ep-sin';
+    sin.textContent = String(inf.plot || inf.description || '');
+    txt.appendChild(sin);
+
+    li.appendChild(num);
     li.appendChild(thumb);
     li.appendChild(txt);
     return li;
@@ -562,39 +655,45 @@
     if (!thumb || !url || thumb.querySelector('img')) { return; }
     var img = document.createElement('img');
     img.alt = '';
-    img.onload = function () {
-      var n = thumb.firstChild;
-      while (n) { var prox = n.nextSibling; if (n.nodeType === 3) { thumb.removeChild(n); } n = prox; }   // some o número grande
-    };
     img.onerror = function () { if (img.parentNode) { img.parentNode.removeChild(img); } };
     img.src = url;
     thumb.insertBefore(img, thumb.firstChild);
   }
 
-  // TMDB: imagem de cada episódio que veio sem imagem do painel; em inglês também o nome do episódio
-  // (e o nome que vai para o player). Em português só completa nomes genéricos ("Episódio 3").
+  // TMDB: imagem de cada episódio que veio sem imagem do painel; sinopse quando o painel não mandou; em inglês
+  // também o nome do episódio (e o nome que vai para o player). Em português só completa nomes genéricos ("Episódio 3").
   function completarEpisodios(t) {
     if (item.tipo !== 'series' || !VLTV.tmdb.ativo()) { return; }
     var ingles = VLTV.idioma.ehIngles();
     var lis = itensEps;
     VLTV.tmdb.temporada(item.id, item.nome, t.numero).then(function (mapa) {
       if (!mapa || temporadas[tempIdx] !== t || lis !== itensEps) { return; }
-      var base = nomeDoPlayer();
+      var baseNome = nomeDoPlayer();
       t.episodios.forEach(function (ep, i) {
         var numero = ep.episode_num || (i + 1);
         var m = mapa[numero];
         var li = lis[i];
         if (!m || !li) { return; }
         if (m.imagem) { li._tmdbImg = m.imagem; imagemEpisodio(li, m.imagem); }
+        var elSin = li.querySelector('.ep-sin');
+        if (m.sinopse && elSin && !elSin.textContent) { elSin.textContent = m.sinopse; }
         if (!m.titulo) { return; }
         var generico = tituloEpisodio(ep, numero) === 'Episódio ' + numero;
         if (!ingles && !generico) { return; }
         var el = li.querySelector('.ep-tit');
         if (el) { el.textContent = m.titulo; }
         var pl = plano[t.inicio + i];
-        if (pl) { pl.titulo = base + ' - T' + t.numero + ' E' + numero + ' - ' + m.titulo; }
+        if (pl) { pl.titulo = baseNome + ' - T' + t.numero + ' E' + numero + ' - ' + m.titulo; }
       });
     });
+  }
+
+  // Troca de temporada (a coluna da esquerda acompanha). posicao: número do episódio na lista, ou 'ultimo'.
+  function mudarTemporada(i, posicao) {
+    tempIdx = i;
+    marcarTemporadaAtual();
+    renderEpisodios();
+    epIdx = posicao === 'ultimo' ? Math.max(0, itensEps.length - 1) : (posicao || 0);
   }
 
   // ── Sugestões (outros títulos da mesma categoria) ─────────────────
@@ -664,73 +763,18 @@
     });
   }
 
-  // ── Aba Detalhes ──────────────────────────────────────────────────
-  function linha(rotulo, valor) {
-    if (!valor) { return; }
-    var div = document.createElement('div');
-    div.className = 'det-linha';
-    var r = document.createElement('span');
-    r.className = 'det-rot';
-    r.textContent = rotulo + ':';
-    var v = document.createElement('span');
-    v.className = 'det-val';
-    v.textContent = valor;
-    div.appendChild(r);
-    div.appendChild(v);
-    elSecDet.firstChild.appendChild(div);
-  }
-
-  function renderDetalhes() {
-    esvaziar(elSecDet);
-    var caixa = document.createElement('div');
-    caixa.className = 'det-info';
-    elSecDet.appendChild(caixa);
-
-    var tit = document.createElement('div');
-    tit.className = 'det-info-titulo';
-    tit.textContent = limparTitulo(info.name || item.nome);
-    caixa.appendChild(tit);
-    var tituloCaixa = tit;
-
-    var sin = document.createElement('div');
-    sin.className = 'det-info-sin';
-    var sinopseInfo = info.plot || info.description || item.sinopse || '';
-    sin.textContent = sinopseInfo || 'Sem sinopse disponível.';
-    caixa.appendChild(sin);
-    textosEmIngles('info', !sinopseInfo, function (r) {
-      if (r.titulo) { tituloCaixa.textContent = r.titulo; }
-      if (r.sinopse) { sin.textContent = r.sinopse; }
-    });
-
-    var elenco = String(info.cast || info.actors || item.elenco || '');
-    if (elenco.length > 220) { elenco = elenco.slice(0, 217) + '...'; }
-
-    var dur = item.tipo === 'series'
-      ? (temporadas.length > 0 ? String(temporadas.length) : '')
-      : formatarDuracao(parseInt(info.duration_secs, 10) || segundosDe(info.duration));
-
-    linha(item.tipo === 'series' ? 'Temporadas' : 'Duração', dur);
-    linha('Data de lançamento', formatarData(info.releasedate || info.releaseDate || info.release_date || item.lancamento));
-    linha('Gênero', VLTV.idioma.categoria(String(info.genre || item.genero || '').replace(/\s*[,\/]\s*/g, ', ')));
-    linha('Direção', String(info.director || item.direcao || ''));
-    linha('Elenco', elenco);
-  }
-
   // ── Foco e rolagem ────────────────────────────────────────────────
-  function botoesSec() {
-    var lista = [];
-    if (!elReiniciar.classList.contains('escondida')) { lista.push(elReiniciar); }
-    lista.push(elFav);
-    return lista;
+  function mostrarModo() {
+    mostrar(elPrincipal, modo === 'principal');
+    mostrar(elEpsTela, modo === 'eps');
+    mostrar(elSugTela, modo === 'sug');
+    elGradRolado.className = 'det-grad-rolado' + (modo !== 'principal' ? ' ativo' : '');
   }
 
   function elementoFoco() {
-    if (zona === 'play') { return elPlay; }
-    if (zona === 'sec') { return botoesSec()[secIdx] || null; }
-    if (zona === 'abas') { return abaAtual().el; }
-    if (zona === 'temp') { return elTemp; }
-    if (zona === 'lista') { return abaAtual().id === 'eps' ? itensEps[epIdx] : itensSug[sugIdx]; }
-    return null;
+    if (modo === 'principal') { return itensMenu()[menuIdx] || null; }
+    if (modo === 'eps') { return zonaEps === 'eps' ? itensEps[epIdx] : itensTemps[tempIdx]; }
+    return itensSug[sugIdx] || null;
   }
 
   // Mantém o item focado dentro da janela da lista (a lista anda por transform).
@@ -747,75 +791,34 @@
     ul.style.transform = 'translateY(' + (-atual) + 'px)';
   }
 
-  // Parte de cima (botões) ou parte de baixo (abas e listas): a página sobe como no celular.
-  function atualizarRolagem() {
-    var rolar = zona === 'abas' || zona === 'temp' || zona === 'lista';
-    var y = rolar ? Math.max(0, elAbas.offsetTop - MARGEM_ABAS_PX) : 0;
-    elPagina.style.transform = 'translateY(' + (-y) + 'px)';
-    elGradRolado.className = 'det-grad-rolado' + (rolar ? ' ativo' : '');
-    elFadeTopo.className = 'det-fade-topo' + (rolar ? ' ativo' : '');
-  }
-
   function marcarFoco() {
     if (elFocoAtual) { elFocoAtual.classList.remove('foco'); }
     elFocoAtual = elementoFoco() || null;
     if (elFocoAtual) { elFocoAtual.classList.add('foco'); }
-    atualizarRolagem();
-    if (zona === 'lista' && elFocoAtual) {
-      if (abaAtual().id === 'eps') { rolarLista(elEpsJanela, elEps, elFocoAtual); }
-      else { rolarLista(elSugJanela, elSug, elFocoAtual); }
+    if (!elFocoAtual) { return; }
+    if (modo === 'eps') {
+      if (zonaEps === 'eps') { rolarLista(elEpsJanela, elEps, elFocoAtual); }
+      else { rolarLista(elTempsJanela, elTemps, elFocoAtual); }
+    } else if (modo === 'sug') {
+      rolarLista(elSugJanela, elSug, elFocoAtual);
     }
   }
 
-  // ── Temporadas (janela de escolha) ────────────────────────────────
-  function renderPopup() {
-    esvaziar(elPopupLista);
-    elPopupLista._y = 0;
-    elPopupLista.style.transform = '';
-    itensPopup = [];
-    temporadas.forEach(function (t, i) {
-      var li = document.createElement('li');
-      li.textContent = 'Temporada ' + t.numero;
-      if (i === tempIdx) { li.className = 'atual'; }
-      elPopupLista.appendChild(li);
-      itensPopup.push(li);
-    });
-  }
-
-  function marcarPopup() {
-    itensPopup.forEach(function (li, i) { li.classList.toggle('sel', i === popupIdx); });
-    rolarLista(elPopupJanela, elPopupLista, itensPopup[popupIdx]);
-  }
-
-  function abrirPopup() {
-    if (temporadas.length === 0) { return; }
-    popupAberto = true;
-    popupIdx = tempIdx;
-    renderPopup();
-    mostrar(elPopup, true);
-    marcarPopup();
-  }
-
-  function fecharPopup() {
-    popupAberto = false;
-    mostrar(elPopup, false);
-  }
-
-  function escolherTemporada(i) {
-    tempIdx = i;
-    epIdx = 0;
-    renderTemporadaBtn();
-    renderEpisodios();
-    fecharPopup();
+  function trocarModo(novo) {
+    modo = novo;
+    mostrarModo();
     marcarFoco();
   }
 
-  function teclaPopup(k) {
-    if (k === TECLA.VOLTAR || k === TECLA.ESC) { fecharPopup(); return true; }
-    if (k === TECLA.CIMA) { if (popupIdx > 0) { popupIdx--; marcarPopup(); } return true; }
-    if (k === TECLA.BAIXO) { if (popupIdx < itensPopup.length - 1) { popupIdx++; marcarPopup(); } return true; }
-    if (k === TECLA.ENTER) { escolherTemporada(popupIdx); return true; }
-    return k === TECLA.ESQ || k === TECLA.DIR;
+  function abrirEpisodios() {
+    if (item.tipo !== 'series') { return; }
+    zonaEps = (falha || temporadas.length === 0) ? 'temps' : 'eps';
+    trocarModo('eps');
+  }
+
+  function abrirSugestoes() {
+    sugIdx = 0;
+    trocarModo('sug');
   }
 
   // ── Ações ─────────────────────────────────────────────────────────
@@ -878,55 +881,70 @@
   }
 
   // ── Controle remoto ───────────────────────────────────────────────
-  function entrarConteudo() {
-    var id = abaAtual().id;
-    if (id === 'eps') {
-      if (temporadas.length > 1 || falha) { zona = 'temp'; }
-      else if (itensEps.length > 0) { zona = 'lista'; }
-    } else if (id === 'sug') {
-      if (itensSug.length > 0) { zona = 'lista'; }
+  function ativarMenu() {
+    var el = itensMenu()[menuIdx];
+    if (el === elPlay) { tocarPrincipal(false); }
+    else if (el === elReiniciar) { tocarPrincipal(true); }
+    else if (el === elBtnEps) { abrirEpisodios(); }
+    else if (el === elBtnSug) { abrirSugestoes(); }
+    else if (el === elFav) { alternarFav(); }
+  }
+
+  function teclaPrincipal(k) {
+    var n = itensMenu().length;
+    if (k === TECLA.CIMA) { if (menuIdx > 0) { menuIdx--; } }
+    else if (k === TECLA.BAIXO) { if (menuIdx < n - 1) { menuIdx++; } }
+    else if (k === TECLA.ENTER) { ativarMenu(); }
+  }
+
+  function teclaTemporadas(k) {
+    if (k === TECLA.CIMA || k === TECLA.BAIXO) {
+      var novo = tempIdx + (k === TECLA.CIMA ? -1 : 1);
+      if (novo >= 0 && novo < temporadas.length) { mudarTemporada(novo, 0); }
     }
+    else if (k === TECLA.DIR || k === TECLA.ENTER) {
+      if (falha) { carregarInfo(); }
+      else if (itensEps.length > 0) { zonaEps = 'eps'; }
+    }
+  }
+
+  function teclaEpisodios(k) {
+    var n = itensEps.length;
+    if (k === TECLA.CIMA) {
+      if (epIdx > 0) { epIdx--; }
+      else if (tempIdx > 0) { mudarTemporada(tempIdx - 1, 'ultimo'); }
+    }
+    else if (k === TECLA.BAIXO) {
+      // Último episódio da temporada: cai no primeiro da próxima, e a temporada da esquerda desce junto.
+      if (epIdx < n - 1) { epIdx++; }
+      else if (tempIdx < temporadas.length - 1) { mudarTemporada(tempIdx + 1, 0); }
+    }
+    else if (k === TECLA.ESQ) { if (itensTemps.length > 0) { zonaEps = 'temps'; } }
+    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) { epIdx = Math.min(n - 1, epIdx + PASSO_PAGINA_EPS); }
+    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) { epIdx = Math.max(0, epIdx - PASSO_PAGINA_EPS); }
+    else if (k === TECLA.ENTER) { tocarEpisodio(); }
   }
 
   function teclaSugestoes(k) {
     var n = itensSug.length;
     if (k === TECLA.ESQ) { if (sugIdx % COL_SUG > 0) { sugIdx--; } }
     else if (k === TECLA.DIR) { if (sugIdx < n - 1 && sugIdx % COL_SUG < COL_SUG - 1) { sugIdx++; } }
-    else if (k === TECLA.CIMA) { if (sugIdx >= COL_SUG) { sugIdx -= COL_SUG; } else { zona = 'abas'; } }
+    else if (k === TECLA.CIMA) { if (sugIdx >= COL_SUG) { sugIdx -= COL_SUG; } }
     else if (k === TECLA.BAIXO) {
       if (sugIdx + COL_SUG < n) { sugIdx += COL_SUG; }
       else if (Math.floor(sugIdx / COL_SUG) < Math.floor((n - 1) / COL_SUG)) { sugIdx = n - 1; }
     }
-    else if (k === TECLA.ENTER) { if (itensSug[sugIdx]) { abrirSugestao(itensSug[sugIdx]._raw); } return; }
-  }
-
-  function teclaEpisodios(k) {
-    var n = itensEps.length;
-    if (k === TECLA.ESQ) { if (epIdx % COL_EPS > 0) { epIdx--; } }
-    else if (k === TECLA.DIR) { if (epIdx < n - 1 && epIdx % COL_EPS < COL_EPS - 1) { epIdx++; } }
-    else if (k === TECLA.CIMA) {
-      if (epIdx >= COL_EPS) { epIdx -= COL_EPS; }
-      else { zona = (temporadas.length > 1 || falha) ? 'temp' : 'abas'; }
-    }
-    else if (k === TECLA.BAIXO) {
-      if (epIdx + COL_EPS < n) { epIdx += COL_EPS; }
-      else if (Math.floor(epIdx / COL_EPS) < Math.floor((n - 1) / COL_EPS)) { epIdx = n - 1; }
-    }
-    // CH+/CH- (ou PG): pula algumas linhas de uma vez, para séries com muitos episódios.
-    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) {
-      epIdx = Math.min(n - 1, epIdx + COL_EPS * LINHAS_PAGINA_EPS);
-    }
-    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) {
-      epIdx = Math.max(0, epIdx - COL_EPS * LINHAS_PAGINA_EPS);
-    }
-    else if (k === TECLA.ENTER) { tocarEpisodio(); }
+    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) { sugIdx = Math.min(n - 1, sugIdx + COL_SUG * 2); }
+    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) { sugIdx = Math.max(0, sugIdx - COL_SUG * 2); }
+    else if (k === TECLA.ENTER) { if (itensSug[sugIdx]) { abrirSugestao(itensSug[sugIdx]._raw); } }
   }
 
   function voltar() {
-    // Primeiro volta ao topo da página; de lá, sai da tela.
-    if (zona === 'abas' || zona === 'temp' || zona === 'lista') {
-      zona = 'play';
-      marcarFoco();
+    // Em Episódios ou Títulos semelhantes: volta ao menu, no botão que abriu a lista.
+    if (modo !== 'principal') {
+      var botao = modo === 'eps' ? elBtnEps : elBtnSug;
+      menuIdx = Math.max(0, itensMenu().indexOf(botao));
+      trocarModo('principal');
       return;
     }
     if (pilha.length > 0) {
@@ -939,49 +957,14 @@
 
   // Devolve true se a tecla foi usada por esta tela.
   function tecla(k) {
-    if (popupAberto) { return teclaPopup(k); }
     if (k === TECLA.VOLTAR || k === TECLA.ESC) { voltar(); return true; }
-    if (k !== TECLA.CIMA && k !== TECLA.BAIXO && k !== TECLA.ESQ && k !== TECLA.DIR && k !== TECLA.ENTER) {
-      return false;
-    }
+    var seta = k === TECLA.CIMA || k === TECLA.BAIXO || k === TECLA.ESQ || k === TECLA.DIR || k === TECLA.ENTER;
+    var pagina = k === TECLA.PG_CIMA || k === TECLA.PG_BAIXO || k === TECLA.CH_MAIS || k === TECLA.CH_MENOS;
+    if (!seta && !(pagina && modo !== 'principal')) { return false; }
 
-    if (zona === 'play') {
-      if (k === TECLA.BAIXO) { zona = 'sec'; secIdx = 0; }
-      else if (k === TECLA.ENTER) { tocarPrincipal(false); return true; }
-    }
-    else if (zona === 'sec') {
-      var botoes = botoesSec();
-      if (k === TECLA.ESQ) { secIdx = Math.max(0, secIdx - 1); }
-      else if (k === TECLA.DIR) { secIdx = Math.min(botoes.length - 1, secIdx + 1); }
-      else if (k === TECLA.CIMA) { zona = 'play'; }
-      else if (k === TECLA.BAIXO) { zona = 'abas'; }
-      else if (k === TECLA.ENTER) {
-        if (botoes[secIdx] === elReiniciar) { tocarPrincipal(true); } else { alternarFav(); }
-        return true;
-      }
-    }
-    else if (zona === 'abas') {
-      if (k === TECLA.ESQ || k === TECLA.DIR) {
-        var novo = abaIdx + (k === TECLA.ESQ ? -1 : 1);
-        if (novo >= 0 && novo < abas.length) {
-          abaIdx = novo;
-          marcarAbas();
-          mostrarSecao();
-        }
-      }
-      else if (k === TECLA.CIMA) { zona = 'sec'; secIdx = Math.min(secIdx, botoesSec().length - 1); }
-      else { entrarConteudo(); }     // baixo ou OK
-    }
-    else if (zona === 'temp') {
-      if (k === TECLA.CIMA) { zona = 'abas'; }
-      else if (k === TECLA.BAIXO) { if (itensEps.length > 0) { zona = 'lista'; } }
-      else if (k === TECLA.ENTER) {
-        if (falha) { carregarInfo(); } else { abrirPopup(); return true; }
-      }
-    }
-    else if (zona === 'lista') {
-      if (abaAtual().id === 'eps') { teclaEpisodios(k); } else { teclaSugestoes(k); }
-    }
+    if (modo === 'principal') { teclaPrincipal(k); }
+    else if (modo === 'eps') { if (zonaEps === 'temps') { teclaTemporadas(k); } else { teclaEpisodios(k); } }
+    else { teclaSugestoes(k); }
 
     marcarFoco();
     return true;
@@ -1018,26 +1001,28 @@
     plano.forEach(function (p) { p.serie = plano[0].id; });
 
     renderTopo();
-    renderDetalhes();
     atualizarProgresso();
 
     if (temporadas.length === 0) {
-      mensagem(elEps, 'Nenhum episódio disponível.');
+      itensTemps = [];
+      itensEps = [];
+      mensagem(elTemps, 'Nenhum episódio disponível.');
+      esvaziar(elEps);
       return;
     }
 
     // Abre já na temporada do episódio que o botão principal toca.
     tempIdx = alvo ? plano[alvo.indice].temp : 0;
-    epIdx = alvo ? plano[alvo.indice].pos : 0;
-    renderTemporadaBtn();
+    renderTemporadas();
     renderEpisodios();
-    if (zona === 'lista' || zona === 'temp') { marcarFoco(); }
+    epIdx = alvo ? plano[alvo.indice].pos : 0;
+    if (modo === 'eps') { zonaEps = 'eps'; }
+    marcarFoco();
   }
 
   function montarFilme(dados) {
     info = dados || {};
     renderTopo();
-    renderDetalhes();
     atualizarProgresso();
   }
 
@@ -1046,7 +1031,10 @@
     falha = false;
 
     if (item.tipo === 'series') {
-      mensagem(elEps, 'Carregando...');
+      itensTemps = [];
+      itensEps = [];
+      mensagem(elTemps, 'Carregando...');
+      esvaziar(elEps);
       VLTV.api.infoSerie(item.id)
         .then(function (d) {
           if (meu !== idCarga) { return; }
@@ -1055,7 +1043,7 @@
         .catch(function () {
           if (meu !== idCarga) { return; }
           falha = true;
-          mensagem(elEps, 'Não foi possível carregar os episódios. Pressione OK em "Temporada" para tentar de novo.');
+          mensagem(elTemps, 'Não foi possível carregar os episódios. Aperte OK para tentar de novo.');
         });
     } else {
       VLTV.api.infoFilme(item.id)
@@ -1080,22 +1068,22 @@
     tempIdx = 0;
     epIdx = 0;
     sugIdx = 0;
-    secIdx = 0;
-    zona = 'play';
+    menuIdx = 0;
+    zonaEps = 'eps';
+    modo = 'principal';
     usandoCapa = !item.fundo;
-    popupAberto = false;
-    mostrar(elPopup, false);
+    itensTemps = [];
     itensEps = [];
+    esvaziar(elTemps);
     esvaziar(elEps);
+    elEpsNome.textContent = limparTitulo(item.nome);
 
+    pararTroca();
     escolherFundo();
     renderTopo();
     carregarLogo();
-    montarAbas();
-    renderDetalhes();
     renderSugestoes();
-    renderTemporadaBtn();
-    mostrarSecao();
+    mostrarModo();
     atualizarProgresso();
     atualizarFav();
     marcarFoco();
@@ -1115,97 +1103,73 @@
   function voltou(ultimoIndice) {
     atualizarProgresso();
     if (item.tipo === 'series' && plano.length > 0 && plano[ultimoIndice]) {
+      // Volta para a lista de episódios, no que estava tocando.
       var it = plano[ultimoIndice];
       tempIdx = it.temp;
-      renderTemporadaBtn();
+      marcarTemporadaAtual();
       renderEpisodios();
       epIdx = it.pos;
-      var iEps = -1;
-      abas.forEach(function (a, i) { if (a.id === 'eps') { iEps = i; } });
-      if (iEps !== -1) { abaIdx = iEps; marcarAbas(); mostrarSecao(); }
-      zona = 'lista';
+      zonaEps = 'eps';
+      trocarModo('eps');
     } else {
-      zona = 'play';
+      menuIdx = 0;
+      trocarModo('principal');
     }
-    marcarFoco();
   }
 
   // ── Cursor e roda do controle (Magic Remote) ─────────────────────
-  // Passar o cursor destaca (acende) o item, igual às setas; o clique faz o mesmo que o OK;
-  // a roda sobe/desce a página como as setas para cima/baixo.
-  var elTela = $('tela-detalhes');
+  // Passar o cursor destaca (acende) o item, igual às setas; o clique faz o mesmo que o OK
+  // (numa temporada, o clique troca a lista de episódios); a roda sobe/desce como as setas.
+  function contem(el, alvoEl) { return !!el && !!alvoEl && (el === alvoEl || el.contains(alvoEl)); }
 
-  function contem(el, alvo) { return !!el && !!alvo && (el === alvo || el.contains(alvo)); }
-
-  // O que está sob o cursor: { zona, secIdx, abaIdx, epIdx, sugIdx } ou null.
+  // O que está sob o cursor: { menuIdx } | { temp } | { epIdx } | { sugIdx } ou null.
   function alvoDoCursor(t) {
-    if (popupAberto) {
-      for (var p = 0; p < itensPopup.length; p++) {
-        if (contem(itensPopup[p], t)) { return { popup: p }; }
-      }
-      return null;
-    }
-    if (contem(elPlay, t)) { return { zona: 'play' }; }
-    var botoes = botoesSec();
-    for (var b = 0; b < botoes.length; b++) {
-      if (contem(botoes[b], t)) { return { zona: 'sec', secIdx: b }; }
-    }
-    for (var a = 0; a < abas.length; a++) {
-      if (contem(abas[a].el, t)) { return { zona: 'abas', abaIdx: a }; }
-    }
-    if (abaAtual().id === 'eps') {
-      if (contem(elTemp, t)) { return { zona: 'temp' }; }
-      for (var e = 0; e < itensEps.length; e++) {
-        if (contem(itensEps[e], t)) { return { zona: 'lista', epIdx: e }; }
-      }
-    } else if (abaAtual().id === 'sug') {
-      for (var g = 0; g < itensSug.length; g++) {
-        if (contem(itensSug[g], t)) { return { zona: 'lista', sugIdx: g }; }
-      }
+    var i;
+    if (modo === 'principal') {
+      var m = itensMenu();
+      for (i = 0; i < m.length; i++) { if (contem(m[i], t)) { return { menuIdx: i }; } }
+    } else if (modo === 'eps') {
+      for (i = 0; i < itensTemps.length; i++) { if (contem(itensTemps[i], t)) { return { temp: i }; } }
+      for (i = 0; i < itensEps.length; i++) { if (contem(itensEps[i], t)) { return { epIdx: i }; } }
+    } else {
+      for (i = 0; i < itensSug.length; i++) { if (contem(itensSug[i], t)) { return { sugIdx: i }; } }
     }
     return null;
   }
 
-  function aplicarAlvo(alvoCursor) {
-    if (alvoCursor.popup !== undefined) { popupIdx = alvoCursor.popup; marcarPopup(); return; }
-    zona = alvoCursor.zona;
-    if (alvoCursor.secIdx !== undefined) { secIdx = alvoCursor.secIdx; }
-    if (alvoCursor.epIdx !== undefined) { epIdx = alvoCursor.epIdx; }
-    if (alvoCursor.sugIdx !== undefined) { sugIdx = alvoCursor.sugIdx; }
-    if (alvoCursor.abaIdx !== undefined && alvoCursor.abaIdx !== abaIdx) {
-      abaIdx = alvoCursor.abaIdx;
-      marcarAbas();
-      mostrarSecao();
-    }
-    marcarFoco();
+  function mesmoAlvo(a) {
+    if (a.menuIdx !== undefined) { return menuIdx === a.menuIdx; }
+    if (a.temp !== undefined) { return true; }       // só passar o cursor na temporada não muda nada
+    if (a.epIdx !== undefined) { return zonaEps === 'eps' && epIdx === a.epIdx; }
+    if (a.sugIdx !== undefined) { return sugIdx === a.sugIdx; }
+    return true;
   }
 
-  function mesmoAlvo(alvoCursor) {
-    if (alvoCursor.popup !== undefined) { return popupAberto && popupIdx === alvoCursor.popup; }
-    if (popupAberto || zona !== alvoCursor.zona) { return false; }
-    if (alvoCursor.secIdx !== undefined && secIdx !== alvoCursor.secIdx) { return false; }
-    if (alvoCursor.abaIdx !== undefined && abaIdx !== alvoCursor.abaIdx) { return false; }
-    if (alvoCursor.epIdx !== undefined && epIdx !== alvoCursor.epIdx) { return false; }
-    if (alvoCursor.sugIdx !== undefined && sugIdx !== alvoCursor.sugIdx) { return false; }
-    return true;
+  function aplicarAlvo(a) {
+    if (a.menuIdx !== undefined) { menuIdx = a.menuIdx; }
+    if (a.epIdx !== undefined) { epIdx = a.epIdx; zonaEps = 'eps'; }
+    if (a.sugIdx !== undefined) { sugIdx = a.sugIdx; }
+    marcarFoco();
   }
 
   elTela.addEventListener('mousemove', function (e) {
     if (!item || !VLTV.cursor.andou(e)) { return; }
-    var alvoCursor = alvoDoCursor(e.target);
-    if (!alvoCursor || mesmoAlvo(alvoCursor)) { return; }
-    aplicarAlvo(alvoCursor);
+    var a = alvoDoCursor(e.target);
+    if (!a || mesmoAlvo(a)) { return; }
+    aplicarAlvo(a);
   });
 
   elTela.addEventListener('click', function (e) {
     if (!item) { return; }
-    var alvoCursor = alvoDoCursor(e.target);
-    if (!alvoCursor) {
-      if (popupAberto && !contem(elPopupJanela, e.target)) { fecharPopup(); }   // clicou fora da janela de temporadas
+    var a = alvoDoCursor(e.target);
+    if (!a) { return; }
+    if (a.temp !== undefined) {
+      if (a.temp !== tempIdx) { mudarTemporada(a.temp, 0); }
+      zonaEps = itensEps.length > 0 ? 'eps' : 'temps';
+      marcarFoco();
       return;
     }
-    if (!mesmoAlvo(alvoCursor)) { aplicarAlvo(alvoCursor); }
-    if (alvoCursor.zona === 'abas') { return; }          // clicar na aba só a escolhe
+    if (!mesmoAlvo(a)) { aplicarAlvo(a); }
     tecla(TECLA.ENTER);                                   // o resto: igual ao OK
   });
 

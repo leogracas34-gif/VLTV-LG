@@ -2,6 +2,7 @@
 // - Barra de progresso com avançar/voltar (esquerda/direita), botões na tela e teclas de mídia.
 // - Botão "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (igual ao Android).
 // - Guarda de onde o usuário parou e retoma dali quando pedido.
+// - Tela de pausa estilo Netflix: nome (e T:E do episódio) em cima, logo do título, ícone + tempo + barra embaixo.
 (function () {
   'use strict';
 
@@ -31,7 +32,6 @@
   var elProgresso = $('player-progresso');
   var elPrevia = $('player-previa');
   var elTempo = $('player-tempo');
-  var elEstado = $('player-estado');
   var elDuracao = $('player-duracao');
   var elAviso = $('player-aviso');
   var cartao = $('player-proximo');
@@ -40,6 +40,12 @@
   var elBotaoProximo = $('pp-botao');
   var elProximoTitulo = $('pp-titulo');
   var elProximoFill = $('pp-fill');
+  var elIcone = $('player-icone');
+  var pausa = $('player-pausa');
+  var elPausaNome = $('pa-nome');
+  var elPausaEp = $('pa-ep');
+  var elPausaLogo = $('pa-logo-img');
+  var elPausaTxt = $('pa-logo-txt');
 
   var itens = [];
   var idx = 0;
@@ -119,11 +125,6 @@
   elLegenda.className = 'legenda-avplay escondida';
   $('tela-player').appendChild(elLegenda);
 
-  var elDica = document.createElement('div');
-  elDica.className = 'ctrl-dica';
-  elDica.textContent = '\u25BC  \u00C1udio e legenda';
-  controles.appendChild(elDica);
-
   function mostrarLegenda(texto) {
     if (!texto) { elLegenda.classList.add('escondida'); elLegenda.textContent = ''; return; }
     elLegenda.textContent = texto;
@@ -197,6 +198,7 @@
     faixasAberto = false;
     clearTimeout(timerFaixas);
     elFaixas.classList.add('escondida');
+    atualizarPausa();
   }
 
   function escolherFaixa() {
@@ -239,7 +241,50 @@
     elPrevia.classList.toggle('escondida', puloAlvo === null);
     elTempo.textContent = formatar(t);
     elDuracao.textContent = valida ? formatar(d) : '';
-    elEstado.textContent = puloAlvo !== null ? 'Ir para ' + formatar(t) : (motor.pausado() ? 'Pausado' : '');
+    // Ícone da barra: triângulo com o vídeo pausado, duas barrinhas tocando (igual à Netflix)
+    elIcone.classList.toggle('tocando', !motor.pausado());
+  }
+
+  // ── Tela de pausa (estilo Netflix) ────────────────────────────────
+  // Aparece só com o vídeo pausado e a barra na tela (e sem o menu de áudio/legenda aberto).
+  function atualizarPausa() {
+    var mostrar = ativo && controlesVisiveis() && motor.pausado() && !faixasAberto;
+    pausa.classList.toggle('escondida', !mostrar);
+  }
+
+  // Prepara os textos e a logo do item que vai tocar. Sem logo (ou sem chave do TMDB), mostra o nome grande.
+  function prepararPausa(item) {
+    var nome = item.nomeSerie || item.titulo || '';
+    elPausaNome.textContent = nome;
+    elPausaTxt.textContent = nome;
+
+    if (item.tn !== undefined && item.en !== undefined) {
+      var letra = VLTV.idioma && VLTV.idioma.ehIngles && VLTV.idioma.ehIngles() ? 'S' : 'T';
+      elPausaEp.textContent = letra + item.tn + ':E' + item.en + (item.epTitulo ? ' \u201C' + item.epTitulo + '\u201D' : '');
+      elPausaEp.classList.remove('escondida');
+    } else {
+      elPausaEp.textContent = '';
+      elPausaEp.classList.add('escondida');
+    }
+
+    // Enquanto a logo não chega (ou se não existir), o nome em texto grande ocupa o lugar dela.
+    elPausaLogo.classList.add('escondida');
+    elPausaLogo.removeAttribute('src');
+    elPausaTxt.classList.remove('escondida');
+
+    if (!item.logoId || !VLTV.tmdb) { return; }
+    var minha = idPlay;
+    VLTV.tmdb.logo(item.logoTipo, item.logoId, item.logoNome || nome).then(function (url) {
+      if (!url || minha !== idPlay) { return; }
+      var img = new Image();
+      img.onload = function () {
+        if (minha !== idPlay) { return; }
+        elPausaLogo.src = url;
+        elPausaLogo.classList.remove('escondida');
+        elPausaTxt.classList.add('escondida');
+      };
+      img.src = url;   // se a imagem falhar, fica o nome em texto
+    });
   }
 
   function agendarEsconder() {
@@ -249,6 +294,7 @@
       timerControles = setTimeout(function () {
         controles.classList.add('escondida');
         ajustarCartao();
+        atualizarPausa();
       }, TEMPO_CONTROLES_MS);
     }
   }
@@ -257,6 +303,7 @@
     atualizarBarra();
     controles.classList.remove('escondida');
     ajustarCartao();
+    atualizarPausa();
     agendarEsconder();
   }
 
@@ -521,6 +568,7 @@
     fecharFaixas();
     esconderLegenda();
     elTitulo.textContent = itens[idx].titulo || '';
+    prepararPausa(itens[idx]);
     elProgresso.style.width = '0%';
     elTempo.textContent = '0:00';
     elDuracao.textContent = '';
@@ -543,6 +591,7 @@
     esconderCartao();
     elAviso.classList.add('escondida');
     controles.classList.add('escondida');
+    pausa.classList.add('escondida');
   }
 
   function sair() {

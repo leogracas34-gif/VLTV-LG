@@ -847,7 +847,9 @@
       id: item.id,
       ext: item.ext || info.container_extension,
       url: item.url,
-      chave: 'f' + item.id
+      chave: 'f' + item.id,
+      // Para a tela de pausa do player: logo do título (mesma logo e mesmo cache desta tela de detalhes)
+      logoTipo: item.tipo, logoId: item.id, logoNome: item.nome
     };
   }
 
@@ -1011,7 +1013,11 @@
           temp: ti,
           pos: pos,
           tn: t.numero,
-          en: numero
+          en: numero,
+          // Para a tela de pausa do player: nome da série, nome do episódio e logo (id da SÉRIE no painel, não do episódio)
+          nomeSerie: nomeLimpo,
+          epTitulo: tit.indexOf('Episódio ') === 0 ? '' : tit,
+          logoTipo: item.tipo, logoId: item.id, logoNome: item.nome
         });
       });
     });

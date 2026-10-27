@@ -753,6 +753,85 @@
     return li;
   }
 
+  // ── Semelhantes: pontua cada título da categoria pelo que ele tem em comum com o título aberto ──
+  function semAcento(t) {
+    return String(t || '').toLowerCase().replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function listaNorm(texto, separador) {
+    var saida = [];
+    String(texto || '').normalize('NFD').split(separador).forEach(function (p) {
+      p = semAcento(p).replace(/\s+/g, ' ').trim();
+      if (p !== '' && saida.indexOf(p) < 0) { saida.push(p); }
+    });
+    return saida;
+  }
+
+  function anoDoRaw(raw) {
+    var m = /(19|20)\d{2}/.exec(String(raw.releaseDate || raw.release_date || raw.releasedate || raw.year || ''));
+    return m ? parseInt(m[0], 10) : 0;
+  }
+
+  function primeiraPalavra(nome) {
+    var ps = semAcento(String(VLTV.titulo.limpar(nome || '')).normalize('NFD')).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/);
+    for (var i = 0; i < ps.length; i++) { if (ps[i].length >= 4) { return ps[i]; } }
+    return '';
+  }
+
+  function comuns(a, b) {
+    var n = 0;
+    a.forEach(function (x) { if (b.indexOf(x) >= 0) { n++; } });
+    return n;
+  }
+
+  function pontosSemelhanca(raw, ref) {
+    var pts = 0;
+    pts += comuns(listaNorm(raw.genre, /\s*[,\/;|]\s*/), ref.generos) * 3;
+    pts += comuns(listaNorm(raw.cast, /\s*,\s*/), ref.elenco) * 2;
+    pts += comuns(listaNorm(raw.director, /\s*,\s*/), ref.direcao) * 2;
+    if (ref.palavra !== '' && primeiraPalavra(raw.name) === ref.palavra) { pts += 2.5; }
+    var ano = anoDoRaw(raw);
+    if (ref.ano && ano && Math.abs(ref.ano - ano) <= 2) { pts += 1; }
+    var nota = parseFloat(raw.rating);
+    if (nota >= 7) { pts += 0.5; }
+    // O que o usuário já avaliou pesa: Amei e Gostei sobem na lista.
+    var av = VLTV.dados.avaliacao(item.tipo, idDe(raw));
+    if (av === 'a') { pts += 2; } else if (av === 'g') { pts += 1; }
+    return pts;
+  }
+
+  // Títulos semelhantes: mesma categoria, ordenados por semelhança. Quem marcou "Não é para mim" sai da lista.
+  // Com Gostei ou Amei no título aberto, a lista fica maior (Amei mostra mais um bloco de capas).
+  function escolherSemelhantes() {
+    var pos = -1;
+    var i;
+    for (i = 0; i < base.length; i++) {
+      if (String(idDe(base[i])) === String(item.id)) { pos = i; break; }
+    }
+    var ref = {
+      generos: listaNorm(info.genre || item.genero, /\s*[,\/;|]\s*/),
+      elenco: listaNorm(info.cast || info.actors || item.elenco, /\s*,\s*/),
+      direcao: listaNorm(info.director || item.direcao, /\s*,\s*/),
+      ano: anoDoRaw(info) || anoDoRaw(item.raw || {}),
+      palavra: primeiraPalavra(item.nome)
+    };
+    var candidatos = [];
+    for (var k = 1; k < base.length; k++) {
+      var raw = base[(pos + k + base.length) % base.length];
+      if (VLTV.dados.avaliacao(item.tipo, idDe(raw)) === 'n') { continue; }
+      candidatos.push({ raw: raw, ordem: k, pts: pontosSemelhanca(raw, ref) });
+    }
+    candidatos.sort(function (a, b) { return (b.pts - a.pts) || (a.ordem - b.ordem); });
+    var minha = VLTV.dados.avaliacao(item.tipo, item.id);
+    var limite = minha === 'a' ? MAX_SUG + COL_SUG : MAX_SUG;
+    return candidatos.slice(0, limite).map(function (c) { return c.raw; });
+  }
+
+  // Refaz a lista sem atrapalhar quem já está navegando nela.
+  function atualizarSugestoes() {
+    if (modo !== 'sug') { renderSugestoes(); }
+  }
+
   function renderSugestoes() {
     esvaziar(elSug);
     elSug._y = 0;
@@ -760,14 +839,7 @@
     itensSug = [];
     sugIdx = 0;
 
-    var pos = -1;
-    for (var i = 0; i < base.length; i++) {
-      if (String(idDe(base[i])) === String(item.id)) { pos = i; break; }
-    }
-    var lista = [];
-    for (var k = 1; k < base.length && lista.length < MAX_SUG; k++) {
-      lista.push(base[(pos + k + base.length) % base.length]);
-    }
+    var lista = escolherSemelhantes();
 
     if (lista.length === 0) {
       mensagem(elSug, 'Sem sugestões por enquanto.');
@@ -851,6 +923,7 @@
     if (!el) { return; }
     VLTV.dados.definirAvaliacao(item.tipo, item.id, el.getAttribute('data-v'));
     atualizarAval();
+    atualizarSugestoes();
   }
 
   function abrirEpisodios() {
@@ -1035,6 +1108,7 @@
   // ── Carregamento ──────────────────────────────────────────────────
   function montarSerie(dados) {
     info = dados.info || {};
+    atualizarSugestoes();
     temporadas = dados.temporadas || [];
     plano = [];
     var nomeLimpo = nomeDoPlayer();
@@ -1088,6 +1162,7 @@
 
   function montarFilme(dados) {
     info = dados || {};
+    atualizarSugestoes();
     renderTopo();
     atualizarProgresso();
   }

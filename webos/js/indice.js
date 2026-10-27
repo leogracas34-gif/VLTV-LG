@@ -368,5 +368,8 @@
     });
   }
 
-  VLTV.indice = { preparar: preparar, aquecer: aquecer, pausar: pausar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar };
+  // Todos os títulos já reunidos no índice (sem repetir). Vazio enquanto o índice ainda não chegou.
+  function titulos(tipo) { return estado(tipo).unico; }
+
+  VLTV.indice = { preparar: preparar, aquecer: aquecer, pausar: pausar, ouvir: ouvir, progresso: progresso, pesquisar: pesquisar, achar: achar, titulos: titulos };
 })();

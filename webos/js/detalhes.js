@@ -9,8 +9,8 @@
   var TECLA = { ENTER: 13, ESC: 27, VOLTAR: 461, ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40, PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428 };
 
   var PASSO_PAGINA_EPS = 5;     // CH+/CH- pulam esta quantidade de episódios
-  var COL_SUG = 7;              // capas por linha nos títulos semelhantes
   var MAX_SUG = 14;             // quantas sugestões mostrar
+  var MAX_SUG_AMEI = 21;        // quantas mostrar quando o título aberto está com "Amei!"
   var RESUME_MIN_FILME_S = 30;  // só oferece "continuar" depois de 30 s assistidos
   var RESUME_MIN_EP_S = 30;
   var INTERVALO_FUNDO_MS = 9000; // de quanto em quanto tempo o fundo troca de imagem
@@ -39,6 +39,7 @@
   var elReiniciar = $('det-reiniciar');
   var elBtnEps = $('det-btn-eps');
   var elBtnSug = $('det-btn-sug');
+  var elBtnCred = $('det-btn-cred');
   var elFav = $('det-fav');
   var elEpsTela = $('det-eps-tela');
   var elEpsNome = $('det-eps-nome');
@@ -53,6 +54,16 @@
   var avalTopoIdx = 1;
   var elSugTela = $('det-sug-tela');
   var elSugJanela = $('det-sug-janela');
+  var elSugLogo = $('det-sug-logo');
+  var elSugNome = $('det-sug-nome');
+  var elSugMeta = $('det-sug-meta');
+  var elSugQtd = $('det-sug-qtd');
+  var elCredTela = $('det-cred-tela');
+  var elCredLogo = $('det-cred-logo');
+  var elCredNome = $('det-cred-nome');
+  var elCredMeta = $('det-cred-meta');
+  var elCredMenu = $('det-cred-menu');
+  var elCredConteudo = $('det-cred-conteudo');
   var elSug = $('det-sug');
 
   var item = null;          // título aberto: { tipo, id, nome, capa, ... }
@@ -68,13 +79,19 @@
   var idLogo = 0;
   var usandoCapa = false;
 
-  var modo = 'principal';   // 'principal' | 'eps' | 'sug'
+  var modo = 'principal';   // 'principal' | 'eps' | 'sug' | 'cred'
   var menuIdx = 0;
   var zonaEps = 'eps';      // 'eps' (lista de episódios) | 'temps' (coluna das temporadas) | 'aval' (avaliação)
   var avalIdx = 1;
   var tempIdx = 0;
   var epIdx = 0;
   var sugIdx = 0;
+  var credIdx = 0;           // opção marcada em Créditos e mais informações
+  var itensCred = [];        // as opções (esquerda)
+  var secoesCred = [];       // os blocos de dados (direita), na mesma ordem
+  var idSug = 0;             // conta as montagens da lista de semelhantes (resposta antiga do TMDB é ignorada)
+  var pediuIndice = false;   // já pediu o índice de títulos para as sugestões (uma vez por título aberto)
+  var sugCarregando = false; // esperando o índice chegar para mostrar as sugestões
   var itensTemps = [];
   var itensEps = [];
   var itensSug = [];
@@ -564,7 +581,7 @@
   }
 
   function itensMenu() {
-    return [elAvalTopo, elPlay, elReiniciar, elBtnEps, elBtnSug, elFav].filter(function (el) {
+    return [elAvalTopo, elPlay, elReiniciar, elBtnEps, elBtnSug, elFav, elBtnCred].filter(function (el) {
       return !el.classList.contains('escondida');
     });
   }
@@ -720,39 +737,7 @@
     epIdx = posicao === 'ultimo' ? Math.max(0, itensEps.length - 1) : (posicao || 0);
   }
 
-  // ── Sugestões (outros títulos da mesma categoria) ─────────────────
-  function criarCelula(raw) {
-    var ehSerie = item.tipo === 'series';
-    var nomeItem = raw.name || '';
-    var url = (ehSerie ? raw.cover : raw.stream_icon) || '';
-
-    var li = document.createElement('li');
-    li.className = 'celula';
-
-    var capa = document.createElement('div');
-    capa.className = 'capa';
-    if (url) {
-      var img = document.createElement('img');
-      img.alt = '';
-      img.onerror = function () {
-        if (img.parentNode) { img.parentNode.removeChild(img); }
-        capa.textContent = nomeItem.charAt(0).toUpperCase();
-      };
-      img.src = url;
-      capa.appendChild(img);
-    } else {
-      capa.textContent = nomeItem.charAt(0).toUpperCase();
-    }
-
-    var nome = document.createElement('div');
-    nome.className = 'celula-nome';
-    nome.textContent = VLTV.titulo.limpar(nomeItem);
-
-    li.appendChild(capa);
-    li.appendChild(nome);
-    return li;
-  }
-
+  // ── Sugestões: lista vertical, como os episódios ──────────────────
   // ── Semelhantes: pontua cada título da categoria pelo que ele tem em comum com o título aberto ──
   function semAcento(t) {
     return String(t || '').toLowerCase().replace(/[\u0300-\u036f]/g, '');
@@ -800,13 +785,47 @@
     return pts;
   }
 
-  // Títulos semelhantes: mesma categoria, ordenados por semelhança. Quem marcou "Não é para mim" sai da lista.
+  // De onde saem os semelhantes. Se a tela foi aberta de uma categoria de verdade, usa ela. Se veio de
+  // Continuar assistindo, Favoritos, Pesquisa, banner ou destaque, a lista é pequena (às vezes só o próprio
+  // título): então usa o índice de todos os títulos do painel (da mesma categoria, quando se sabe qual é).
+  function reservatorio() {
+    if (base.length >= 12) { return base; }
+    var todos = [];
+    try { todos = VLTV.indice.titulos(item.tipo) || []; } catch (e) { todos = []; }
+    if (todos.length === 0) {
+      if (!pediuIndice) {
+        pediuIndice = true;
+        sugCarregando = true;
+        var itemMeu = item;
+        try {
+          VLTV.indice.preparar(item.tipo, true).then(function () {
+            if (itemMeu !== item) { return; }
+            sugCarregando = false;
+            atualizarSugestoes();
+          }, function () {
+            sugCarregando = false;
+            atualizarSugestoes();
+          });
+        } catch (e2) { sugCarregando = false; }
+      }
+      return base;
+    }
+    var cat = item.raw ? item.raw.category_id : undefined;
+    if (cat !== undefined && cat !== null && String(cat).indexOf('__') !== 0) {
+      var daCategoria = todos.filter(function (r) { return String(r.category_id) === String(cat); });
+      if (daCategoria.length >= 12) { return daCategoria; }
+    }
+    return todos;
+  }
+
+  // Títulos semelhantes, ordenados por semelhança. Quem marcou "Não é para mim" sai da lista.
   // Com Gostei ou Amei no título aberto, a lista fica maior (Amei mostra mais um bloco de capas).
   function escolherSemelhantes() {
+    var pool = reservatorio();
     var pos = -1;
     var i;
-    for (i = 0; i < base.length; i++) {
-      if (String(idDe(base[i])) === String(item.id)) { pos = i; break; }
+    for (i = 0; i < pool.length; i++) {
+      if (String(idDe(pool[i])) === String(item.id)) { pos = i; break; }
     }
     var ref = {
       generos: listaNorm(info.genre || item.genero, /\s*[,\/;|]\s*/),
@@ -816,14 +835,16 @@
       palavra: primeiraPalavra(item.nome)
     };
     var candidatos = [];
-    for (var k = 1; k < base.length; k++) {
-      var raw = base[(pos + k + base.length) % base.length];
+    for (var k = 0; k < pool.length; k++) {
+      var idx = pos >= 0 ? (pos + 1 + k) % pool.length : k;
+      var raw = pool[idx];
+      if (String(idDe(raw)) === String(item.id)) { continue; }
       if (VLTV.dados.avaliacao(item.tipo, idDe(raw)) === 'n') { continue; }
       candidatos.push({ raw: raw, ordem: k, pts: pontosSemelhanca(raw, ref) });
     }
     candidatos.sort(function (a, b) { return (b.pts - a.pts) || (a.ordem - b.ordem); });
     var minha = VLTV.dados.avaliacao(item.tipo, item.id);
-    var limite = minha === 'a' ? MAX_SUG + COL_SUG : MAX_SUG;
+    var limite = minha === 'a' ? MAX_SUG_AMEI : MAX_SUG;
     return candidatos.slice(0, limite).map(function (c) { return c.raw; });
   }
 
@@ -832,31 +853,239 @@
     if (modo !== 'sug') { renderSugestoes(); }
   }
 
+  function textoMetaSug(raw) {
+    var partes = [];
+    var nota = parseFloat(String(raw.rating || '').replace(',', '.'));
+    if (!isNaN(nota) && nota > 0) { partes.push('\u2605 ' + nota.toFixed(1)); }
+    var ano = anoDoRaw(raw);
+    if (ano) { partes.push(String(ano)); }
+    var gen = String(raw.genre || '').split(/\s*[,\/;|]\s*/).filter(function (g) { return g !== ''; }).slice(0, 2).join(', ');
+    if (gen) { partes.push(VLTV.idioma.categoria(gen)); }
+    return partes.join('   ');
+  }
+
+  function criarLinhaSug(raw) {
+    var ehSerie = item.tipo === 'series';
+    var nomeItem = raw.name || '';
+    var fundo = primeiro(raw.backdrop_path);
+    var url = fundo || (ehSerie ? raw.cover : raw.stream_icon) || '';
+
+    var li = document.createElement('li');
+    li.className = 'sug-lin';
+
+    var thumb = document.createElement('div');
+    thumb.className = 'sug-thumb' + (fundo ? '' : ' poster');
+    li._thumb = thumb;
+    if (url) {
+      var img = document.createElement('img');
+      img.alt = '';
+      img.onerror = function () {
+        if (img.parentNode) { img.parentNode.removeChild(img); }
+        thumb.textContent = nomeItem.charAt(0).toUpperCase();
+      };
+      img.src = url;
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = nomeItem.charAt(0).toUpperCase();
+    }
+
+    var txt = document.createElement('div');
+    txt.className = 'sug-txt';
+    var tit = document.createElement('div');
+    tit.className = 'sug-tit';
+    tit.textContent = limparTitulo(nomeItem);
+    var meta = document.createElement('div');
+    meta.className = 'sug-meta';
+    meta.textContent = textoMetaSug(raw);
+    var sin = document.createElement('div');
+    sin.className = 'sug-sin';
+    sin.textContent = String(raw.plot || raw.description || '');
+    txt.appendChild(tit);
+    txt.appendChild(meta);
+    txt.appendChild(sin);
+
+    li.appendChild(thumb);
+    li.appendChild(txt);
+    li._tit = tit;
+    li._sin = sin;
+    li._semFundo = !fundo;
+    return li;
+  }
+
+  // TMDB, uma linha por vez: imagem larga para quem veio só com capa, sinopse para quem veio sem, e em inglês
+  // o título. Se a lista foi refeita no meio do caminho, para.
+  function completarSugestoes(lis, meuId) {
+    if (!VLTV.tmdb.ativo()) { return; }
+    var ingles = VLTV.idioma.ehIngles();
+    var tipo = item.tipo;
+    var i = 0;
+    function proxima() {
+      if (meuId !== idSug || i >= lis.length) { return; }
+      var li = lis[i++];
+      var raw = li._raw;
+      var id = idDe(raw);
+      var passoFundo = li._semFundo
+        ? VLTV.tmdb.fundo(tipo, id, raw.name).then(function (u) {
+            if (meuId !== idSug || !u) { return; }
+            var img = document.createElement('img');
+            img.alt = '';
+            img.onload = function () {
+              if (meuId !== idSug) { return; }
+              esvaziar(li._thumb);
+              li._thumb.classList.remove('poster');
+              li._thumb.appendChild(img);
+            };
+            img.src = u;
+          })
+        : Promise.resolve();
+      var precisaTexto = ingles || !li._sin.textContent;
+      passoFundo.then(function () {
+        if (!precisaTexto) { return; }
+        return VLTV.tmdb.textos(tipo, id, raw.name).then(function (r) {
+          if (meuId !== idSug || !r) { return; }
+          if (ingles && r.titulo) { li._tit.textContent = r.titulo; }
+          if (r.sinopse && (ingles || !li._sin.textContent)) { li._sin.textContent = r.sinopse; }
+        });
+      }).then(proxima, proxima);
+    }
+    proxima();
+  }
+
   function renderSugestoes() {
     esvaziar(elSug);
     elSug._y = 0;
     elSug.style.transform = '';
     itensSug = [];
     sugIdx = 0;
+    var meuId = ++idSug;
 
     var lista = escolherSemelhantes();
+    elSugQtd.textContent = lista.length > 0 ? lista.length + (lista.length === 1 ? ' título' : ' títulos') : '';
 
     if (lista.length === 0) {
-      mensagem(elSug, 'Sem sugestões por enquanto.');
+      mensagem(elSug, sugCarregando ? 'Carregando...' : 'Sem sugestões por enquanto.');
       return;
     }
     lista.forEach(function (raw) {
-      var li = criarCelula(raw);
+      var li = criarLinhaSug(raw);
       li._raw = raw;
       elSug.appendChild(li);
       itensSug.push(li);
-      if (VLTV.idioma.ehIngles() && VLTV.tmdb.ativo()) {
-        VLTV.tmdb.textos(item.tipo, idDe(raw), raw.name).then(function (r) {
-          var el = r && r.titulo ? li.querySelector('.celula-nome') : null;
-          if (el) { el.textContent = r.titulo; }
+    });
+    completarSugestoes(itensSug.slice(), meuId);
+  }
+
+  // Lado esquerdo da tela: a logo (ou o nome) do título aberto e a linha de ano/duração.
+  function montarCabecalho(lg, nm, mt) {
+    var temLogo = !elLogo.classList.contains('escondida') && !!elLogo.getAttribute('src');
+    if (temLogo) { lg.src = elLogo.getAttribute('src'); } else { lg.removeAttribute('src'); }
+    mostrar(lg, temLogo);
+    nm.textContent = elTitulo.textContent || limparTitulo(item.nome);
+    mostrar(nm, !temLogo);
+    var partes = [];
+    if (elAno.textContent) { partes.push(elAno.textContent); }
+    if (elDuracao.textContent) { partes.push(elDuracao.textContent); }
+    mt.textContent = partes.join('   \u00b7   ');
+  }
+
+  // ── Créditos e mais informações ───────────────────────────────────
+  function listaDeNomes(texto) {
+    return String(texto || '').split(/\s*,\s*/).filter(function (n) { return n !== ''; });
+  }
+
+  // Cada bloco: { rotulo, linhas } ou { rotulo, idade, texto }. Só entram os que o painel mandou.
+  function dadosCreditos() {
+    var blocos = [];
+    var dir = listaDeNomes(info.director || item.direcao);
+    if (dir.length > 0) { blocos.push({ rotulo: item.tipo === 'series' ? 'Criação' : 'Direção', linhas: dir }); }
+    var elenco = listaDeNomes(info.cast || info.actors || item.elenco);
+    if (elenco.length > 0) { blocos.push({ rotulo: 'Elenco', linhas: elenco }); }
+    var generos = String(info.genre || item.genero || '').split(/\s*[,\/;|]\s*/).filter(function (g) { return g !== ''; })
+      .map(function (g) { return VLTV.idioma.categoria(g); });
+    if (generos.length > 0) { blocos.push({ rotulo: 'Gêneros', linhas: generos }); }
+    var idadeTxt = String(info.age || info.mpaa_rating || info.age_rating || info.certification || '').trim();
+    if (idadeTxt !== '') {
+      var m = /(\d{1,2})/.exec(idadeTxt);
+      var n = m ? parseInt(m[1], 10) : 0;
+      blocos.push({
+        rotulo: 'Classificação etária',
+        idade: n > 0 ? String(n) : idadeTxt.toUpperCase().slice(0, 4),
+        classe: n > 0 ? (n <= 10 ? 'i-10' : n <= 12 ? 'i-12' : n <= 14 ? 'i-14' : n <= 16 ? 'i-16' : 'i-18') : 'i-l',
+        texto: n > 0 ? 'Não recomendado para menores de ' + n + ' anos' : ''
+      });
+    }
+    return blocos;
+  }
+
+  function renderCreditosTela() {
+    esvaziar(elCredMenu);
+    esvaziar(elCredConteudo);
+    itensCred = [];
+    secoesCred = [];
+    var blocos = dadosCreditos();
+    if (blocos.length === 0) {
+      var vazio = document.createElement('div');
+      vazio.className = 'cred-lin';
+      vazio.textContent = 'Sem informações disponíveis.';
+      elCredConteudo.appendChild(vazio);
+      return;
+    }
+    blocos.forEach(function (b) {
+      var li = document.createElement('li');
+      li.textContent = b.rotulo;
+      elCredMenu.appendChild(li);
+      itensCred.push(li);
+
+      var sec = document.createElement('div');
+      sec.className = 'cred-sec';
+      var tit = document.createElement('div');
+      tit.className = 'cred-tit';
+      tit.textContent = b.rotulo;
+      sec.appendChild(tit);
+      if (b.idade) {
+        var selo = document.createElement('div');
+        selo.className = 'cred-idade ' + b.classe;
+        selo.textContent = b.idade;
+        sec.appendChild(selo);
+        if (b.texto) {
+          var tx = document.createElement('div');
+          tx.className = 'cred-idade-txt';
+          tx.textContent = b.texto;
+          sec.appendChild(tx);
+        }
+      } else {
+        b.linhas.forEach(function (l) {
+          var d = document.createElement('div');
+          d.className = 'cred-lin';
+          d.textContent = l;
+          sec.appendChild(d);
         });
       }
+      elCredConteudo.appendChild(sec);
+      secoesCred.push(sec);
     });
+    if (credIdx > itensCred.length - 1) { credIdx = Math.max(0, itensCred.length - 1); }
+  }
+
+  // Os dados chegaram com a tela já aberta: refaz sem tirar o usuário do lugar.
+  function atualizarCreditosTela() {
+    if (modo !== 'cred') { return; }
+    renderCreditosTela();
+    marcarFoco();
+  }
+
+  // A coluna da direita anda até o começo do bloco da opção marcada.
+  function rolarCreditos() {
+    var sec = secoesCred[credIdx];
+    var y = sec ? sec.offsetTop : 0;
+    elCredConteudo.style.transform = 'translateY(' + (-y) + 'px)';
+  }
+
+  function abrirCreditos() {
+    credIdx = 0;
+    renderCreditosTela();
+    montarCabecalho(elCredLogo, elCredNome, elCredMeta);
+    trocarModo('cred');
   }
 
   // ── Foco e rolagem ────────────────────────────────────────────────
@@ -864,6 +1093,7 @@
     mostrar(elPrincipal, modo === 'principal');
     mostrar(elEpsTela, modo === 'eps');
     mostrar(elSugTela, modo === 'sug');
+    mostrar(elCredTela, modo === 'cred');
     elGradRolado.className = 'det-grad-rolado' + (modo !== 'principal' ? ' ativo' : '');
   }
 
@@ -876,6 +1106,7 @@
       if (zonaEps === 'aval') { return itensAval[avalIdx]; }
       return zonaEps === 'eps' ? itensEps[epIdx] : itensTemps[tempIdx];
     }
+    if (modo === 'cred') { return itensCred[credIdx] || null; }
     return itensSug[sugIdx] || null;
   }
 
@@ -903,6 +1134,8 @@
       else if (zonaEps === 'temps') { rolarLista(elTempsJanela, elTemps, elFocoAtual); }
     } else if (modo === 'sug') {
       rolarLista(elSugJanela, elSug, elFocoAtual);
+    } else if (modo === 'cred') {
+      rolarCreditos();
     }
   }
 
@@ -935,6 +1168,7 @@
 
   function abrirSugestoes() {
     sugIdx = 0;
+    montarCabecalho(elSugLogo, elSugNome, elSugMeta);
     trocarModo('sug');
   }
 
@@ -1007,6 +1241,7 @@
     else if (el === elReiniciar) { tocarPrincipal(true); }
     else if (el === elBtnEps) { abrirEpisodios(); }
     else if (el === elBtnSug) { abrirSugestoes(); }
+    else if (el === elBtnCred) { abrirCreditos(); }
     else if (el === elFav) { alternarFav(); }
   }
 
@@ -1058,22 +1293,23 @@
 
   function teclaSugestoes(k) {
     var n = itensSug.length;
-    if (k === TECLA.ESQ) { if (sugIdx % COL_SUG > 0) { sugIdx--; } }
-    else if (k === TECLA.DIR) { if (sugIdx < n - 1 && sugIdx % COL_SUG < COL_SUG - 1) { sugIdx++; } }
-    else if (k === TECLA.CIMA) { if (sugIdx >= COL_SUG) { sugIdx -= COL_SUG; } }
-    else if (k === TECLA.BAIXO) {
-      if (sugIdx + COL_SUG < n) { sugIdx += COL_SUG; }
-      else if (Math.floor(sugIdx / COL_SUG) < Math.floor((n - 1) / COL_SUG)) { sugIdx = n - 1; }
-    }
-    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) { sugIdx = Math.min(n - 1, sugIdx + COL_SUG * 2); }
-    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) { sugIdx = Math.max(0, sugIdx - COL_SUG * 2); }
+    if (k === TECLA.CIMA) { if (sugIdx > 0) { sugIdx--; } }
+    else if (k === TECLA.BAIXO) { if (sugIdx < n - 1) { sugIdx++; } }
+    else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) { sugIdx = Math.min(n - 1, sugIdx + PASSO_PAGINA_EPS); }
+    else if (k === TECLA.CH_MENOS || k === TECLA.PG_CIMA) { sugIdx = Math.max(0, sugIdx - PASSO_PAGINA_EPS); }
     else if (k === TECLA.ENTER) { if (itensSug[sugIdx]) { abrirSugestao(itensSug[sugIdx]._raw); } }
   }
 
+  function teclaCreditos(k) {
+    var n = itensCred.length;
+    if (k === TECLA.CIMA) { if (credIdx > 0) { credIdx--; } }
+    else if (k === TECLA.BAIXO) { if (credIdx < n - 1) { credIdx++; } }
+  }
+
   function voltar() {
-    // Em Episódios ou Títulos semelhantes: volta ao menu, no botão que abriu a lista.
+    // Em Episódios, Títulos semelhantes ou Créditos: volta ao menu, no botão que abriu a lista.
     if (modo !== 'principal') {
-      var botao = modo === 'eps' ? elBtnEps : elBtnSug;
+      var botao = modo === 'eps' ? elBtnEps : (modo === 'sug' ? elBtnSug : elBtnCred);
       menuIdx = Math.max(0, itensMenu().indexOf(botao));
       trocarModo('principal');
       return;
@@ -1099,7 +1335,8 @@
       else if (zonaEps === 'temps') { teclaTemporadas(k); }
       else { teclaEpisodios(k); }
     }
-    else { teclaSugestoes(k); }
+    else if (modo === 'sug') { teclaSugestoes(k); }
+    else { teclaCreditos(k); }
 
     marcarFoco();
     return true;
@@ -1109,6 +1346,7 @@
   function montarSerie(dados) {
     info = dados.info || {};
     atualizarSugestoes();
+    atualizarCreditosTela();
     temporadas = dados.temporadas || [];
     plano = [];
     var nomeLimpo = nomeDoPlayer();
@@ -1163,6 +1401,7 @@
   function montarFilme(dados) {
     info = dados || {};
     atualizarSugestoes();
+    atualizarCreditosTela();
     renderTopo();
     atualizarProgresso();
   }
@@ -1209,6 +1448,9 @@
     tempIdx = 0;
     epIdx = 0;
     sugIdx = 0;
+    pediuIndice = false;
+    sugCarregando = false;
+    credIdx = 0;
     menuIdx = 1;   // começa em Assistir/Continuar (a avaliação fica em cima)
     avalTopoIdx = 1;
     zonaEps = 'eps';
@@ -1277,8 +1519,10 @@
       for (i = 0; i < itensAval.length; i++) { if (contem(itensAval[i], t)) { return { aval: i }; } }
       for (i = 0; i < itensTemps.length; i++) { if (contem(itensTemps[i], t)) { return { temp: i }; } }
       for (i = 0; i < itensEps.length; i++) { if (contem(itensEps[i], t)) { return { epIdx: i }; } }
-    } else {
+    } else if (modo === 'sug') {
       for (i = 0; i < itensSug.length; i++) { if (contem(itensSug[i], t)) { return { sugIdx: i }; } }
+    } else {
+      for (i = 0; i < itensCred.length; i++) { if (contem(itensCred[i], t)) { return { credIdx: i }; } }
     }
     return null;
   }
@@ -1290,6 +1534,7 @@
     if (a.temp !== undefined) { return true; }       // só passar o cursor na temporada não muda nada
     if (a.epIdx !== undefined) { return zonaEps === 'eps' && epIdx === a.epIdx; }
     if (a.sugIdx !== undefined) { return sugIdx === a.sugIdx; }
+    if (a.credIdx !== undefined) { return credIdx === a.credIdx; }
     return true;
   }
 
@@ -1299,6 +1544,7 @@
     if (a.aval !== undefined) { avalIdx = a.aval; zonaEps = 'aval'; }
     if (a.epIdx !== undefined) { epIdx = a.epIdx; zonaEps = 'eps'; }
     if (a.sugIdx !== undefined) { sugIdx = a.sugIdx; }
+    if (a.credIdx !== undefined) { credIdx = a.credIdx; }
     marcarFoco();
   }
 

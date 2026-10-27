@@ -31,7 +31,7 @@
   }
 
   function gravar(id, url) {
-    try { window.localStorage.setItem(PREFIXO + id, JSON.stringify({ url: url || '', t: new Date().getTime() })); }
+    try { window.localStorage.setItem(PREFIXO + id, JSON.stringify({ url: url || '', t: new Date().getTime(), v: 2 })); }
     catch (e) { /* TV sem espaço: segue sem guardar */ }
   }
 
@@ -125,6 +125,9 @@
     for (i = 0; i < logos.length; i++) {
       if (String(logos[i].iso_639_1).toLowerCase() === id.logos && logos[i].file_path) { return logos[i].file_path; }
     }
+    for (i = 0; i < logos.length; i++) {   // não tem no idioma do app: usa a logo em inglês (a original de muitas séries)
+      if (String(logos[i].iso_639_1).toLowerCase() === 'en' && logos[i].file_path) { return logos[i].file_path; }
+    }
     for (i = 0; i < logos.length; i++) {
       if ((logos[i].iso_639_1 === null || logos[i].iso_639_1 === undefined) && logos[i].file_path) { return logos[i].file_path; }
     }
@@ -135,7 +138,7 @@
     return procurarMelhor(tipoTmdb, busca).then(function (achado) {
       if (achado === null) { return null; }
       var id = achado.id;
-      var url = API + '/' + tipoTmdb + '/' + id + '/images?api_key=' + chave() + '&include_image_language=' + (idiomaTmdb().logos === 'en' ? 'en,null' : 'pt-BR,pt,null');
+      var url = API + '/' + tipoTmdb + '/' + id + '/images?api_key=' + chave() + '&include_image_language=' + (idiomaTmdb().logos === 'en' ? 'en,null' : 'pt-BR,pt,en,null');
       return pegarJson(url).then(function (j) {
         var caminho = j && j.logos ? escolherLogo(j.logos) : null;
         return caminho ? endereco(caminho) : null;
@@ -248,6 +251,7 @@
     var c = ler(tipo + '_' + id);
     if (!c) { return null; }
     if (c.url) { return c.url; }
+    if (c.v !== 2) { return null; }   // "sem logo" gravado antes de aceitar logos em inglês: pesquisa de novo
     return (new Date().getTime() - c.t < VALIDADE_SEM_LOGO_MS) ? '' : null;
   }
 

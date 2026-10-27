@@ -148,6 +148,23 @@ input:focus,
   color: var(--suave);
 }
 
+/* Tela de carregamento: logo + bolinha girando. O texto só aparece em erro ou espera longa (classe com-aviso). */
+.bolinha {
+  width: 72px;
+  height: 72px;
+  margin-top: 8px;
+  border: 7px solid rgba(255, 255, 255, 0.14);
+  border-top-color: var(--destaque-claro);
+  border-radius: 50%;
+  -webkit-animation: bolinha-gira 0.9s linear infinite;
+  animation: bolinha-gira 0.9s linear infinite;
+}
+@-webkit-keyframes bolinha-gira { to { -webkit-transform: rotate(360deg); transform: rotate(360deg); } }
+@keyframes bolinha-gira { to { -webkit-transform: rotate(360deg); transform: rotate(360deg); } }
+#tela-carregando .msg-suave { display: none; }
+#tela-carregando.com-aviso .msg-suave { display: block; margin-top: 32px; }
+#tela-carregando.com-aviso .msg-suave + .msg-suave { margin-top: 12px; }
+
 /* ── Home ────────────────────────────────────────────── */
 
 .topo {

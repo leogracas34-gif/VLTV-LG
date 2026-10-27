@@ -345,7 +345,10 @@
   camadas[1].onerror = aoFalharFundo(camadas[1]);
 
   // ── Logo no lugar do nome (TMDB) ──────────────────────────────────
+  var timerNome = 0;   // se a logo demorar, mostra o nome depois desse tempo
   function mostrarNome() {
+    clearTimeout(timerNome);
+    elTitulo.style.visibility = '';
     elLogo.classList.add('escondida');
     elTitulo.classList.remove('escondida');
   }
@@ -355,6 +358,7 @@
     var tentouTmdb = false;
     elLogo.onload = function () {
       if (meu !== idLogo) { return; }
+      clearTimeout(timerNome);
       elLogo.classList.remove('escondida');
       elTitulo.classList.add('escondida');
     };
@@ -371,14 +375,28 @@
     elLogo.src = url;
   }
 
+  // Sem piscar: se a logo já é conhecida (ou ainda vai ser procurada), o nome em texto fica escondido
+  // até a logo aparecer. O nome só aparece se o título não tem logo ou se a logo falhar/demorar demais.
   function carregarLogo() {
     var meu = ++idLogo;
-    mostrarNome();
+    clearTimeout(timerNome);
+    elLogo.classList.add('escondida');
     elLogo.removeAttribute('src');
-    if (!VLTV.tmdb.ativo() && !VLTV.tmdb.guardada(item.tipo, item.id)) { return; }
+    elTitulo.classList.remove('escondida');
+    elTitulo.style.visibility = '';
+
+    var guard = VLTV.tmdb.guardada(item.tipo, item.id);   // endereço da logo, '' = não tem, null = nunca procurou
+    if (!VLTV.tmdb.ativo() && !guard) { return; }
+    if (guard === '') { return; }                          // já sabemos que não tem logo: só o nome
+
+    elTitulo.style.visibility = 'hidden';                  // some o texto (o espaço continua reservado)
+    timerNome = setTimeout(function () {
+      if (meu === idLogo) { mostrarNome(); }
+    }, guard ? 2500 : 1500);
 
     VLTV.tmdb.logo(item.tipo, item.id, item.nome).then(function (url) {
-      if (meu !== idLogo || !url) { return; }
+      if (meu !== idLogo) { return; }
+      if (!url) { mostrarNome(); return; }
       colocarLogo(url, meu);
     });
   }

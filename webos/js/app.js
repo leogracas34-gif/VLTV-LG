@@ -26,6 +26,23 @@
   };
   var telaAtual = 'carregando';
 
+  // Tela de carregamento: só a logo e a bolinha girando. O texto só aparece quando dá erro ou demora muito.
+  var DEMORA_CARREGANDO_MS = 15000;
+  var timerDemora = null;
+  function avisoCarregando(ligado) {
+    telas.carregando.classList.toggle('com-aviso', !!ligado);
+  }
+  function vigiarDemoraCarregando(ativo) {
+    if (timerDemora) { clearTimeout(timerDemora); timerDemora = null; }
+    avisoCarregando(false);
+    if (!ativo) { return; }
+    timerDemora = setTimeout(function () {
+      timerDemora = null;
+      if (telaAtual === 'carregando') { avisoCarregando(true); }
+    }, DEMORA_CARREGANDO_MS);
+  }
+  vigiarDemoraCarregando(true);
+
   var abas = [].slice.call(document.querySelectorAll('.aba'));
   var grupos = [].slice.call(document.querySelectorAll('#tela-login .campo'));
   var campoServidor = $('campo-servidor');
@@ -66,6 +83,7 @@
       telas[n].classList.toggle('escondida', n !== nome);
     });
     telaAtual = nome;
+    vigiarDemoraCarregando(nome === 'carregando');
     var faixa = $('faixa-campanha');
     if (faixa) { faixa.style.visibility = nome === 'home' ? 'visible' : 'hidden'; }
     if (nome === 'licenca') { $('lic-btn').focus(); }
@@ -851,6 +869,7 @@
         $('carregando-msg').textContent = ctx.modo === 'm3u'
           ? 'Não foi possível carregar a lista. Tentando de novo...'
           : 'Não foi possível conectar à lista. Tentando de novo...';
+        avisoCarregando(true);   // erro: aqui o cliente precisa ler o que está acontecendo
         dicaCarregando('Aperte OK para ver as suas listas.');
         setTimeout(function () { entrarComSalva(ctx, tentativa + 1, id); }, 3000 + tentativa * 2000);
         return;

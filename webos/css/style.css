@@ -743,7 +743,7 @@ input::placeholder { color: #5f5f6b; }
 .det-bloco {
   position: absolute;
   left: 110px;
-  bottom: 70px;
+  top: 40px;
   width: 1000px;
   text-align: left;
 }

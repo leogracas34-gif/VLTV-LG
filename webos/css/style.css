@@ -859,7 +859,26 @@ input::placeholder { color: #5f5f6b; }
 .det-val { color: #dcdce4; }
 
 /* Menu vertical: o item marcado vira uma pílula branca, como na Netflix */
-.det-menu { width: 660px; }
+/* Janela do menu: logo, sinopse e fundo ficam parados; só as opções sobem dentro desta janela (como na Netflix).
+   O padding dá espaço para o anel do foco não ser cortado; a altura é calculada em detalhes.js. */
+.det-menu {
+  position: relative;
+  box-sizing: border-box;
+  width: 680px;
+  margin: -8px -10px 0 -10px;
+  padding: 8px 10px 0 10px;
+  overflow: hidden;
+}
+.det-menu-trilho {
+  position: relative;
+  -webkit-transition: -webkit-transform 0.22s ease;
+  transition: transform 0.22s ease;
+}
+/* Quando o menu já subiu, o item que está saindo some aos poucos em cima */
+.det-menu.rolado {
+  -webkit-mask-image: -webkit-linear-gradient(top, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 8px, #000 92px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 8px, #000 92px);
+}
 .det-item {
   display: flex;
   align-items: center;

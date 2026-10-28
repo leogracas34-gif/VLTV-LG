@@ -65,6 +65,8 @@
   var liSelCanal = null;
   var liTocando = null;
   var cacheCanais = {};
+  var cacheQuando = {};          // quando cada categoria foi baixada (para atualizar em segundo plano)
+  var buscasDoUsuario = 0;       // buscas de canais que o usuário está esperando agora
 
   var foco = 'cat';              // 'cat' ou 'canais'
   var focoEstrela = false;       // cursor na estrela do canal (e não no nome)
@@ -280,13 +282,17 @@
 
     canais = [];
     mensagemLista(listaCanais, 'Carregando canais...');
+    buscasDoUsuario++;   // enquanto o usuário espera, a sincronização em segundo plano dá passagem
     VLTV.api.canaisAoVivo(cat.category_id)
       .then(function (lista) {
-        if (id !== idReqCanais) { return; }
+        buscasDoUsuario = Math.max(0, buscasDoUsuario - 1);
         cacheCanais[cat.category_id] = lista;
+        cacheQuando[cat.category_id] = new Date().getTime();
+        if (id !== idReqCanais) { return; }
         aplicarCanais(lista, focar);
       })
       .catch(function () {
+        buscasDoUsuario = Math.max(0, buscasDoUsuario - 1);
         if (id !== idReqCanais) { return; }
         canais = [];
         mensagemLista(listaCanais, 'Não foi possível carregar os canais. Pressione OK para tentar de novo.');
@@ -790,13 +796,171 @@
     return foco === 'cat' ? teclaCategorias(k) : teclaCanais(k);
   }
 
-  // ── Entrada e saída da tela ───────────────────────────────────────
+  // ── Preparo em segundo plano ──────────────────────────────────────
+  // Assim que o app abre (e a Home aparece), já busca no servidor as categorias e os canais da primeira categoria.
+  // Quando o usuário entra em TV ao vivo, tudo já está em memória e a tela abre completa, sem lado vazio.
+  var TTL_PREPARO_MS = 10 * 60 * 1000;   // depois disso, mostra o que tem e atualiza em segundo plano
   var listaDoCache = '';
+  var prep = { lista: '', brutas: null, quando: 0, promessa: null };
+
+  // Se o cliente trocou de lista, joga fora tudo que veio da lista anterior.
+  function validarCacheLista() {
+    var listaAtual = VLTV.listas.idAtiva();
+    if (listaAtual !== listaDoCache) {
+      cacheCanais = {};
+      cacheQuando = {};
+      listaDoCache = listaAtual;
+    }
+    if (prep.lista !== listaAtual) {
+      prep = { lista: listaAtual, brutas: null, quando: 0, promessa: null };
+    }
+    return listaAtual;
+  }
+
+  // Categorias na ordem da tela (Favoritos primeiro) e qual delas abre primeiro.
+  function montarCategorias(brutas) {
+    return [CAT_FAV].concat(VLTV.parental.filtrarCategorias('canais', brutas));
+  }
+  function categoriaInicial(cats) {
+    // Abre em Favoritos se já tem algum canal marcado; senão na primeira categoria de verdade (que não esteja bloqueada).
+    var inicio = VLTV.dados.favoritosDe('canais').length > 0 ? 0 : 1;
+    while (inicio < cats.length - 1 && categoriaTrancada(cats[inicio])) { inicio++; }
+    if (categoriaTrancada(cats[inicio])) { inicio = 0; }
+    return inicio;
+  }
+
+  // ── Guardado na TV (sobrevive ao fechar o app) ────────────────────
+  // Guarda só o essencial: as categorias e os canais da primeira categoria. Na próxima abertura, a tela já nasce completa
+  // e o app atualiza tudo escondido logo em seguida. Se não couber (armazenamento pequeno), simplesmente não guarda.
+  var VALIDADE_DISCO_MS = 3 * 24 * 60 * 60 * 1000;   // mais velho que isso: ignora
+  var LIMITE_DISCO_CHARS = 1200000;                  // ~1,2 MB de texto para os canais
+
+  function chaveDisco() {
+    var s = null;
+    try { s = VLTV.sessao.ler(); } catch (e) { s = null; }
+    var dono = s ? (s.modo === 'm3u' ? 'm3u' : (s.user || 'padrao')) : 'padrao';
+    return 'vltv_live_prep_' + ((VLTV.config && VLTV.config.VERSAO) || '') + '_' + dono + '_' + (VLTV.listas.idAtiva() || 'x');
+  }
+
+  function primeiraCategoriaReal(brutas) {
+    var cats = montarCategorias(brutas || []);
+    for (var k = 0; k < cats.length; k++) {
+      if (!cats[k].especial && !categoriaTrancada(cats[k])) { return cats[k]; }
+    }
+    return null;
+  }
+
+  function gravarNoDisco() {
+    try {
+      if (!prep.brutas) { return; }
+      var cat = primeiraCategoriaReal(prep.brutas);
+      var pacote = { t: new Date().getTime(), brutas: prep.brutas, catId: null, canais: null };
+      if (cat && cacheCanais[cat.category_id]) {
+        var texto = JSON.stringify(cacheCanais[cat.category_id]);
+        if (texto.length <= LIMITE_DISCO_CHARS) { pacote.catId = cat.category_id; pacote.canais = cacheCanais[cat.category_id]; }
+      }
+      localStorage.setItem(chaveDisco(), JSON.stringify(pacote));
+    } catch (e) { /* sem espaço ou sem armazenamento: segue sem guardar */ }
+  }
+
+  // Se o app acabou de abrir e ainda não tem nada em memória, usa o que ficou guardado (marcado como velho: atualiza escondido).
+  function lerDoDisco() {
+    try {
+      if (prep.brutas || prep.promessa) { return; }
+      var texto = localStorage.getItem(chaveDisco());
+      if (!texto) { return; }
+      var pacote = JSON.parse(texto);
+      if (!pacote || !pacote.brutas || !pacote.brutas.length || (new Date().getTime() - (pacote.t || 0)) > VALIDADE_DISCO_MS) { return; }
+      prep.brutas = pacote.brutas;
+      prep.quando = 0;                                   // velho de propósito: a tela abre e o app atualiza escondido
+      if (pacote.catId && pacote.canais && !cacheCanais[pacote.catId]) {
+        cacheCanais[pacote.catId] = pacote.canais;
+        cacheQuando[pacote.catId] = 0;
+      }
+    } catch (e) { /* guardado estragado: ignora */ }
+  }
+
+  // Sincronização silenciosa: depois da primeira categoria, baixa os canais das outras, uma por vez e com folga,
+  // para trocar de categoria ser instantâneo. Dá passagem quando o usuário está esperando algo e quando o vídeo da Home/filme está tocando.
+  var PAUSA_SYNC_MS = 700;                 // folga entre uma categoria e outra
+  var VALIDADE_CANAIS_MS = 30 * 60 * 1000; // depois disso a categoria é baixada de novo, escondido
+  var syncPausada = false;
+  var syncRodando = false;
+
+  function categoriaFresca(id) {
+    return !!cacheCanais[id] && (new Date().getTime() - (cacheQuando[id] || 0)) < VALIDADE_CANAIS_MS;
+  }
+
+  function sincronizar() {
+    if (syncRodando || syncPausada || !prep.brutas) { return; }
+    var minha = prep;
+    var fila = montarCategorias(minha.brutas).filter(function (c) {
+      return !c.especial && !categoriaTrancada(c);    // Favoritos já está na TV; categorias +18 bloqueadas não são baixadas
+    });
+    var i = 0;
+    var baixouAlgo = false;
+    syncRodando = true;
+
+    function proximo() {
+      if (prep !== minha || syncPausada) { syncRodando = false; return; }       // trocou de lista ou pausou
+      if (buscasDoUsuario > 0) { setTimeout(proximo, 1000); return; }          // o usuário está esperando: ele passa na frente
+      while (i < fila.length && categoriaFresca(fila[i].category_id)) { i++; }
+      if (i >= fila.length) { syncRodando = false; if (baixouAlgo) { gravarNoDisco(); } return; }    // tudo sincronizado
+      var cat = fila[i++];
+      baixouAlgo = true;
+      VLTV.api.canaisAoVivo(cat.category_id)
+        .then(function (lista) {
+          if (prep !== minha) { return; }
+          cacheCanais[cat.category_id] = lista;
+          cacheQuando[cat.category_id] = new Date().getTime();
+        })
+        .catch(function () { /* essa categoria carrega sozinha quando for aberta */ })
+        .then(function () { setTimeout(proximo, PAUSA_SYNC_MS); });
+    }
+    setTimeout(proximo, PAUSA_SYNC_MS);
+  }
+
+  // Pausa durante o vídeo em tela cheia (filme/série) para não disputar internet com a imagem.
+  function pausarSync(sim) {
+    var estavaPausada = syncPausada;
+    syncPausada = !!sim;
+    if (!sim && estavaPausada) { preparar(); }   // voltou do vídeo: retoma de onde parou
+  }
+
+  function preparar() {
+    try {
+      if (!VLTV.listas || !VLTV.api || !VLTV.api.temConteudo('ao_vivo')) { return; }
+      validarCacheLista();
+      lerDoDisco();
+      if (prep.promessa) { return; }                                         // já está buscando
+      if (prep.brutas && (new Date().getTime() - prep.quando) < TTL_PREPARO_MS) { sincronizar(); return; }   // categorias frescas: só continua a sincronização
+      var minha = prep;
+      minha.promessa = VLTV.api.categoriasAoVivo()
+        .then(function (brutas) {
+          if (prep !== minha) { return; }                                    // trocou de lista no meio do caminho
+          var cats = montarCategorias(brutas || []);
+          var cat = cats[categoriaInicial(cats)];
+          var guardar = function () { minha.brutas = brutas || []; minha.quando = new Date().getTime(); };
+          if (!cat || cat.especial === 'fav' || categoriaTrancada(cat) || categoriaFresca(cat.category_id)) { guardar(); return; }   // já baixada há pouco: não baixa de novo
+          // As categorias só ficam "prontas" depois que os canais da primeira também chegaram: a tela abre completa de uma vez.
+          return VLTV.api.canaisAoVivo(cat.category_id)
+            .then(function (lista) { if (prep === minha) { cacheCanais[cat.category_id] = lista; cacheQuando[cat.category_id] = new Date().getTime(); } })
+            .catch(function () { /* sem canais prontos: a tela busca sozinha ao abrir */ })
+            .then(guardar);
+        })
+        .catch(function () { /* sem rede agora: a tela busca sozinha ao abrir */ })
+        .then(function () { minha.promessa = null; if (prep === minha) { gravarNoDisco(); } sincronizar(); });
+    } catch (e) { /* o preparo nunca pode atrapalhar o app */ }
+  }
+
+  // ── Entrada e saída da tela ───────────────────────────────────────
+  var idAbertura = 0;
 
   function abrir(callbackSair) {
     aoSair = callbackSair;
-    var listaAtual = VLTV.listas.idAtiva();
-    if (listaAtual !== listaDoCache) { cacheCanais = {}; listaDoCache = listaAtual; }
+    var listaAtual = validarCacheLista();
+    lerDoDisco();
+    var minhaAbertura = ++idAbertura;
     cheio = false;
     caixaPlayer.classList.remove('cheio');
     infoCheio.classList.add('escondida');
@@ -806,32 +970,59 @@
     catIdx = 0;
     catCarregada = -1;
     trocarFoco('cat');
-    mensagemLista(listaCats, 'Carregando categorias...');
-    mensagemLista(listaCanais, '');
     tituloCanais.textContent = 'Canais';
-
     definirEstrela(false);
-    VLTV.api.categoriasAoVivo()
-      .then(function (lista) {
-        if (lista.length === 0) {
-          categorias = [];
-          mensagemLista(listaCats, 'Nenhuma categoria encontrada.');
-          return;
-        }
-        categorias = [CAT_FAV].concat(VLTV.parental.filtrarCategorias('canais', lista));
-        renderCategorias();
-        // Abre em Favoritos se já tem algum canal marcado; senão na primeira categoria de verdade (que não esteja bloqueada).
-        var inicio = VLTV.dados.favoritosDe('canais').length > 0 ? 0 : 1;
-        while (inicio < categorias.length - 1 && categoriaTrancada(categorias[inicio])) { inicio++; }
-        if (categoriaTrancada(categorias[inicio])) { inicio = 0; }
-        catIdx = inicio;
-        marcarCategoria();
-        carregarCanais(inicio, false);
-      })
-      .catch(function () {
-        falhaCategorias = true;
-        mensagemLista(listaCats, 'Não foi possível carregar. Pressione OK para tentar de novo.');
+
+    // Mostra as categorias e já abre a primeira. Se os canais dela estão em memória, aparecem junto, na mesma hora.
+    function mostrarCategorias(brutas) {
+      if (brutas.length === 0) {
+        categorias = [];
+        mensagemLista(listaCats, 'Nenhuma categoria encontrada.');
+        mensagemLista(listaCanais, '');
+        return;
+      }
+      categorias = montarCategorias(brutas);
+      renderCategorias();
+      catIdx = categoriaInicial(categorias);
+      marcarCategoria();
+      carregarCanais(catIdx, false);
+    }
+
+    function buscarAgora() {
+      mensagemLista(listaCats, 'Carregando categorias...');
+      mensagemLista(listaCanais, '');
+      VLTV.api.categoriasAoVivo()
+        .then(function (brutas) {
+          if (minhaAbertura !== idAbertura) { return; }
+          prep.brutas = brutas || [];
+          prep.quando = new Date().getTime();
+          mostrarCategorias(prep.brutas);
+          setTimeout(gravarNoDisco, 2000);   // dá tempo de os canais da primeira categoria chegarem
+        })
+        .catch(function () {
+          if (minhaAbertura !== idAbertura) { return; }
+          falhaCategorias = true;
+          mensagemLista(listaCats, 'Não foi possível carregar. Pressione OK para tentar de novo.');
+        });
+    }
+
+    if (prep.brutas) {
+      // Já estava pronto (preparado ao abrir o app): abre completo, sem espera.
+      mostrarCategorias(prep.brutas);
+      if ((new Date().getTime() - prep.quando) >= TTL_PREPARO_MS) { preparar(); }   // velho: atualiza escondido para a próxima vez
+      return;
+    }
+    if (prep.promessa) {
+      // Ainda está buscando: espera terminar (é a mesma busca, não pede de novo) e abre completo.
+      mensagemLista(listaCats, 'Carregando categorias...');
+      mensagemLista(listaCanais, '');
+      prep.promessa.then(function () {
+        if (minhaAbertura !== idAbertura) { return; }
+        if (prep.brutas && prep.lista === listaAtual) { mostrarCategorias(prep.brutas); } else { buscarAgora(); }
       });
+      return;
+    }
+    buscarAgora();
   }
 
   function sair() {
@@ -840,5 +1031,5 @@
     if (aoSair) { aoSair(); }
   }
 
-  VLTV.live = { abrir: abrir, tecla: tecla };
+  VLTV.live = { abrir: abrir, tecla: tecla, preparar: preparar, pausar: pausarSync };
 })();

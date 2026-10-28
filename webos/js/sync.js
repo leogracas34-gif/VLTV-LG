@@ -11,6 +11,10 @@
   var emVoo = {};          // buscas em andamento (a mesma busca nunca roda duas vezes)
   var fila = [];           // pré-carregamentos pendentes
   var rodandoFila = false;
+  var pausado = false;     // vídeo em tela cheia tocando: o preparo em segundo plano anda bem devagar (ou espera, se a chave mandar)
+  var RITMO_VIDEO_MS = 4000;  // um passo a cada 4 s enquanto o vídeo toca
+
+  function esperaTotalNoVideo() { return !!(VLTV.config && VLTV.config.SEGUNDO_PLANO_DURANTE_VIDEO === false); }
 
   function validade() {
     var v = VLTV.config.CACHE_VALIDADE_MS;
@@ -95,7 +99,7 @@
   function aquecer(pedidos) {
     var d = dono();
     if (d === null) { return; }
-    fila = pedidos.map(function (p) { return { k: d + '|' + p.chave, buscar: p.buscar }; });
+    fila = pedidos.map(function (p) { return { k: d + '|' + p.chave, buscar: p.buscar, quieto: !!p.quieto }; });
     if (!rodandoFila) { rodar(); }
   }
 
@@ -103,12 +107,20 @@
     var proximo = fila.shift();
     if (!proximo) { rodandoFila = false; return; }
     rodandoFila = true;
+    // Preparo em segundo plano (quieto): anda com o controle em uso, mas recua se a TV travar; só espera de vez durante vídeo.
+    if (proximo.quieto && ((pausado && esperaTotalNoVideo()) || (VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(true)))) {
+      fila.unshift(proximo);
+      setTimeout(rodar, 400);
+      return;
+    }
     VLTV.armazem.ler(proximo.k).then(function (reg) {
       if (reg && reg.valor) { return; }               // já está guardado
       return buscarUmaVez(proximo.k, proximo.buscar).then(function (dados) { guardar(proximo.k, dados); });
     }).catch(function () { /* sem problema: abre normal quando o usuário pedir */ })
-      .then(function () { setTimeout(rodar, 150); });
+      .then(function () { setTimeout(rodar, pausado && proximo.quieto ? RITMO_VIDEO_MS : 150); });
   }
 
-  VLTV.sync = { obter: obter, aquecer: aquecer };
+  function pausar(sim) { pausado = !!sim; }
+
+  VLTV.sync = { obter: obter, aquecer: aquecer, pausar: pausar };
 })();

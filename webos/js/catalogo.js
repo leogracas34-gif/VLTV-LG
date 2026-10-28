@@ -803,10 +803,44 @@
       });
   }
 
+  // Deixa Filmes e Séries prontos antes de o usuário entrar: depois que a Home abre, baixa (e guarda na TV) as categorias
+  // e as primeiras listas de cada um. Ao abrir, a tela já nasce cheia, sem esqueleto. Anda só com o controle parado.
+  var PRIMEIRAS_CATEGORIAS = 3;
+  var preparadoPara = '';
+  function preparar() {
+    try {
+      if (VLTV.config && VLTV.config.PREPARO_CATALOGO === false) { return; }
+      var s = VLTV.sessao.ler();
+      var dono = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '')) : '';
+      if (!dono || dono === preparadoPara || VLTV.m3u.ativo()) { return; }   // lista M3U já está na memória
+      preparadoPara = dono;
+      var pedidos = [];
+      var tipos = ['filmes', 'series'];
+      var pendentes = tipos.length;
+      function fim() { if (--pendentes === 0 && pedidos.length > 0) { VLTV.sync.aquecer(pedidos); } }
+      tipos.forEach(function (t) {
+        var c = CONFIG[t];
+        VLTV.sync.obter(t + '|cats', c.categorias).then(function (r) {
+          var lista = VLTV.parental.filtrarCategorias(t, r.dados || []);
+          var n = 0;
+          for (var i = 0; i < lista.length && n < PRIMEIRAS_CATEGORIAS; i++) {
+            var cat = lista[i];
+            if (categoriaTrancada(cat)) { continue; }
+            (function (cat) {
+              pedidos.push({ chave: t + '|itens|' + cat.category_id, buscar: function () { return c.itens(cat.category_id); }, quieto: true });
+            })(cat);
+            n++;
+          }
+          fim();
+        }, function () { preparadoPara = ''; fim(); });
+      });
+    } catch (e) { preparadoPara = ''; /* o catálogo carrega sozinho quando for aberto */ }
+  }
+
   function sair() {
     fecharBusca();
     if (acoes) { acoes.sair(); }
   }
 
-  VLTV.catalogo = { abrir: abrir, tecla: tecla, atualizarFavoritos: atualizarFavoritos };
+  VLTV.catalogo = { abrir: abrir, tecla: tecla, atualizarFavoritos: atualizarFavoritos, preparar: preparar };
 })();

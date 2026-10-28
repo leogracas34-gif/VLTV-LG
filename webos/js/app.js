@@ -94,7 +94,15 @@
       focaveis()[0].focus();
     }
     VLTV.indice.pausar(nome === 'player');           // vídeo tocando: o preparo da pesquisa espera
-    if (nome === 'home') { VLTV.indice.aquecer(); }  // deixa a pesquisa de Filmes e Séries pronta em segundo plano
+    if (VLTV.sync && VLTV.sync.pausar) { VLTV.sync.pausar(nome === 'player'); }   // vídeo tocando: o preparo de Filmes e Séries anda mais devagar
+    if (VLTV.live && VLTV.live.pausar) { VLTV.live.pausar(nome === 'player'); }   // durante filme/série em tela cheia a sincronização dos canais anda mais devagar
+    if (nome === 'home') {
+      VLTV.indice.aquecer();   // deixa a pesquisa de Filmes e Séries pronta em segundo plano
+      // Deixa TV ao vivo pronta em segundo plano (categorias + canais da primeira), depois que a Home já apareceu
+      setTimeout(function () { if (VLTV.live && VLTV.live.preparar) { VLTV.live.preparar(); } }, 1500);
+      // Filmes e Séries também: primeiras categorias baixadas por trás, só com o controle parado
+      setTimeout(function () { if (VLTV.catalogo && VLTV.catalogo.preparar) { VLTV.catalogo.preparar(); } }, 2500);
+    }
     if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') { VLTV.licenca.aplicarVisual(); }   // voltou para a Home: pega na hora o que mudou no painel (destaque, cores, campanha)

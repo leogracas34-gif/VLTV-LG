@@ -107,6 +107,36 @@
     modoTeclado = true;
   }, true);
 
+  // Última vez que o usuário mexeu no controle (tecla, cursor, roda ou clique).
+  // O trabalho pesado em segundo plano (índice da pesquisa, canais) só anda quando o controle está parado.
+  var ultimaAtividadeMs = 0;
+  function marcarAtividade() { ultimaAtividadeMs = new Date().getTime(); }
+  document.addEventListener('keydown', marcarAtividade, true);
+  document.addEventListener('mousemove', marcarAtividade, true);
+  document.addEventListener('wheel', marcarAtividade, true);
+  document.addEventListener('click', marcarAtividade, true);
+  VLTV.ociosoHa = function (ms) { return (new Date().getTime() - ultimaAtividadeMs) >= ms; };
+
+  // Detector de travada: se o app ficou "preso" (o relógio atrasou), o trabalho em segundo plano recua por 2 s.
+  // Assim ele continua andando enquanto você usa o controle, mas sai da frente sozinho quando a TV está sofrendo.
+  var recuarAteMs = 0;
+  var ultimoTickMs = 0;
+  setInterval(function () {
+    var n = new Date().getTime();
+    if (ultimoTickMs && (n - ultimoTickMs) > 450) { recuarAteMs = n + 2000; }
+    ultimoTickMs = n;
+  }, 250);
+
+  // leve = true: passo pequeno (lista de uma categoria), anda mesmo com o controle em uso, só com uma folguinha entre teclas.
+  // leve = false: passo pesado (índice inteiro da pesquisa), só anda com o controle realmente parado.
+  VLTV.segundoPlanoLivre = function (leve) {
+    var n = new Date().getTime();
+    if (n < recuarAteMs) { return false; }
+    var cfg = VLTV.config || {};
+    var minimo = leve ? (cfg.OCIOSO_LEVE_MS || 600) : (cfg.OCIOSO_MS || 3000);
+    return (n - ultimaAtividadeMs) >= minimo;
+  };
+
   VLTV.cursor = {
     andou: function (e) {
       if (new Date().getTime() < cursorQuietoAte) { return false; }

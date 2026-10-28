@@ -110,7 +110,7 @@
         function terminar() { if (!fim) { fim = true; resolve(falhas); } }
         function proxima() {
           if (fim) { return; }
-          if (quieto && pausado) { setTimeout(proxima, 1500); return; }
+          if (quieto && deveEsperar()) { setTimeout(proxima, 1500); return; }
           if (parar && parar()) { terminar(); return; }
           if (i >= cats.length) { if (ativos === 0) { terminar(); } return; }
           var cat = cats[i++];
@@ -203,7 +203,7 @@
       var recente = temLocal && reg.t && (new Date().getTime() - reg.t) < 30 * 60 * 1000;
       function quando() {
         if (recente) { return Promise.resolve({ estado: 'recente' }); }
-        if (quieto && pausado) { return esperar(1500).then(quando); }
+        if (quieto && deveEsperar()) { return esperar(1500).then(quando); }
         return consultarVps(tipo, e, temLocal ? e.versao : '', 0);
       }
       return quando().then(function (r) {
@@ -292,6 +292,7 @@
   function aquecer() {
     var d = dono();
     if (!d || d === aquecidoPara) { return; }
+    if (VLTV.config && VLTV.config.PREPARO_PESQUISA === false) { return; }
     aquecidoPara = d;
     setTimeout(function () {
       try {
@@ -301,6 +302,11 @@
   }
 
   function pausar(sim) { pausado = !!sim; }
+
+  // Preparo em segundo plano espera: vídeo tocando OU controle sendo usado (ler e organizar milhares de títulos trava um instante).
+  function deveEsperar() {
+    return pausado || !(VLTV.segundoPlanoLivre && VLTV.segundoPlanoLivre(false));
+  }
 
   // fn(feitas, total) é chamada quando chega mais uma categoria (-1 = falhou). null para parar de ouvir.
   function ouvir(tipo, fn) { estado(tipo).ouvinte = fn; }

@@ -95,6 +95,19 @@ VLTV.config = {
   // Quanto esperar (ms) pelo fundo do TMDB antes de usar a capa desfocada. Decide UMA vez, sem trocar depois.
   TMDB_FUNDO_ESPERA_MS: 1800,
 
+  // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:
+  // coloque false numa chave, gere o app e compare. Com false, nada disso roda sozinho (o app busca só quando você abre).
+  PREPARO_PESQUISA: true,    // monta o índice de Filmes e Séries depois que a Home abre
+  PREPARO_CATALOGO: true,    // deixa as primeiras categorias de Filmes e Séries já baixadas
+  PREPARO_CANAIS: true,      // deixa categorias e canais de TV ao vivo prontos
+  // Quanto tempo (ms) o controle precisa ficar parado para o trabalho PESADO em segundo plano (índice da pesquisa) andar.
+  OCIOSO_MS: 3000,
+  // Folga (ms) sem tecla para os passos leves (listas de categorias) andarem mesmo com o controle em uso.
+  OCIOSO_LEVE_MS: 600,
+  // Durante filme, série ou canal em tela cheia o carregamento em segundo plano continua, só bem mais devagar (1 passo a cada ~4 s).
+  // Se notar travadinha na imagem nessa hora, troque por false: aí ele espera o vídeo terminar.
+  SEGUNDO_PLANO_DURANTE_VIDEO: true,
+
   // Cache do catálogo na TV: dentro desse tempo (ms) a TV nem confere o painel de novo.
   // Fora dele ela mostra o que está guardado e confere por trás.
   CACHE_VALIDADE_MS: 600000,

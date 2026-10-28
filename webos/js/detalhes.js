@@ -295,6 +295,23 @@
     img.src = url;
   }
 
+  // Troca para a imagem de fundo de verdade com a mesma transição suave do rodízio (usada quando o TMDB chegou depois
+  // de a capa desfocada já ter aparecido).
+  function suavizarPara(url) {
+    var velha = camadas[camAtiva];
+    var nova = camadas[1 - camAtiva];
+    nova.onload = null;
+    nova.className = 'det-fundo';
+    nova.style.visibility = 'visible';
+    nova.src = url;
+    void nova.offsetWidth;
+    nova.classList.add('visivel');
+    nova.classList.add('zoom');
+    velha.classList.remove('visivel');
+    camAtiva = 1 - camAtiva;
+    setTimeout(function () { if (velha !== camadas[camAtiva]) { velha.classList.remove('zoom'); } }, 2000);
+  }
+
   // urlAtual: o fundo que já está na tela (entra no rodízio). Só roda com o TMDB ligado.
   function iniciarTroca(urlAtual) {
     var meu = ++idTroca;
@@ -325,6 +342,7 @@
 
     definirFundo('', false);          // preto enquanto decide
     var decidido = false;
+    var esperouDemais = false;        // o TMDB demorou: a capa entrou primeiro e o fundo de verdade ainda pode chegar
     function usarCapa() {
       if (decidido || meu !== idFundo) { return; }
       decidido = true;
@@ -335,7 +353,12 @@
       var img = new Image();
       var tentouDireto = false;
       img.onload = function () {
-        if (decidido || meu !== idFundo) { return; }
+        if (meu !== idFundo) { return; }
+        if (decidido) {
+          // Chegou depois da capa desfocada: troca para o fundo de verdade, sem pisca
+          if (esperouDemais) { esperouDemais = false; suavizarPara(url); iniciarTroca(url); }
+          return;
+        }
         decidido = true;
         usandoCapa = true;            // se falhar depois de mostrado, não troca de novo
         definirFundo(url, false);
@@ -354,9 +377,10 @@
       img.src = url;
     }
 
-    setTimeout(usarCapa, VLTV.config.TMDB_FUNDO_ESPERA_MS || 1800);
+    setTimeout(function () { if (!decidido) { esperouDemais = true; usarCapa(); } }, VLTV.config.TMDB_FUNDO_ESPERA_MS || 1800);
     VLTV.tmdb.fundo(item.tipo, item.id, item.nome).then(function (url) {
-      if (decidido || meu !== idFundo) { return; }
+      if (meu !== idFundo) { return; }
+      if (decidido && !esperouDemais) { return; }
       if (url) { usarTmdb(url); } else { usarCapa(); }
     });
   }

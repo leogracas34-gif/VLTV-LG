@@ -884,15 +884,18 @@
   // para trocar de categoria ser instantâneo. Dá passagem quando o usuário está esperando algo e quando o vídeo da Home/filme está tocando.
   var PAUSA_SYNC_MS = 700;                 // folga entre uma categoria e outra
   var VALIDADE_CANAIS_MS = 30 * 60 * 1000; // depois disso a categoria é baixada de novo, escondido
-  var syncPausada = false;
+  var syncPausada = false;                 // vídeo (filme/série) em tela cheia: anda devagar (ou espera, se a chave mandar)
   var syncRodando = false;
+  var RITMO_VIDEO_MS = 4000;               // um passo a cada 4 s enquanto toca vídeo ou canal em tela cheia
+  function esperaTotalNoVideo() { return !!(VLTV.config && VLTV.config.SEGUNDO_PLANO_DURANTE_VIDEO === false); }
+  function tocandoVideo() { return syncPausada || cheio; }
 
   function categoriaFresca(id) {
     return !!cacheCanais[id] && (new Date().getTime() - (cacheQuando[id] || 0)) < VALIDADE_CANAIS_MS;
   }
 
   function sincronizar() {
-    if (syncRodando || syncPausada || !prep.brutas) { return; }
+    if (syncRodando || !prep.brutas) { return; }
     var minha = prep;
     var fila = montarCategorias(minha.brutas).filter(function (c) {
       return !c.especial && !categoriaTrancada(c);    // Favoritos já está na TV; categorias +18 bloqueadas não são baixadas
@@ -902,8 +905,9 @@
     syncRodando = true;
 
     function proximo() {
-      if (prep !== minha || syncPausada) { syncRodando = false; return; }       // trocou de lista ou pausou
+      if (prep !== minha || (tocandoVideo() && esperaTotalNoVideo())) { syncRodando = false; return; }   // trocou de lista, ou vídeo tocando com a chave em false
       if (buscasDoUsuario > 0) { setTimeout(proximo, 1000); return; }          // o usuário está esperando: ele passa na frente
+      if (VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(true)) { setTimeout(proximo, 400); return; }   // passo leve: anda com o controle em uso, recua se a TV travar   // mexendo no controle: espera parar (baixar e ler a lista trava um instante)
       while (i < fila.length && categoriaFresca(fila[i].category_id)) { i++; }
       if (i >= fila.length) { syncRodando = false; if (baixouAlgo) { gravarNoDisco(); } return; }    // tudo sincronizado
       var cat = fila[i++];
@@ -915,7 +919,7 @@
           cacheQuando[cat.category_id] = new Date().getTime();
         })
         .catch(function () { /* essa categoria carrega sozinha quando for aberta */ })
-        .then(function () { setTimeout(proximo, PAUSA_SYNC_MS); });
+        .then(function () { setTimeout(proximo, tocandoVideo() ? RITMO_VIDEO_MS : PAUSA_SYNC_MS); });
     }
     setTimeout(proximo, PAUSA_SYNC_MS);
   }
@@ -929,6 +933,7 @@
 
   function preparar() {
     try {
+      if (VLTV.config && VLTV.config.PREPARO_CANAIS === false) { return; }
       if (!VLTV.listas || !VLTV.api || !VLTV.api.temConteudo('ao_vivo')) { return; }
       validarCacheLista();
       lerDoDisco();

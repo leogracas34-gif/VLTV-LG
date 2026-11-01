@@ -150,10 +150,10 @@ input:focus,
 
 /* Tela de carregamento: logo + bolinha girando. O texto só aparece em erro ou espera longa (classe com-aviso). */
 .bolinha {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   margin-top: 8px;
-  border: 7px solid rgba(255, 255, 255, 0.14);
+  border: 3px solid rgba(255, 255, 255, 0.14);
   border-top-color: var(--destaque-claro);
   border-radius: 50%;
   -webkit-animation: bolinha-gira 0.9s linear infinite;

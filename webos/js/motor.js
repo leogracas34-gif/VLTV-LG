@@ -54,8 +54,12 @@
 
   // Servidor IPTV costuma demorar para começar a mandar o vídeo (principalmente via gateway/proxy).
   // Antes: 12s/20s por formato, então 3 formatos = ~36s e a mensagem "servidor demorou demais".
-  var ESPERA_MS = { live: 20000, vod: 35000, avplay: 15000 };
+  var ESPERA_MS = { live: 15000, vod: 35000, avplay: 15000 };
   var ESPERA_EXTRA_MS = 20000;                    // +tempo se a TV já recebeu dados (servidor lento, mas respondendo)
+  // Motor avançado: o caminho nativo (tag <video>) não pode atrasar a chegada das bibliotecas. Sem nenhum dado
+  // chegando, desiste do nativo em 8 s (canal) e passa para hls.js / mpegts.js / AVPlay; com dados chegando, +8 s.
+  var ESPERA_NATIVO_AVANC_MS = { live: 8000, vod: 20000 };
+  var ESPERA_EXTRA_LIVE_AVANC_MS = 8000;
   var TRAVOU_MS = { live: 6000, vod: 40000 };   // parado por tanto tempo = reconecta
   var MAX_RECONEXOES = { live: 8, vod: 4 };
   var ESTAVEL_MS = 30000;                         // tocando tanto tempo sem problema zera as reconexões
@@ -386,7 +390,7 @@
     var t = this.plano[this.pos];
     // Se todas as tentativas "nativas" só ficaram sem resposta (servidor parado), as outras também ficariam.
     if (t.estrategia !== 'nativo' && this.erros.length > 0) {
-      var todasTempo = this.erros.every(function (e) { return e.tipo === 'tempo'; });
+      var todasTempo = this.erros.every(function (e) { return e.tipo === 'tempo' && !e.dados; });
       if (todasTempo) { this.falhar(); return; }
     }
     this.iniciar(t);
@@ -446,13 +450,21 @@
     this.limparEngine();
     this.camadaAvplay(false);
 
-    var espera = t.estrategia === 'avplay' ? ESPERA_MS.avplay : (avancado() ? ESPERA_MS[this.modo] : ESPERA_SIMPLES_MS[this.modo]);
+    var espera;
+    if (t.estrategia === 'avplay') { espera = ESPERA_MS.avplay; }
+    else if (!avancado()) { espera = ESPERA_SIMPLES_MS[this.modo]; }
+    else if (t.estrategia === 'nativo') { espera = ESPERA_NATIVO_AVANC_MS[this.modo]; }
+    else { espera = ESPERA_MS[this.modo]; }
     function armarEspera(ms, jaProrrogou) {
       self.timerEspera = setTimeout(function () {
         if (meu !== self.idTent) { return; }
         // A TV já recebeu dados (servidor lento, mas respondendo): dá mais um tempo antes de trocar de formato.
-        if (!jaProrrogou && self.recebendoDados(t)) { armarEspera(ESPERA_EXTRA_MS, true); return; }
-        self.aoErro({ estrategia: t.estrategia, tipo: 'tempo' });
+        var chegouDado = self.recebendoDados(t);
+        if (!jaProrrogou && chegouDado) {
+          armarEspera((avancado() && self.modo === 'live') ? ESPERA_EXTRA_LIVE_AVANC_MS : ESPERA_EXTRA_MS, true);
+          return;
+        }
+        self.aoErro({ estrategia: t.estrategia, tipo: 'tempo', dados: chegouDado });
       }, ms);
     }
     var semLimite = this.modo === 'vod' && t.estrategia === 'nativo' && this.erros.length === 0;

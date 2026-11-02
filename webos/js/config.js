@@ -44,7 +44,7 @@ VLTV.config = {
 
   // Motor de reprodução. false = igual ao app antigo (só a tag <video>): é o modo seguro.
   // true = liga hls.js, mpegts.js, AVPlay (Samsung) e reconexão automática. Só ligue depois de testar na TV do cliente.
-  MOTOR_AVANCADO: false,
+  MOTOR_AVANCADO: true,
 
   // Canal ao vivo: qual formato o app tenta PRIMEIRO. 'ts' = sinal original do provedor (costuma ser mais nítido);
   // 'm3u8' = HLS (o que o app usava antes). Se o 'ts' não abrir na TV, o app cai no m3u8 sozinho e, depois de 2 vezes
@@ -56,7 +56,7 @@ VLTV.config = {
   MOSTRAR_QUALIDADE: false,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
-  DIAGNOSTICO: false,
+  DIAGNOSTICO: true,   // TESTE: mostra o que foi tentado quando um vídeo falha. Volte para false antes de enviar à loja.
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',

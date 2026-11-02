@@ -180,7 +180,11 @@
     if (cfg().AVPLAY_PRIMEIRO && avplays.length) { ordem = ordem.concat(avplays); avplays = []; }
     ordem = ordem.concat(nativosOk, bibliotecas, nativosRuins, avplays);
     // O formato que funcionou da última vez passa na frente (evita testar formato por formato a cada canal).
+    // Só promove o que venceu se foi o caminho da própria TV (nativo/AVPlay). Uma biblioteca (hls.js/mpegts.js) que
+    // venceu num canal não pode virar a primeira opção de todos os outros: ela é mais lenta para abrir e o canal que
+    // abre bem pela tag <video> passaria a demorar. Para TV que não abre o tipo sozinha, quem decide é "semNativo".
     var venceu = memoria.venceu && memoria.venceu[modo];
+    if (venceu && venceu.estrategia !== 'nativo' && venceu.estrategia !== 'avplay') { venceu = null; }
     if (venceu) {
       var f = [];
       var r = [];
@@ -235,7 +239,7 @@
   // Pergunta só o código de resposta do servidor (pede 1 byte e cancela). Se a TV/servidor não deixar, devolve 0.
   function sondar(url, pronto) {
     var feito = false;
-    function fim(c) { if (!feito) { feito = true; pronto(c); } }
+    function fim(c, ct) { if (!feito) { feito = true; pronto(c, ct || ''); } }
     try {
       var x = new XMLHttpRequest();
       x.open('GET', url, true);
@@ -244,7 +248,8 @@
       x.onreadystatechange = function () {
         if (x.readyState >= 2) {
           var c = x.status || 0;
-          fim(c);                                   // antes do abort (o abort também dispara este evento)
+          var ct = tentar(function () { return String(x.getResponseHeader('Content-Type') || '').split(';')[0]; }, '');
+          fim(c, ct);                               // antes do abort (o abort também dispara este evento)
           tentar(function () { x.abort(); });
         }
       };
@@ -326,6 +331,7 @@
     if (!reabertura) { this.reabertas = 0; }
     this.ativo = true;
     this.urls = (urls || []).filter(function (u) { return !!u; });
+    this.infoSonda = '';
     this.plano = montarPlano(this.urls, this.modo);
     this.pos = -1;
     this.erros = [];
@@ -423,9 +429,9 @@
       var msg = mensagemDaFalha(self.erros);
       if (diagnostico() && self.erros.length) {
         var rastro = self.erros.map(function (e) {
-          return (e.estrategia || '?') + ':' + (e.http ? 'HTTP ' + e.http : (e.tipo || '?'));
+          return (e.estrategia || '?') + (e.ext ? '(' + e.ext + ')' : '') + ':' + (e.http ? 'HTTP ' + e.http : (e.tipo || '?'));
         }).join(' | ');
-        msg += ' [' + rastro + ']';
+        msg += ' [' + rastro + (self.infoSonda ? ' || servidor: ' + self.infoSonda : '') + ']';
       }
       if (self.cb.aoFalha) { self.cb.aoFalha(msg); }
     }
@@ -434,9 +440,11 @@
     var sabeMotivo = this.erros.some(function (e) { return !!e.http; });
     if (sabeMotivo || this.erros.length === 0 || !this.urls.length || !diagnostico()) { avisar(); return; }
     var meu = this.idTent;
-    sondar(this.urls[0], function (codigo) {
+    sondar(this.urls[0], function (codigo, tipoConteudo) {
       if (meu !== self.idTent || self.ativo) { return; }   // o usuário já abriu outra coisa
       if (codigo >= 400) { self.erros.push({ estrategia: 'sonda', tipo: 'rede', http: codigo }); }
+      // Só para o diagnóstico: o que o servidor respondeu ao primeiro endereço (200/206 = entregou o arquivo e a TV é que não abriu).
+      self.infoSonda = codigo ? ('HTTP ' + codigo + (tipoConteudo ? ' ' + tipoConteudo : '')) : 'sem resposta legível';
       avisar();
     });
   };
@@ -496,6 +504,7 @@
     if (!this.ativo || !this.atual) { return; }
     var t = this.atual;
     erro.estrategia = erro.estrategia || t.estrategia;
+    erro.ext = erro.ext || (t.url ? tipoDaUrl(t.url) : '');
     if (this.confirmada) { this.reconectar('erro'); return; }
 
     clearTimeout(this.timerEspera);

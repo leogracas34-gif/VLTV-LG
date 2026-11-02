@@ -570,7 +570,8 @@
   function montarExtensoes(item) {
     if (item.url) { return ['']; }   // endereço direto (lista M3U)
     var lista = [];
-    [item.ext, 'mp4', 'mkv', ''].forEach(function (e) {
+    // 'm3u8' fica por último: só é tentado se o arquivo em si não abrir na TV (vale para painéis que entregam o filme em HLS).
+    [item.ext, 'mp4', 'mkv', '', 'm3u8'].forEach(function (e) {
       var ext = e === undefined || e === null ? '' : String(e);
       if (lista.indexOf(ext) === -1) { lista.push(ext); }
     });

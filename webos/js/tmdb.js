@@ -614,8 +614,66 @@
     }).catch(function () { return ''; });
   }
 
+  // ── Capa (pôster) de reserva ──────────────────────────────────────
+  // Quando o servidor do painel não entrega a capa (erro, vazia, corrompida ou lenta), a grade pede aqui o pôster do TMDB.
+  // A pesquisa já devolve o pôster, então é uma só consulta por título. O resultado fica guardado na TV:
+  //  - achou: a próxima vez a capa abre direto pelo TMDB, sem esperar o servidor falhar;
+  //  - não achou: não pesquisa de novo por 7 dias.
+  var PREFIXO_CAPA = 'vltv_capa1_';
+  var filaCapa = [];
+  var ativasCapa = 0;
+  var emAndamentoCapa = {};
+
+  function chaveCapa(tipo, id) { return PREFIXO_CAPA + tipo + '_' + id; }
+
+  // Endereço guardado (string), '' = já procuramos e o TMDB não tem, null = nunca procuramos.
+  function capaGuardada(tipo, id) {
+    try {
+      var c = JSON.parse(window.localStorage.getItem(chaveCapa(tipo, id)) || 'null');
+      if (!c) { return null; }
+      if (c.u) { return c.u; }
+      return (new Date().getTime() - c.t < VALIDADE_SEM_LOGO_MS) ? '' : null;
+    } catch (e) { return null; }
+  }
+
+  function gravarCapa(tipo, id, url) {
+    try { window.localStorage.setItem(chaveCapa(tipo, id), JSON.stringify({ u: url || '', t: new Date().getTime() })); }
+    catch (e) { /* TV sem espaço: segue sem guardar */ }
+  }
+
+  function bombearCapa() {
+    while (ativasCapa < 3 && filaCapa.length > 0) { filaCapa.shift()(); }
+  }
+
+  // tipo: 'filmes' ou 'series'. id: id do título no painel (ou o nome, se a lista não tem id). nome: nome do painel.
+  // aindaVale (opcional): função que diz se a capa ainda está na tela; se a grade já mudou, a pesquisa nem acontece.
+  // Resolve com o endereço do pôster ou null. Nunca rejeita.
+  function capa(tipo, id, nome, aindaVale) {
+    var g = capaGuardada(tipo, id);
+    if (g !== null) { return Promise.resolve(g || null); }
+    if (!ativo()) { return Promise.resolve(null); }
+    var k = tipo + '_' + id;
+    if (emAndamentoCapa[k]) { return emAndamentoCapa[k]; }
+    var p = new Promise(function (resolve) {
+      filaCapa.push(function () {
+        if (aindaVale && !aindaVale()) { delete emAndamentoCapa[k]; resolve(null); bombearCapa(); return; }
+        ativasCapa++;
+        var tamanho = cfg().TMDB_TAMANHO_CAPA || 'w342';
+        procurarMelhor(tipo === 'series' ? 'tv' : 'movie', VLTV.titulo.paraBusca(nome)).then(function (achado) {
+          var url = achado && achado.poster_path ? enderecoImagem(achado.poster_path, tamanho) : '';
+          gravarCapa(tipo, id, url);
+          return url || null;
+        }).catch(function () { return undefined; })          // falha de rede: não grava, tenta de novo outra hora
+          .then(function (r) { ativasCapa--; delete emAndamentoCapa[k]; resolve(r || null); bombearCapa(); });
+      });
+      bombearCapa();
+    });
+    emAndamentoCapa[k] = p;
+    return p;
+  }
+
   function chaveApi() { return chave(); }
 
-  VLTV.tmdb = { imagensPorId: imagensPorId, ficha: ficha, idadePorTid: idadePorTid, idadeDeTexto: idadeDeTexto, nomeGenero: nomeGenero, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundos: fundos, fundoGuardado: fundoPronto };
+  VLTV.tmdb = { capa: capa, capaGuardada: capaGuardada, imagensPorId: imagensPorId, ficha: ficha, idadePorTid: idadePorTid, idadeDeTexto: idadeDeTexto, nomeGenero: nomeGenero, ativo: ativo, textos: textos, textosGuardados: textosGuardados, temporada: temporada, epg: epg, logo: logo, guardada: guardada, fundo: fundo, fundos: fundos, fundoGuardado: fundoPronto };
 
 })();

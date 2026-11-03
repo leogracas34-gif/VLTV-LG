@@ -190,8 +190,34 @@
     }
   }
 
+  function noDocumento(el) { return !!el && document.documentElement.contains(el); }
+
+  // Capa que o servidor não entregou (erro, vazia, corrompida ou lenta): fica a letra e o pôster vem do TMDB.
+  // O TMDB guarda o resultado na TV, então da próxima vez a capa já abre direto, sem esperar o servidor falhar.
+  // img: a imagem do servidor (pode ser null, quando o título nem tem capa no painel).
+  function usarCapaTmdb(pedido, capa, img) {
+    if (pedido.tmdbTentado || !VLTV.tmdb || !VLTV.tmdb.capa) { return; }
+    pedido.tmdbTentado = true;
+    var meuTipo = pedido.tipo;
+    VLTV.tmdb.capa(meuTipo, pedido.id, pedido.nome, function () { return noDocumento(capa); }).then(function (url) {
+      if (!url || !noDocumento(capa)) { return; }
+      if (img && img.classList.contains('ok') && img.parentNode === capa) { return; }   // a do servidor chegou antes: fica ela
+      if (img) { img.onload = null; img.onerror = null; }
+      var nova = document.createElement('img');
+      nova.alt = '';
+      nova.onload = function () { nova.classList.add('ok'); };
+      nova.onerror = function () {
+        if (nova.parentNode === capa) { capa.removeChild(nova); capa.textContent = pedido.letra; }
+      };
+      capa.textContent = '';
+      capa.appendChild(nova);
+      nova.src = url;
+    });
+  }
+
   function iniciarCapa(pedido) {
     var img = pedido.img;
+    var capa = img.parentNode;
     var liberada = false;
     function liberar() {
       if (liberada) { return; }
@@ -200,18 +226,30 @@
       capasAtivas--;
       bombearCapas();
     }
-    var limite = setTimeout(liberar, ESPERA_CAPA_MS);
+    // O servidor já falhou para este título antes e o pôster do TMDB está guardado: vai direto nele.
+    var guardada = (VLTV.tmdb && VLTV.tmdb.capaGuardada) ? VLTV.tmdb.capaGuardada(pedido.tipo, pedido.id) : null;
+    if (guardada) { pedido.tmdbTentado = true; }
+
+    // 8 s sem chegar: libera a vaga na fila e já busca o pôster no TMDB (se a do servidor chegar antes dele, vale a dela).
+    var limite = setTimeout(function () {
+      liberar();
+      if (!img.classList.contains('ok')) { usarCapaTmdb(pedido, capa, img); }
+    }, ESPERA_CAPA_MS);
     capasAtivas++;
-    img.onload = function () { img.classList.add('ok'); liberar(); };
-    img.onerror = function () {
-      if (img.parentNode) {
-        var capa = img.parentNode;
-        capa.removeChild(img);
-        capa.textContent = pedido.letra;
-      }
+
+    function falhouServidor() {
+      if (img.parentNode !== capa) { return; }       // já foi trocada pela do TMDB
+      capa.removeChild(img);
+      capa.textContent = pedido.letra;
+      usarCapaTmdb(pedido, capa, null);
+    }
+    img.onload = function () {
+      // Capa "corrompida": o servidor respondeu, mas a imagem vem vazia ou minúscula.
+      if (img.naturalWidth < 20 || img.naturalHeight < 20) { falhouServidor(); } else { img.classList.add('ok'); }
       liberar();
     };
-    img.src = pedido.url;
+    img.onerror = function () { falhouServidor(); liberar(); };
+    img.src = guardada || pedido.url;
   }
 
   // ── Grade de capas ────────────────────────────────────────────────
@@ -242,13 +280,23 @@
     var nomeItem = item.name || '';
     var url = item[cfg.campoCapa];
 
+    var idItem = item.stream_id || item.series_id || nomeItem;
+    var letra = nomeItem.charAt(0).toUpperCase();
+
     if (url) {
       var img = document.createElement('img');
       img.alt = '';
       capa.appendChild(img);
-      filaCapas.push({ img: img, url: url, indice: indice, letra: nomeItem.charAt(0).toUpperCase() });
+      filaCapas.push({ img: img, url: url, indice: indice, letra: letra, tipo: tipo, id: idItem, nome: nomeItem });
     } else {
-      capa.textContent = nomeItem.charAt(0).toUpperCase();
+      // O painel nem mandou capa: mostra a letra e busca o pôster no TMDB (ou usa o que já está guardado na TV).
+      capa.textContent = letra;
+      var pedidoSemCapa = { letra: letra, tipo: tipo, id: idItem, nome: nomeItem };
+      var guardada = (VLTV.tmdb && VLTV.tmdb.capaGuardada) ? VLTV.tmdb.capaGuardada(tipo, idItem) : null;
+      if (guardada || (VLTV.tmdb && VLTV.tmdb.ativo && VLTV.tmdb.ativo())) {
+        // adiado um instante: a célula ainda não está na tela quando é criada
+        setTimeout(function () { usarCapaTmdb(pedidoSemCapa, capa, null); }, 0);
+      }
     }
 
     var nome = document.createElement('div');

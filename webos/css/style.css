@@ -2261,13 +2261,18 @@ input::placeholder { color: #5f5f6b; }
 /* ── Lista de canais: mais espaço para o nome ───────────────────────────
    O quadro de canais tem largura fixa (a soma das colunas já enche a tela), então o espaço vem de dentro da linha:
    número, logo e margens mais justos, e o nome pode ocupar até 2 linhas (Telecine Pipoca, Globo Minas, Band Campinas...). */
-#live-canais li { padding: 0 10px 0 8px; }
-#live-canais li .num-canal { min-width: 52px; margin-right: 8px; font-size: 21px; }
+/* O quadro de canais tem menos margem interna: a linha (e o foco) chega mais perto da "paredinha" do quadro.
+   O título "Canais | ..." continua no mesmo lugar (a margem dele aumentou o que a do quadro diminuiu). */
+#painel-canais { padding-left: 8px; padding-right: 8px; }
+#painel-canais h2 { padding: 0 24px; }
+#live-canais li { padding: 0 10px 0 4px; }
+#live-canais li .num-canal { min-width: 46px; margin-right: 10px; font-size: 22px; }
 #live-canais li img { width: 56px; height: 44px; margin-right: 12px; }
 #live-canais li span.nome {
   min-width: 0;
-  font-size: 26px;
-  line-height: 1.12;
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
   white-space: normal;
   word-wrap: break-word;
   display: -webkit-box;

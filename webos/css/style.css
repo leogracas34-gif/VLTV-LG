@@ -2257,3 +2257,22 @@ input::placeholder { color: #5f5f6b; }
 .g-det-meta.aviso { color: var(--ok); font-weight: 700; }
 .g-det-desc { margin-top: 4px; font-size: 24px; line-height: 1.3; color: var(--suave); max-height: 64px; overflow: hidden; }
 .g-dica { position: absolute; left: 60px; right: 60px; bottom: 22px; font-size: 24px; color: var(--suave); text-align: center; }
+
+/* ── Lista de canais: mais espaço para o nome ───────────────────────────
+   O quadro de canais tem largura fixa (a soma das colunas já enche a tela), então o espaço vem de dentro da linha:
+   número, logo e margens mais justos, e o nome pode ocupar até 2 linhas (Telecine Pipoca, Globo Minas, Band Campinas...). */
+#live-canais li { padding: 0 10px 0 8px; }
+#live-canais li .num-canal { min-width: 52px; margin-right: 8px; font-size: 21px; }
+#live-canais li img { width: 56px; height: 44px; margin-right: 12px; }
+#live-canais li span.nome {
+  min-width: 0;
+  font-size: 26px;
+  line-height: 1.12;
+  white-space: normal;
+  word-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+#live-canais li .estrela { margin-left: 6px; }

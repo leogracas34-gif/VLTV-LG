@@ -328,7 +328,7 @@
   // urls: endereços possíveis do mesmo conteúdo, do mais provável ao menos. inicioSeg: onde começar (filmes).
   P.abrir = function (urls, inicioSeg, reabertura) {
     this.parar(true);
-    if (!reabertura) { this.reabertas = 0; this.diagIniciar(); }
+    if (!reabertura) { this.reabertas = 0; }
     this.ativo = true;
     this.urls = (urls || []).filter(function (u) { return !!u; });
     this.infoSonda = '';
@@ -342,75 +342,9 @@
     this.proxima();
   };
 
-  // ── Relógio de diagnóstico (só com DIAGNOSTICO = true no config) ───────────
-  // Mostra no canto da tela, enquanto o vídeo carrega: há quantos segundos está abrindo, qual caminho está tentando,
-  // se a TV já recebeu algum dado do servidor e quantas tentativas já fez. Quando a imagem aparece, mostra o tempo total.
-  // Serve para separar "o servidor/gateway demora para responder" de "o app demora para mostrar".
-  P.diagIniciar = function () {
-    if (!diagnostico()) { return; }
-    var self = this;
-    this.diagT0 = agora();
-    this.diagMeta = 0;
-    this.diagTent = 0;
-    this.diagFim = false;
-    clearInterval(this.timerDiag);
-    clearTimeout(this.timerDiagEsconder);
-    this.timerDiag = setInterval(function () { self.diagDesenhar(); }, 500);
-    this.diagDesenhar();
-  };
-
-  P.diagElemento = function () {
-    var el = document.getElementById('motor-diag');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'motor-diag';
-      el.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:99999;padding:8px 16px;font:bold 24px sans-serif;' +
-        'color:#ff0;background:rgba(0,0,0,0.78);border-radius:8px;pointer-events:none;max-width:1500px;';
-      document.body.appendChild(el);
-    }
-    return el;
-  };
-
-  P.diagDesenhar = function () {
-    if (!diagnostico() || !this.diagT0) { return; }
-    var el = this.diagElemento();
-    var seg = function (ms) { return (Math.round(ms / 100) / 10).toFixed(1) + 's'; };
-    var t = this.atual;
-    var caminho = t ? (t.estrategia + ' ' + t.tipo) : '-';
-    var dados = this.diagMeta ? ('1o dado ' + seg(this.diagMeta - this.diagT0)) : 'sem dado ainda';
-    var falhas = this.erros.length ? (' | falhas: ' + this.erros.map(function (e) { return (e.estrategia || '?') + ':' + (e.http || e.tipo || '?'); }).join(',')) : '';
-    if (this.diagFim) {
-      el.style.color = '#7f7';
-      el.textContent = 'OK em ' + seg(this.diagFim - this.diagT0) + ' | ' + caminho + ' | ' + dados + ' | tentativas ' + this.diagTent + (this.reabertas ? ' | reaberturas ' + this.reabertas : '') + falhas;
-    } else {
-      el.style.color = '#ff0';
-      el.textContent = 'Abrindo ha ' + seg(agora() - this.diagT0) + ' | ' + caminho + ' | ' + dados + ' | tentativa ' + this.diagTent + (this.reabertas ? ' | reaberturas ' + this.reabertas : '') + falhas;
-    }
-    el.style.display = 'block';
-  };
-
-  P.diagConcluir = function () {
-    if (!diagnostico() || !this.diagT0 || this.diagFim) { return; }
-    var self = this;
-    this.diagFim = agora();
-    clearInterval(this.timerDiag);
-    this.diagDesenhar();
-    clearTimeout(this.timerDiagEsconder);
-    this.timerDiagEsconder = setTimeout(function () {
-      var el = document.getElementById('motor-diag');
-      if (el) { el.style.display = 'none'; }
-      void self;
-    }, 15000);
-  };
-
   P.parar = function (mantemAtivo) {
     this.idTent++;
-    if (!mantemAtivo) {
-      this.ativo = false;
-      clearInterval(this.timerDiag);
-      var elDiag = document.getElementById('motor-diag');
-      if (elDiag) { elDiag.style.display = 'none'; }
-    }
+    if (!mantemAtivo) { this.ativo = false; }
     clearTimeout(this.timerEspera);
     clearTimeout(this.timerReconectar);
     clearInterval(this.timerVigia);
@@ -520,7 +454,6 @@
     var meu = ++this.idTent;
     this.atual = t;
     this.confirmada = false;
-    this.diagTent = (this.diagTent || 0) + 1;
     clearTimeout(this.timerEspera);
     this.limparEngine();
     this.camadaAvplay(false);
@@ -601,7 +534,6 @@
       clearTimeout(this.timerEspera);
       this.registrarVitoria();
       this.iniciarVigia();
-      this.diagConcluir();
       if (this.retomarEm > 0) { this.aplicarRetomada(); }
     }
     this.inicioEstavel = this.inicioEstavel || agora();
@@ -628,7 +560,6 @@
   P.estrategia = function () { return this.atual ? this.atual.estrategia : ''; };
 
   P.aoMetadados = function () {
-    if (this.diagT0 && !this.diagMeta && this.ativo) { this.diagMeta = agora(); }   // primeiro dado do servidor chegou à TV
     if (this.cb.aoMetadados && this.atual && this.atual.estrategia !== 'avplay') { this.cb.aoMetadados(); }
     if (this.retomarEm > 0 && this.confirmada) { this.aplicarRetomada(); }
   };

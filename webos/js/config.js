@@ -4,10 +4,14 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.3.3',
+  VERSAO: '1.4.0',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
+
+  // Endereço da política de privacidade, mostrado em Configurações > Sobre (as lojas pedem esse link dentro do app).
+  // Troque pelo endereço real da página no seu site.
+  POLITICA_PRIVACIDADE_URL: 'https://vltvplay.tech/privacidade',
 
   // WhatsApp de suporte mostrado em Configurações > Sobre (ex: '+55 11 99999-9999'). Vazio = não mostra.
   SUPORTE_WHATSAPP: '+55 31 99849-1711',

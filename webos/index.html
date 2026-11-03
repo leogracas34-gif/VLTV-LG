@@ -196,6 +196,30 @@
       </div>
     </div>
 
+    <!-- Temporizador para dormir: aviso 1 minuto antes de fechar o aplicativo -->
+    <div id="aviso-sono" class="confirma escondida" role="dialog" aria-modal="true">
+      <div class="confirma-caixa">
+        <h2>Ainda está assistindo?</h2>
+        <p id="aviso-sono-contagem">O aplicativo fecha em 60 segundos.</p>
+        <div class="confirma-botoes">
+          <button id="aviso-sono-continuar" type="button" class="botao-conf">Continuar assistindo</button>
+        </div>
+        <p class="aviso-sub">OK: continuar  •  Voltar: fechar agora</p>
+      </div>
+    </div>
+
+    <!-- Lembrete de programa (criado no guia de programação) -->
+    <div id="aviso-lembrete" class="confirma escondida" role="dialog" aria-modal="true">
+      <div class="confirma-caixa">
+        <h2 id="aviso-lembrete-titulo">Seu programa vai começar</h2>
+        <p id="aviso-lembrete-texto" class="texto-quebra"></p>
+        <div class="confirma-botoes">
+          <button id="aviso-lembrete-ir" type="button" class="botao-conf perigo">Ir para o canal</button>
+        </div>
+        <p class="aviso-sub">OK: ir agora  •  Voltar: cancelar o lembrete</p>
+      </div>
+    </div>
+
     <!-- Minhas listas -->
     <section id="tela-listas" class="tela tela-topo escondida">
       <div class="live">
@@ -241,6 +265,7 @@
             <video id="live-video" autoplay playsinline></video>
             <div id="live-overlay" class="overlay escondida"></div>
             <div id="live-info-cheio" class="info-cheio escondida"></div>
+            <div id="live-numero" class="live-numero escondida"></div>
           </div>
           <div class="info">
             <div id="live-nome" class="info-nome"></div>
@@ -249,9 +274,16 @@
             <div id="live-descricao" class="info-desc"></div>
             <div id="live-proximos" class="info-proximos"></div>
           </div>
+          <div class="live-dicas">
+            <button id="live-btn-guia" type="button" class="chip-guia">Guia de programação</button>
+            <span class="dica-txt">Digite o número do canal  •  0: último canal</span>
+          </div>
         </div>
 
       </div>
+
+      <!-- Guia de programação em grade (aberto pela tecla azul/GUIA, ou ◄ ► em tela cheia) -->
+      <div id="guia" class="guia escondida"></div>
     </section>
 
     <!-- Catálogo de Filmes e Séries -->
@@ -477,6 +509,7 @@
   </div>
 
   <script src="js/config.js"></script>
+  <script src="js/protecao.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/platform.js"></script>
   <script src="js/dns.js"></script>
@@ -495,10 +528,12 @@
   <script src="js/tmdb.js"></script>
   <script src="js/indice.js"></script>
   <script src="js/motor.js"></script>
+  <script src="js/guia.js"></script>
   <script src="js/live.js"></script>
   <script src="js/catalogo.js"></script>
   <script src="js/detalhes.js"></script>
   <script src="js/player.js"></script>
+  <script src="js/sono.js"></script>
   <script src="js/ajustes.js"></script>
   <script src="js/banner.js"></script>
   <script src="js/destaque.js"></script>

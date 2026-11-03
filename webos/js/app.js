@@ -717,6 +717,10 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
 
+    // Avisos que ficam por cima de tudo: temporizador para dormir e lembrete de programa.
+    if (VLTV.sono.avisoAberto()) { VLTV.sono.tecla(k); e.preventDefault(); return; }
+    if (VLTV.guia.lembreteAberto()) { VLTV.guia.teclaLembrete(k); e.preventDefault(); return; }
+
     // A janela da senha fica por cima de tudo e fica com as teclas enquanto está aberta.
     if (VLTV.parental.aberto()) {
       if (VLTV.parental.tecla(k)) { e.preventDefault(); }
@@ -738,7 +742,9 @@
     // Estas telas cuidam das próprias teclas.
     var tratador = TRATADORES[telaAtual];
     if (tratador) {
-      if (tratador(k)) { e.preventDefault(); }
+      // Um erro numa tela nunca deixa a TV parada: o erro é registrado e a tecla é consumida.
+      var usou = VLTV.protecao ? VLTV.protecao.seguro(function () { return tratador(k); }, true) : tratador(k);
+      if (usou) { e.preventDefault(); }
       return;
     }
 
@@ -827,6 +833,29 @@
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {
     t.addEventListener('focus', function () { ultimoTile = t; });
+  });
+
+  // ── Temporizador para dormir e lembretes de programa ──────────────
+  // No fim do tempo, a imagem para e o aplicativo fecha (no navegador de teste fica na Home).
+  VLTV.sono.aoDesligar(function () {
+    if (telaAtual === 'player') { VLTV.player.tecla(TECLA_VOLTAR_WEBOS); }
+    VLTV.live.parar();
+    mostrarTela('home');
+    fecharApp();
+  });
+
+  // Lembrete: a TV muda sozinha para o canal marcado no guia (se estiver num filme, só com OK).
+  VLTV.guia.configurar({
+    podeMostrar: function () {
+      return ['carregando', 'incompativel', 'licenca', 'login'].indexOf(telaAtual) === -1 && !!VLTV.sessao.ler();
+    },
+    podeAuto: function () { return telaAtual !== 'player' && !VLTV.parental.aberto(); },
+    ir: function (canal) {
+      if (telaAtual === 'player') { VLTV.player.tecla(TECLA_VOLTAR_WEBOS); }
+      if (telaAtual === 'live') { VLTV.live.assistirCanal(canal); return; }
+      mostrarTela('live');
+      VLTV.live.abrir(function () { mostrarTela('home'); }, canal);
+    }
   });
 
   // ── Início ────────────────────────────────────────────────────────

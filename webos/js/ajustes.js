@@ -14,6 +14,7 @@
   var ITENS = [
     { id: 'info', nome: 'Informação geral' },
     { id: 'idioma', nome: 'Idioma' },
+    { id: 'sono', nome: 'Temporizador para dormir' },
     { id: 'parental', nome: 'Controle parental' },
     { id: 'cache', nome: 'Limpar cache' },
     { id: 'recarregar', nome: 'Atualizar o aplicativo' },
@@ -158,6 +159,8 @@
       lerMac(function () { if (ITENS[idx].id === 'info') { desenharInfo(); } });
     } else if (item.id === 'idioma') {
       desenharIdioma();
+    } else if (item.id === 'sono') {
+      desenharSono();
     } else if (item.id === 'parental') {
       if (foco === 'dir') { desenharParental(); }
       else {
@@ -209,9 +212,41 @@
     texto('Escolha o idioma do aplicativo. A mudança vale na hora: o aplicativo reinicia sozinho.');
   }
 
+  // ── Temporizador para dormir ──
+  // Escolher o tempo liga o temporizador: no fim o aplicativo fecha (um minuto antes aparece um aviso).
+  function rotuloTempo(min) {
+    if (min === 0) { return 'Desligado'; }
+    if (min < 60) { return min + ' minutos'; }
+    if (min === 60) { return '1 hora'; }
+    if (min % 60 === 0) { return (min / 60) + ' horas'; }
+    return Math.floor(min / 60) + ' hora e ' + (min % 60) + ' minutos';
+  }
+
+  function desenharSono() {
+    var S = VLTV.sono;
+    var atual = S.minutos();
+    dirItens = S.opcoes().map(function (m) {
+      return { rotulo: rotuloTempo(m), valor: m === atual ? '\u2713' : '', classe: 'ok', acao: function () { S.definir(m); } };
+    });
+    if (foco !== 'dir') {
+      dirIdx = 0;
+      dirItens.forEach(function (it, i) { if (S.opcoes()[i] === atual) { dirIdx = i; } });
+    }
+    esvaziar(conteudo);
+    dirItens.forEach(function (it, i) { linhaOpcao(it.rotulo, it.valor, it.classe, foco === 'dir' && i === dirIdx); });
+    if (atual > 0) {
+      texto('O aplicativo fecha às ' + S.horaFim() + '. Um minuto antes aparece um aviso: OK continua assistindo.');
+    } else {
+      texto('Escolha em quanto tempo o aplicativo deve fechar sozinho. A imagem para e o aplicativo fecha no fim do tempo.');
+    }
+  }
+
   // Redesenha a coluna da direita do item que está com as opções abertas.
   function redesenharDir() {
-    if (ITENS[idx].id === 'idioma') { desenharIdioma(); } else { desenharParental(); }
+    var id = ITENS[idx].id;
+    if (id === 'idioma') { desenharIdioma(); }
+    else if (id === 'sono') { desenharSono(); }
+    else { desenharParental(); }
   }
 
   // ── Limpar cache ──
@@ -248,6 +283,7 @@
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
     if (cfg.SUPORTE) { linha('Suporte', cfg.SUPORTE); }
     if (cfg.SUPORTE_WHATSAPP) { linha('WhatsApp', cfg.SUPORTE_WHATSAPP); }
+    if (cfg.POLITICA_PRIVACIDADE_URL) { linha('Política de privacidade', cfg.POLITICA_PRIVACIDADE_URL); }
     texto('O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.');
   }
 
@@ -373,6 +409,7 @@
       var id = ITENS[idx].id;
       if (id === 'parental') { abrirParental(); }
       else if (id === 'idioma') { foco = 'dir'; desenharIdioma(); }
+      else if (id === 'sono') { foco = 'dir'; desenharSono(); }
       else if (k === TECLA.DIR) { return true; }
       else if (id === 'cache') { limparCache(); }
       else if (id === 'recarregar') { recarregar(); }
@@ -421,7 +458,7 @@
 
   // Linha de opção (Controle parental ou Idioma) sob o cursor. O Idioma responde ao cursor mesmo antes de abrir.
   function indiceOpcao(e) {
-    if (foco !== 'dir' && ITENS[idx].id !== 'idioma') { return -1; }
+    if (foco !== 'dir' && ITENS[idx].id !== 'idioma' && ITENS[idx].id !== 'sono') { return -1; }
     var l = filhoDe(conteudo, e.target);
     if (!l || !l.classList.contains('cfg-linha')) { return -1; }
     var i = Array.prototype.indexOf.call(conteudo.children, l);

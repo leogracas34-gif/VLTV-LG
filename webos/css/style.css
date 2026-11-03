@@ -379,7 +379,7 @@ input:focus,
 .info-cheio .info-nome { font-size: 52px; }
 .info-cheio .info-linha { font-size: 34px; }
 
-.info { padding: 16px 8px; max-height: 431px; overflow: hidden; }
+.info { padding: 16px 8px; max-height: 371px; overflow: hidden; }
 .info-nome { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
 .info-linha { font-size: 28px; line-height: 1.4; margin-bottom: 8px; }
 .info-agora { color: var(--destaque-claro); font-weight: 700; }
@@ -2095,3 +2095,163 @@ input::placeholder { color: #5f5f6b; }
 
 /* Menu da tela de detalhes: quando o foco desce além do fim da tela, o bloco todo sobe (rolagem) */
 .det-bloco { -webkit-transition: -webkit-transform 0.2s ease; transition: transform 0.2s ease; }
+
+
+/* ── Número do canal, dicas e aviso de rede ─────────────── */
+.lista li .num-canal {
+  min-width: 70px;
+  margin-right: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--suave);
+  text-align: right;
+  flex: none;
+}
+.lista li.sel .num-canal { color: #fff; }
+
+.live-numero {
+  position: absolute;
+  top: 30px;
+  right: 40px;
+  min-width: 180px;
+  padding: 14px 28px 16px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  z-index: 20;
+}
+.live-numero .num-digitos { font-size: 64px; font-weight: 800; letter-spacing: 4px; line-height: 1.1; }
+.live-numero .num-nome { margin-top: 4px; font-size: 26px; color: var(--ok); max-width: 520px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.live-numero .num-nome.erro { color: var(--erro); }
+.player.cheio .live-numero { top: 60px; right: 80px; }
+.player.cheio .live-numero .num-digitos { font-size: 110px; }
+.player.cheio .live-numero .num-nome { font-size: 36px; max-width: 800px; }
+
+.info-cheio .info-dica { margin-top: 6px; font-size: 26px; color: var(--suave); }
+
+.live-dicas { display: flex; align-items: center; height: 60px; padding: 0 8px; }
+.chip-guia {
+  height: 48px;
+  padding: 0 26px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--painel-2);
+  border: 2px solid var(--borda);
+  border-radius: 24px;
+  outline: none;
+}
+.chip-guia:hover { border-color: #fff; background: var(--destaque); }
+.live-dicas .dica-txt { margin-left: 22px; font-size: 22px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.aviso-rede {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 18px 60px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(40, 40, 46, 0.96);
+  border-bottom: 3px solid var(--borda);
+}
+.aviso-rede.erro { background: rgba(160, 20, 30, 0.96); border-bottom-color: #ff8a92; }
+.aviso-rede.ok { background: rgba(20, 110, 70, 0.96); border-bottom-color: var(--ok); }
+.aviso-rede.escondida { display: none; }
+
+#aviso-sono, #aviso-lembrete { z-index: 90; }
+.confirma-caixa .aviso-sub { margin: 26px 0 0; font-size: 24px; }
+.confirma-caixa .texto-quebra { white-space: pre-line; line-height: 1.4; }
+#aviso-sono .botao-conf, #aviso-lembrete .botao-conf { width: 520px; }
+
+/* ── Guia de programação em grade ───────────────────────── */
+.guia {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 60;
+  padding: 40px 60px 0;
+  background: #0b0b0f;
+}
+.g-topo { display: flex; align-items: baseline; height: 64px; }
+.g-titulo { font-size: 44px; font-weight: 800; }
+.g-cat { flex: 1; margin-left: 28px; font-size: 28px; color: var(--suave); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.g-hora { font-size: 40px; font-weight: 700; }
+
+.g-tempo { display: flex; height: 48px; margin-top: 8px; }
+.g-tempo-esq { width: 320px; flex: none; }
+.g-tempo-dir { position: relative; width: 1480px; flex: none; }
+.g-marca {
+  position: absolute;
+  top: 0;
+  height: 48px;
+  line-height: 48px;
+  padding-left: 10px;
+  font-size: 26px;
+  color: var(--suave);
+  border-left: 2px solid var(--borda);
+}
+
+.g-linhas { margin-top: 6px; }
+.g-linha { display: flex; height: 88px; margin-bottom: 6px; }
+.g-canal {
+  display: flex;
+  align-items: center;
+  width: 316px;
+  flex: none;
+  padding: 0 16px;
+  background: var(--painel-2);
+  border: 3px solid transparent;
+  border-radius: 12px;
+}
+.g-linha.sel .g-canal { background: var(--destaque); border-color: #fff; }
+.g-num { min-width: 66px; margin-right: 12px; font-size: 24px; font-weight: 700; color: var(--suave); text-align: right; flex: none; }
+.g-linha.sel .g-num { color: #fff; }
+.g-nome { flex: 1; font-size: 26px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.g-grade { position: relative; width: 1480px; height: 88px; margin-left: 4px; flex: none; }
+.g-prog {
+  position: absolute;
+  top: 0;
+  height: 88px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  font-size: 26px;
+  background: var(--painel);
+  border: 2px solid var(--borda);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.g-prog.no-ar { background: #25252c; }
+.g-prog.g-vazio { color: var(--suave); font-size: 24px; }
+.g-prog.sel { background: var(--destaque); border-color: #fff; color: #fff; z-index: 2; }
+.g-prog-tx { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.g-sino { flex: none; width: 30px; height: 30px; margin-left: 8px; }
+.g-sino svg { display: block; width: 30px; height: 30px; fill: #ffc94d; }
+.g-prog.sel .g-sino svg { fill: #fff; }
+.g-agora { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--destaque-claro); z-index: 3; pointer-events: none; }
+
+.g-detalhe {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 70px;
+  height: 148px;
+  padding: 14px 26px;
+  background: var(--painel);
+  border: 2px solid var(--borda);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.g-det-titulo { font-size: 36px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.g-det-meta { margin-top: 4px; font-size: 26px; color: var(--destaque-claro); }
+.g-det-meta.aviso { color: var(--ok); font-weight: 700; }
+.g-det-desc { margin-top: 4px; font-size: 24px; line-height: 1.3; color: var(--suave); max-height: 64px; overflow: hidden; }
+.g-dica { position: absolute; left: 60px; right: 60px; bottom: 22px; font-size: 24px; color: var(--suave); text-align: center; }

@@ -342,6 +342,40 @@ window.VLTV = window.VLTV || {};
     'Sem chave': 'No key',
     'Títulos e sinopses (TMDB)': 'Titles and synopses (TMDB)',
 
+    // ── Proteção, número do canal, guia de programação, lembretes, temporizador ──
+    'Sem conexão com a internet. Verifique o Wi-Fi ou o cabo da TV.': 'No internet connection. Check the TV’s Wi-Fi or cable.',
+    'Conexão restaurada.': 'Connection restored.',
+    'Recuperando o aplicativo...': 'Recovering the app...',
+    'Sem conexão com a internet. O canal volta sozinho quando a conexão voltar.': 'No internet connection. The channel will come back by itself when the connection returns.',
+    'Canal não encontrado': 'Channel not found',
+    'Procurando canal...': 'Looking for the channel...',
+    'Digite o número do canal': 'Type the channel number',
+    '0: último canal': '0: last channel',
+    '◄ ►: guia de programação': '◄ ►: program guide',
+    'Guia de programação': 'Program guide',
+    'Sem título': 'No title',
+    '◄ ► programas   ▲ ▼ canais   OK: assistir ou criar lembrete   Voltar: fechar': '◄ ► programs   ▲ ▼ channels   OK: watch or set a reminder   Back: close',
+    'OK: assistir agora': 'OK: watch now',
+    'OK: remover o lembrete': 'OK: remove the reminder',
+    'OK: lembrar e mudar de canal quando começar': 'OK: remind me and switch channel when it starts',
+    'Programa já terminou': 'Program has ended',
+    'OK: assistir este canal': 'OK: watch this channel',
+    'Lembrete removido.': 'Reminder removed.',
+    'Seu programa vai começar': 'Your program is about to start',
+    'Ir para o canal': 'Go to the channel',
+    'OK: ir agora': 'OK: go now',
+    'Voltar: cancelar o lembrete': 'Back: cancel the reminder',
+    'Ainda está assistindo?': 'Are you still watching?',
+    'OK: continuar': 'OK: keep watching',
+    'Voltar: fechar agora': 'Back: close now',
+    'Temporizador para dormir': 'Sleep timer',
+    'Desligado': 'Off',
+    '1 hora': '1 hour',
+    'Escolha em quanto tempo o aplicativo deve fechar sozinho. A imagem para e o aplicativo fecha no fim do tempo.': 'Choose how long until the app closes by itself. The picture stops and the app closes when the time is up.',
+    'Política de privacidade': 'Privacy policy',
+    'Começou! Mudando de canal...': 'It has started! Switching channel...',
+    'Já começou.': 'It has already started.',
+
     // ── Plataforma ──
     'Navegador (modo de teste)': 'Browser (test mode)'
   });
@@ -396,6 +430,16 @@ window.VLTV = window.VLTV || {};
     [/^O VLTV Play funciona em TVs (LG|Samsung) de (\d+) em diante \((webOS|Tizen) ([\d.]+) ou mais novo\)\.(?: Detectado: (.*))?$/, function (m) {
       return 'VLTV Play works on ' + m[1] + ' TVs from ' + m[2] + ' onwards (' + m[3] + ' ' + m[4] + ' or newer).' + (m[5] !== undefined ? ' Detected: ' + m[5].replace(/^ano /, 'year ') : '');
     }],
+    [/^Lembrete criado: a TV muda para este canal às (\d{2}:\d{2})\.$/, function (m) { return 'Reminder set: the TV switches to this channel at ' + m[1] + '.'; }],
+    [/^([\s\S]*)\nComeça em (\d+) segundos\. A TV muda de canal sozinha\.$/, function (m) { return m[1] + '\nStarts in ' + m[2] + ' seconds. The TV switches channel by itself.'; }],
+    [/^([\s\S]*)\nComeça em (\d+) segundos\.$/, function (m) { return m[1] + '\nStarts in ' + m[2] + ' seconds.'; }],
+    [/^([\s\S]*)\nComeçou! Mudando de canal\.\.\.$/, function (m) { return m[1] + '\nIt has started! Switching channel...'; }],
+    [/^([\s\S]*)\nJá começou\.$/, function (m) { return m[1] + '\nIt has already started.'; }],
+    [/^O aplicativo fecha em (\d+) segundos\.$/, function (m) { return 'The app closes in ' + m[1] + ' seconds.'; }],
+    [/^O aplicativo fecha às (\d{2}:\d{2})\. Um minuto antes aparece um aviso: OK continua assistindo\.$/, function (m) { return 'The app closes at ' + m[1] + '. A minute before, a notice appears: OK keeps watching.'; }],
+    [/^(\d+) minutos$/, function (m) { return m[1] + ' minutes'; }],
+    [/^(\d+) horas$/, function (m) { return m[1] + ' hours'; }],
+    [/^(\d+) hora e (\d+) minutos$/, function (m) { return m[1] + ' hour' + (m[1] === '1' ? '' : 's') + ' and ' + m[2] + ' minutes'; }],
     // Nomes de idioma das faixas de áudio/legenda ("Português (estéreo)", "Faixa 2"...)
     [/^(Português \(Brasil\)|Português|Inglês|Espanhol|Francês|Italiano|Alemão|Japonês|Coreano|Chinês|Russo|Desconhecido|Faixa \d+)( \(.*\))?$/, function (m) {
       var N = { 'Português (Brasil)': 'Portuguese (Brazil)', 'Português': 'Portuguese', 'Inglês': 'English', 'Espanhol': 'Spanish', 'Francês': 'French', 'Italiano': 'Italian',

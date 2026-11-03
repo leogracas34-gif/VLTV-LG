@@ -31,8 +31,11 @@
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
     ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40,
-    PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428, AMARELO: 405
+    PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428, AMARELO: 405,
+    VERDE: 404, AZUL: 406, GUIA: 458
   };
+  var TEMPO_NUMERO_MS = 1800;    // depois do último dígito, espera isso e troca de canal
+  var MAX_DIGITOS = 5;
 
   function $(id) { return document.getElementById(id); }
 
@@ -50,6 +53,8 @@
   var infoAgora = $('live-agora');
   var infoDesc = $('live-descricao');
   var infoProximos = $('live-proximos');
+  var elNumero = $('live-numero');
+  var btnGuia = $('live-btn-guia');
 
   // Estado
   var categorias = [];
@@ -79,6 +84,14 @@
   var listaTocando = null;       // lista de onde o canal saiu
   var idxTocando = 0;
   var textoAgora = '';
+  var anterior = null;           // canal que estava tocando antes do atual (tecla 0 / verde volta para ele)
+  var reproduzindo = false;      // a imagem do canal está rodando agora
+  var pendenteCanal = null;      // canal pedido de fora (lembrete do guia) esperando a lista carregar
+  var digitos = '';              // número do canal que o usuário está digitando
+  var timerNumero = null;
+  var timerNumeroMsg = null;
+  var idNumero = 0;              // muda a cada busca de número (resultado antigo é ignorado)
+  var semAutoplay = false;       // true enquanto o app troca de categoria para chegar a um canal (não abre o 1º da lista)
 
   var idReqCanais = 0;
   var idEpg = 0;
@@ -177,8 +190,18 @@
   }
 
   // ── Canais ────────────────────────────────────────────────────────
-  function criarItemCanal(canal) {
+  // Número do canal: o "num" do painel, ou a posição na lista quando o painel não manda.
+  function numeroDe(canal, i) {
+    var n = parseInt(canal && canal.num, 10);
+    return n > 0 ? n : (i || 0) + 1;
+  }
+
+  function criarItemCanal(canal, i) {
     var li = document.createElement('li');
+    var numero = document.createElement('span');
+    numero.className = 'num-canal';
+    numero.textContent = String(numeroDe(canal, i));
+    li.appendChild(numero);
     if (canal.stream_icon) {
       var img = document.createElement('img');
       img.alt = '';
@@ -205,7 +228,7 @@
   function renderMais() {
     var fim = Math.min(canais.length, renderizados + TAMANHO_LOTE);
     for (var i = renderizados; i < fim; i++) {
-      var li = criarItemCanal(canais[i]);
+      var li = criarItemCanal(canais[i], i);
       itensCanais.push(li);
       listaCanais.appendChild(li);
     }
@@ -248,9 +271,17 @@
     marcarCanal();
     marcarTocando();
     if (focar) { trocarFoco('canais'); }
+    // Canal pedido de fora (lembrete do guia): vai direto para ele, em tela cheia.
+    if (pendenteCanal) {
+      var pedido = pendenteCanal;
+      pendenteCanal = null;
+      irParaCanal(pedido);
+      entrarCheio();
+      return;
+    }
     // Primeira vez na tela: já começa a tocar o primeiro canal na mini tela.
     // Depois disso, o canal só muda quando o usuário aperta OK em outro.
-    if (!tocando) { tocar(lista, 0); }
+    if (!tocando && !semAutoplay) { tocar(lista, 0); }
   }
 
   function carregarCanais(idx, focar) {
@@ -433,7 +464,7 @@
         infoDesc.textContent = atual && atual.descricao ? atual.descricao : '';
         esvaziar(infoProximos);
         // Preenche a coluna: sem descrição sobra espaço, então cabem mais programas.
-        var quantos = atual && atual.descricao ? 5 : 7;
+        var quantos = atual && atual.descricao ? 4 : 6;
         var traduzir = VLTV.idioma.ehIngles();
         var nomesProx = [];
         lista.slice(1, 1 + quantos).forEach(function (p) {
@@ -516,14 +547,32 @@
   var motor = VLTV.motor.criar(video, {
     modo: 'live',
     aoPlaying: function () {
+      reproduzindo = true;
       esconderOverlay();
       contarFormato();
       setTimeout(atualizarQualidade, 1200);   // a TV leva um instante para informar a resolução real
     },
-    aoEspera: function () { if (tocando) { mostrarOverlay('Carregando...'); } },
-    aoReconectando: function (msg) { if (tocando) { mostrarOverlay(msg); } },
-    aoFalha: function (msg) { if (tocando) { mostrarOverlay(msg, 'erro'); } }
+    aoEspera: function () { reproduzindo = false; if (tocando) { mostrarOverlay('Carregando...'); } },
+    aoReconectando: function (msg) { reproduzindo = false; if (tocando) { mostrarOverlay(msg); } },
+    aoFalha: function (msg) {
+      reproduzindo = false;
+      if (!tocando) { return; }
+      if (VLTV.protecao && !VLTV.protecao.online()) {
+        mostrarOverlay('Sem conexão com a internet. O canal volta sozinho quando a conexão voltar.', 'erro');
+      } else {
+        mostrarOverlay(msg, 'erro');
+      }
+    }
   });
+
+  // Internet voltou, ou erros demais: se o canal não está rodando, abre de novo.
+  function reabrirSeParado() {
+    if (tocando && !reproduzindo) { iniciarCanal(); }
+  }
+  if (VLTV.protecao) {
+    VLTV.protecao.aoVoltarRede(reabrirSeParado);
+    VLTV.protecao.aoRecuperar(reabrirSeParado);
+  }
 
   function iniciarCanal() {
     mostrarOverlay('Carregando...');
@@ -539,6 +588,8 @@
   }
 
   function tocar(lista, idx) {
+    if (tocando && lista[idx] && String(tocando.stream_id) !== String(lista[idx].stream_id)) { anterior = tocando; }
+    reproduzindo = false;
     tocando = lista[idx];
     listaTocando = lista;
     idxTocando = idx;
@@ -566,7 +617,7 @@
     esvaziar(infoCheio);
     var nome = document.createElement('div');
     nome.className = 'info-nome';
-    nome.textContent = tocando ? (tocando.name || '') : '';
+    nome.textContent = tocando ? (numeroDe(tocando, idxTocando) + '   ' + (tocando.name || '')) : '';
     var agora = document.createElement('div');
     agora.className = 'info-linha';
     agora.textContent = textoAgora;
@@ -578,6 +629,10 @@
       infoCheio.appendChild(qual);
     }
     infoCheio.appendChild(agora);
+    var dica = document.createElement('div');
+    dica.className = 'info-linha info-dica';
+    dica.textContent = 'Digite o número do canal  •  0: último canal  •  ◄ ►: guia de programação';
+    infoCheio.appendChild(dica);
   }
 
   function mostrarInfoCheio() {
@@ -615,6 +670,200 @@
     mostrarInfoCheio();
   }
 
+  // ── Ir para um canal (número digitado, último canal, guia, lembrete) ─
+  // Procura o canal na lista que está na tela e, depois, nas categorias já baixadas (as bloqueadas por senha ficam de fora).
+  function acharNasListas(testar) {
+    var i, k;
+    for (i = 0; i < canais.length; i++) {
+      if (testar(canais[i], i, true)) { return { catI: catCarregada, lista: canais, idx: i }; }
+    }
+    for (k = 0; k < categorias.length; k++) {
+      var c = categorias[k];
+      if (c.especial || categoriaTrancada(c) || !cacheCanais[c.category_id]) { continue; }
+      var l = VLTV.parental.filtrarItens(cacheCanais[c.category_id], 'canais');
+      for (i = 0; i < l.length; i++) {
+        if (testar(l[i], i, false)) { return { catI: k, lista: l, idx: i }; }
+      }
+    }
+    return null;
+  }
+
+  // Toca o canal achado, levando a lista da tela para a categoria dele quando for outra.
+  function tocarAchado(r, reserva) {
+    if (!r) {
+      if (reserva) { tocar([reserva], 0); }
+      return;
+    }
+    var id = String(r.lista[r.idx].stream_id);
+    if (r.lista !== canais && r.catI >= 0 && r.catI !== catCarregada) {
+      semAutoplay = true;
+      catIdx = r.catI;
+      marcarCategoria();
+      carregarCanais(r.catI, false);
+      semAutoplay = false;
+    }
+    var j = indiceDoCanal(canais, id);
+    if (j !== -1) {
+      canalIdx = j;
+      marcarCanal();
+      tocar(canais, j);
+    } else {
+      tocar(r.lista, r.idx);
+    }
+  }
+
+  function irParaCanal(canal) {
+    var id = String(canal.stream_id);
+    tocarAchado(acharNasListas(function (c) { return String(c.stream_id) === id; }), canal);
+  }
+
+  // Canal pedido de fora (lembrete): abre e já em tela cheia.
+  function assistirCanal(canal) {
+    irParaCanal(canal);
+    if (!cheio) { entrarCheio(); } else { mostrarInfoCheio(); }
+  }
+
+  // ── Número do canal ───────────────────────────────────────────────
+  function porNumero(n) {
+    return acharNasListas(function (c, i, naTela) {
+      return naTela ? numeroDe(c, i) === n : parseInt(c.num, 10) === n;
+    });
+  }
+
+  function mostrarNumero(extra, erro) {
+    if (!elNumero) { return; }
+    while (elNumero.firstChild) { elNumero.removeChild(elNumero.firstChild); }
+    var d = document.createElement('div');
+    d.className = 'num-digitos';
+    d.textContent = digitos;
+    elNumero.appendChild(d);
+    var t = document.createElement('div');
+    t.className = 'num-nome' + (erro ? ' erro' : '');
+    t.textContent = extra || '';
+    elNumero.appendChild(t);
+    elNumero.classList.remove('escondida');
+  }
+
+  function esconderNumero() {
+    if (elNumero) { elNumero.classList.add('escondida'); }
+  }
+
+  function limparNumero() {
+    clearTimeout(timerNumero);
+    digitos = '';
+    esconderNumero();
+  }
+
+  function digitar(d) {
+    if (digitos.length >= MAX_DIGITOS) { return; }
+    clearTimeout(timerNumeroMsg);
+    digitos += d;
+    var r = digitos === '0' ? null : porNumero(parseInt(digitos, 10));
+    var nome = r ? (r.lista[r.idx].name || '') : (digitos === '0' ? (anterior ? (anterior.name || '') : '') : 'Canal não encontrado');
+    mostrarNumero(nome, !r && digitos !== '0');
+    clearTimeout(timerNumero);
+    timerNumero = setTimeout(confirmarNumero, TEMPO_NUMERO_MS);
+  }
+
+  function confirmarNumero() {
+    clearTimeout(timerNumero);
+    var d = digitos;
+    digitos = '';
+    if (!d) { esconderNumero(); return; }
+    if (d === '0') { esconderNumero(); ultimoCanal(); return; }
+    var n = parseInt(d, 10);
+    var r = porNumero(n);
+    var meuId = ++idNumero;
+    function achou(r2) {
+      esconderNumero();
+      tocarAchado(r2);
+      if (cheio) { mostrarInfoCheio(); }
+    }
+    function naoAchou() {
+      mostrarNumero('Canal não encontrado', true);
+      timerNumeroMsg = setTimeout(esconderNumero, 1500);
+    }
+    if (r) { achou(r); return; }
+    // Não está nas categorias já baixadas: baixa as que faltam (aos poucos) até achar.
+    digitos = d;
+    mostrarNumero('Procurando canal...');
+    digitos = '';
+    baixarFaltantes(function () { return !!porNumero(n); }, function () {
+      if (meuId !== idNumero || digitos) { return; }   // o usuário já digitou outro número
+      var r2 = porNumero(n);
+      if (r2) { achou(r2); } else { naoAchou(); }
+    });
+  }
+
+  // Baixa (3 por vez) as categorias que ainda não estão em memória, parando quando "achou()" der verdadeiro.
+  function baixarFaltantes(achou, pronto) {
+    var fila = [];
+    categorias.forEach(function (c) {
+      if (!c.especial && !categoriaTrancada(c) && !cacheCanais[c.category_id]) { fila.push(c); }
+    });
+    if (fila.length === 0) { pronto(); return; }
+    var abertura = idAbertura;
+    var i = 0;
+    var ativas = 0;
+    var terminou = false;
+    buscasDoUsuario++;
+    function fim() {
+      if (terminou) { return; }
+      terminou = true;
+      buscasDoUsuario = Math.max(0, buscasDoUsuario - 1);
+      pronto();
+    }
+    function proximo() {
+      if (terminou) { return; }
+      if (abertura !== idAbertura || achou() || (i >= fila.length && ativas === 0)) { fim(); return; }
+      while (ativas < 3 && i < fila.length) {
+        (function (c) {
+          ativas++;
+          VLTV.api.canaisAoVivo(c.category_id).then(function (l) {
+            cacheCanais[c.category_id] = l;
+            cacheQuando[c.category_id] = new Date().getTime();
+          }, function () { /* essa categoria fica para depois */ }).then(function () { ativas--; proximo(); });
+        })(fila[i++]);
+      }
+    }
+    proximo();
+  }
+
+  // Volta para o canal que estava antes (de novo: volta para este).
+  function ultimoCanal() {
+    if (!anterior) { return; }
+    var a = anterior;
+    irParaCanal(a);
+    if (cheio) { mostrarInfoCheio(); }
+  }
+
+  function digitoDe(k) {
+    if (k >= 48 && k <= 57) { return String(k - 48); }
+    if (k >= 96 && k <= 105) { return String(k - 96); }
+    return null;
+  }
+
+  // ── Guia de programação em grade ──────────────────────────────────
+  function abrirGuia() {
+    if (!VLTV.guia) { return; }
+    var lista = canais.length > 0 ? canais : (listaTocando || []);
+    if (lista.length === 0) { return; }
+    var idx = canalIdx;
+    if (tocando) {
+      var p = indiceDoCanal(lista, tocando.stream_id);
+      if (p !== -1) { idx = p; }
+    }
+    limparNumero();
+    clearTimeout(timerInfo);
+    infoCheio.classList.add('escondida');
+    VLTV.guia.abrir(lista, idx, {
+      assistir: function (canal) { assistirCanal(canal); },
+      fechou: function () { }
+    }, tituloCanais.textContent);
+  }
+
+  if (btnGuia) { btnGuia.addEventListener('click', abrirGuia); }
+
   // ── Controle remoto ───────────────────────────────────────────────
   function mover(passo) {
     if (canais.length === 0) { return; }
@@ -627,6 +876,7 @@
     else if (k === TECLA.ENTER) { mostrarInfoCheio(); }
     else if (k === TECLA.CIMA || k === TECLA.CH_MENOS || k === TECLA.PG_BAIXO) { trocarCanal(-1); }
     else if (k === TECLA.BAIXO || k === TECLA.CH_MAIS || k === TECLA.PG_CIMA) { trocarCanal(1); }
+    else if (k === TECLA.ESQ || k === TECLA.DIR) { abrirGuia(); }
     return true;
   }
 
@@ -655,7 +905,7 @@
     if (focoEstrela) {
       if (k === TECLA.ENTER) { alternarFavoritoCanal(); return true; }
       if (k === TECLA.ESQ) { definirEstrela(false); return true; }
-      if (k === TECLA.DIR) { return true; }
+      if (k === TECLA.DIR) { abrirGuia(); return true; }
     } else if (k === TECLA.DIR) {
       if (canais.length > 0) { definirEstrela(true); }
       return true;
@@ -785,6 +1035,19 @@
 
   // Devolve true se a tecla foi usada por esta tela.
   function tecla(k) {
+    // Guia de programação aberto: ele fica com todas as teclas.
+    if (VLTV.guia && VLTV.guia.aberto()) { return VLTV.guia.tecla(k); }
+
+    // Número do canal e atalhos (valem na lista e em tela cheia).
+    var dig = digitoDe(k);
+    if (dig !== null) { digitar(dig); return true; }
+    if (digitos) {
+      if (k === TECLA.ENTER) { confirmarNumero(); return true; }
+      if (k === TECLA.VOLTAR || k === TECLA.ESC) { limparNumero(); return true; }
+    }
+    if (k === TECLA.VERDE) { ultimoCanal(); return true; }
+    if (k === TECLA.AZUL || k === TECLA.GUIA) { abrirGuia(); return true; }
+
     if (cheio) { return teclaCheio(k); }
 
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
@@ -961,8 +1224,12 @@
   // ── Entrada e saída da tela ───────────────────────────────────────
   var idAbertura = 0;
 
-  function abrir(callbackSair) {
+  // inicial (opcional): canal que deve abrir já em tela cheia (lembrete do guia).
+  function abrir(callbackSair, inicial) {
     aoSair = callbackSair;
+    pendenteCanal = inicial || null;
+    limparNumero();
+    anterior = null;
     var listaAtual = validarCacheLista();
     lerDoDisco();
     var minhaAbertura = ++idAbertura;
@@ -1011,6 +1278,17 @@
         });
     }
 
+    // Se a lista não carregar (ou o canal não estiver nela), abre o canal mesmo assim depois de um tempo.
+    if (inicial) {
+      setTimeout(function () {
+        if (pendenteCanal === inicial && minhaAbertura === idAbertura) {
+          pendenteCanal = null;
+          tocar([inicial], 0);
+          entrarCheio();
+        }
+      }, 7000);
+    }
+
     if (prep.brutas) {
       // Já estava pronto (preparado ao abrir o app): abre completo, sem espera.
       mostrarCategorias(prep.brutas);
@@ -1031,10 +1309,11 @@
   }
 
   function sair() {
+    limparNumero();
     sairCheio();
     parar();
     if (aoSair) { aoSair(); }
   }
 
-  VLTV.live = { abrir: abrir, tecla: tecla, preparar: preparar, pausar: pausarSync };
+  VLTV.live = { abrir: abrir, tecla: tecla, preparar: preparar, pausar: pausarSync, parar: parar, assistirCanal: assistirCanal };
 })();

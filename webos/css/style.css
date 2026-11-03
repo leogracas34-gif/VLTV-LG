@@ -484,13 +484,14 @@ input:focus,
 
 .celula.sel .capa { border-color: var(--borda); }
 
-.painel.ativo .celula.sel .capa,
+/* Digitando na pesquisa: o foco está na caixa de busca, então o resultado NÃO brilha (só brilha depois de descer até ele). */
+.painel.ativo:not(.digitando) .celula.sel .capa,
 .celula.foco .capa {
   border-color: #fff;
   box-shadow: 0 0 0 4px rgba(255, 75, 85, 0.55);
 }
 
-.painel.ativo .celula.sel .celula-nome,
+.painel.ativo:not(.digitando) .celula.sel .celula-nome,
 .celula.foco .celula-nome { color: #fff; font-weight: 700; }
 
 /* Telas de detalhes mantêm as capas grandes das sugestões */
@@ -2142,7 +2143,8 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 24px;
   outline: none;
 }
-.chip-guia:hover { border-color: #fff; background: var(--destaque); }
+.chip-guia:hover,
+.chip-guia.foco { border-color: #fff; background: var(--destaque); box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.5); }
 .live-dicas .dica-txt { margin-left: 22px; font-size: 22px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .aviso-rede {

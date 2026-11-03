@@ -60,7 +60,7 @@ VLTV.config = {
   MOSTRAR_QUALIDADE: false,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
-  DIAGNOSTICO: false,   // TESTE: mostra o que foi tentado quando um vídeo falha. Volte para false antes de enviar à loja.
+  DIAGNOSTICO: true,   // TESTE: mostra o que foi tentado quando um vídeo falha E um relógio na tela com o tempo de cada abertura. Volte para false antes de enviar à loja.
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',

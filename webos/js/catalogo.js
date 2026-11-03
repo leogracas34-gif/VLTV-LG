@@ -109,6 +109,7 @@
     foco = novo;
     painelCats.classList.toggle('ativo', foco === 'cat');
     painelGrade.classList.toggle('ativo', foco === 'grade' || foco === 'busca');
+    painelGrade.classList.toggle('digitando', foco === 'busca');   // foco na caixa de pesquisa: a capa não brilha
     caixaBusca.classList.toggle('foco', foco === 'busca');
     if (foco !== 'busca') { try { elBusca.blur(); } catch (e) { /* ignora */ } }
   }

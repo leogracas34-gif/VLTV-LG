@@ -75,6 +75,7 @@
 
   var foco = 'cat';              // 'cat' ou 'canais'
   var focoEstrela = false;       // cursor na estrela do canal (e não no nome)
+  var focoBotaoGuia = false;     // cursor no botão "Guia de programação" (depois da estrela, mais uma vez para a direita)
   var cheio = false;
   var falhaCategorias = false;
   var focarAoCarregar = false;
@@ -124,9 +125,18 @@
     atualizarFoco();
   }
 
+  // Qualquer mudança de foco na lista (estrela, canal, categoria, mouse) tira o foco do botão "Guia de programação".
+  // Para ir ao botão: definirEstrela(false) e depois definirBotaoGuia(true).
   function definirEstrela(ligada) {
     focoEstrela = ligada;
+    definirBotaoGuia(false);
     if (liSelCanal) { liSelCanal.classList.toggle('foco-estrela', ligada); }
+  }
+
+  // Foco no botão "Guia de programação" (abaixo do EPG). Só OK abre o guia.
+  function definirBotaoGuia(ligado) {
+    focoBotaoGuia = ligado;
+    if (btnGuia) { btnGuia.classList.toggle('foco', ligado); }
   }
 
   function mostrarOverlay(texto, tipo) {
@@ -631,7 +641,7 @@
     infoCheio.appendChild(agora);
     var dica = document.createElement('div');
     dica.className = 'info-linha info-dica';
-    dica.textContent = 'Digite o número do canal  •  0: último canal  •  ◄ ►: guia de programação';
+    dica.textContent = '◄ ►: guia de programação';
     infoCheio.appendChild(dica);
   }
 
@@ -902,10 +912,16 @@
 
   function teclaCanais(k) {
     if (k === TECLA.AMARELO) { alternarFavoritoCanal(); return true; }
+    if (focoBotaoGuia) {
+      // No botão: OK abre o guia; esquerda/cima voltam para a estrela. Nada abre sozinho.
+      if (k === TECLA.ENTER) { abrirGuia(); return true; }
+      if (k === TECLA.ESQ || k === TECLA.CIMA) { definirEstrela(true); return true; }
+      return true;   // as outras teclas não fazem nada enquanto o botão está em foco
+    }
     if (focoEstrela) {
       if (k === TECLA.ENTER) { alternarFavoritoCanal(); return true; }
       if (k === TECLA.ESQ) { definirEstrela(false); return true; }
-      if (k === TECLA.DIR) { abrirGuia(); return true; }
+      if (k === TECLA.DIR) { definirEstrela(false); definirBotaoGuia(true); return true; }
     } else if (k === TECLA.DIR) {
       if (canais.length > 0) { definirEstrela(true); }
       return true;
@@ -1051,7 +1067,8 @@
     if (cheio) { return teclaCheio(k); }
 
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (focoEstrela) { definirEstrela(false); }
+      if (focoBotaoGuia) { definirEstrela(true); }
+      else if (focoEstrela) { definirEstrela(false); }
       else if (foco === 'canais') { voltarParaCategorias(); }
       else { sair(); }
       return true;

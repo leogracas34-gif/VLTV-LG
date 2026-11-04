@@ -373,6 +373,9 @@ window.VLTV = window.VLTV || {};
     '1 hora': '1 hour',
     'Escolha em quanto tempo o aplicativo deve fechar sozinho. A imagem para e o aplicativo fecha no fim do tempo.': 'Choose how long until the app closes by itself. The picture stops and the app closes when the time is up.',
     'Política de privacidade': 'Privacy policy',
+    '▼  Use ↑ ↓ para continuar lendo': '▼  Use ↑ ↓ to keep reading',
+    '▲  Fim do texto. Use ↑ para voltar': '▲  End of text. Use ↑ to go back',
+    '▼  Pressione OK ou → para ler tudo': '▼  Press OK or → to read everything',
     'Começou! Mudando de canal...': 'It has started! Switching channel...',
     'Já começou.': 'It has already started.',
 

@@ -151,6 +151,8 @@
   }
 
   function desenharDireita() {
+    conteudo.classList.remove('cfg-rolavel', 'cfg-foco');
+    conteudo.scrollTop = 0;
     var item = ITENS[idx];
     titulo.textContent = item.nome;
     if (item.id === 'info') {
@@ -246,6 +248,7 @@
     var id = ITENS[idx].id;
     if (id === 'idioma') { desenharIdioma(); }
     else if (id === 'sono') { desenharSono(); }
+    else if (id === 'sobre') { desenharSobre(); }
     else { desenharParental(); }
   }
 
@@ -270,7 +273,10 @@
 
   // ── Sobre o aplicativo ──
   function desenharSobre() {
+    var rolagem = conteudo.scrollTop;
     esvaziar(conteudo);
+    conteudo.classList.add('cfg-rolavel');
+    conteudo.classList.toggle('cfg-foco', foco === 'dir');
     var cfg = VLTV.config;
     linha('Aplicativo', 'VLTV Play');
     linha('Tipo', 'Reprodutor de mídia');
@@ -283,8 +289,39 @@
     if (VLTV.platform && VLTV.platform.descricao) { linha('Aparelho', VLTV.platform.descricao); }
     if (cfg.SUPORTE) { linha('Suporte', cfg.SUPORTE); }
     if (cfg.SUPORTE_WHATSAPP) { linha('WhatsApp', cfg.SUPORTE_WHATSAPP); }
-    if (cfg.POLITICA_PRIVACIDADE_URL) { linha('Política de privacidade', cfg.POLITICA_PRIVACIDADE_URL); }
+    if (cfg.POLITICA_PRIVACIDADE_URL) {
+      // Inglês (padrão do app): página em inglês. Português: página em português.
+      var base = String(cfg.POLITICA_PRIVACIDADE_URL).replace(/\/+$/, '');
+      var ingles = !VLTV.idioma || VLTV.idioma.ehIngles();
+      linha('Política de privacidade', base + (ingles ? '/en/' : '/'));
+    }
     texto('O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.');
+    if (foco === 'dir') { rolagem = conteudo.scrollTop = Math.max(0, rolagem); }
+    var dica = document.createElement('div');
+    dica.className = 'cfg-dica';
+    dica.id = 'cfg-dica';
+    conteudo.appendChild(dica);
+    atualizarDica();
+  }
+
+  // Rola o texto de "Sobre o aplicativo" (setas ↑ ↓ ou roda do Magic Remote).
+  function rolarSobre(delta) {
+    conteudo.scrollTop = Math.max(0, conteudo.scrollTop + delta);
+    atualizarDica();
+  }
+
+  function atualizarDica() {
+    var d = $('cfg-dica');
+    if (!d) { return; }
+    var maximo = conteudo.scrollHeight - conteudo.clientHeight;
+    var temMais = conteudo.scrollTop < maximo - 4;
+    var temAcima = conteudo.scrollTop > 4;
+    if (maximo <= 4) { d.textContent = ''; d.style.display = 'none'; return; }
+    d.style.display = 'block';
+    d.textContent = foco === 'dir'
+      ? (temMais ? '▼  Use ↑ ↓ para continuar lendo' : '▲  Fim do texto. Use ↑ para voltar')
+      : '▼  Pressione OK ou → para ler tudo';
+    if (!temMais && !temAcima) { d.textContent = ''; }
   }
 
   // ── Controle parental ─────────────────────────────────────────────
@@ -383,6 +420,14 @@
   }
 
   function teclaDireita(k) {
+    if (ITENS[idx].id === 'sobre') {
+      if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.ESQ) { foco = 'menu'; desenharDireita(); }
+      else if (k === TECLA.CIMA) { rolarSobre(-140); }
+      else if (k === TECLA.BAIXO) { rolarSobre(140); }
+      else if (k === TECLA.ENTER) { rolarSobre(140); }
+      else { return false; }
+      return true;
+    }
     if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.ESQ) {
       foco = 'menu';
       desenharDireita();
@@ -410,6 +455,7 @@
       if (id === 'parental') { abrirParental(); }
       else if (id === 'idioma') { foco = 'dir'; desenharIdioma(); }
       else if (id === 'sono') { foco = 'dir'; desenharSono(); }
+      else if (id === 'sobre') { foco = 'dir'; desenharSobre(); }
       else if (k === TECLA.DIR) { return true; }
       else if (id === 'cache') { limparCache(); }
       else if (id === 'recarregar') { recarregar(); }
@@ -458,6 +504,7 @@
 
   // Linha de opção (Controle parental ou Idioma) sob o cursor. O Idioma responde ao cursor mesmo antes de abrir.
   function indiceOpcao(e) {
+    if (ITENS[idx].id === 'sobre') { return -1; }
     if (foco !== 'dir' && ITENS[idx].id !== 'idioma' && ITENS[idx].id !== 'sono') { return -1; }
     var l = filhoDe(conteudo, e.target);
     if (!l || !l.classList.contains('cfg-linha')) { return -1; }
@@ -496,9 +543,17 @@
       dirIdx = i;
       foco = 'dir';
       teclaDireita(TECLA.ENTER);
+    } else if (ITENS[idx].id === 'sobre') {
+      if (foco !== 'dir') { foco = 'dir'; desenharSobre(); }   // clicar no texto também dá o foco para rolar
     } else if (foco === 'menu' && ITENS[idx].id === 'parental') {
       abrirParental();        // clicar no texto do Controle parental também pede a senha
     }
+  });
+
+  conteudo.addEventListener('wheel', function (e) {
+    if (ITENS[idx].id !== 'sobre') { return; }
+    rolarSobre(e.deltaY > 0 ? 140 : -140);
+    e.preventDefault();
   });
 
   VLTV.ajustes = { abrir: abrir, tecla: tecla };

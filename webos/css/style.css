@@ -681,6 +681,19 @@ input::placeholder { color: #5f5f6b; }
 .cfg-valor { font-weight: 700; text-align: right; }
 .cfg-valor.ok { color: var(--ok); }
 .cfg-valor.erro { color: var(--erro); }
+.cfg-conteudo.cfg-rolavel { position: relative; overflow-y: hidden; scroll-behavior: smooth; border-radius: 12px; }
+.cfg-conteudo.cfg-foco { box-shadow: inset 0 0 0 3px var(--destaque); }
+.cfg-dica {
+  position: sticky;
+  bottom: 0;
+  margin-top: 8px;
+  padding: 10px 16px;
+  font-size: 24px;
+  text-align: center;
+  color: #fff;
+  background: rgba(20, 16, 40, 0.92);
+  border-radius: 10px;
+}
 .cfg-texto { font-size: 30px; line-height: 1.5; color: var(--suave); padding: 12px; }
 
 /* ── Detalhes de filmes e séries (estilo Netflix) ─────── */

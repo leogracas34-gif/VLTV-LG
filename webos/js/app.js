@@ -255,9 +255,20 @@
     // (da lista anterior) e libera a lista comum sem licença.
     var codigoAntigo = VLTV.licenca.parceiroAtual();
     var eraParceiro = VLTV.licenca.ehParceiro();
+    // Login cadastrado no painel (aba Usuário) libera o app, como o código de parceiro: a VPS precisa saber QUAL login
+    // está tentando entrar já nesta consulta. Se a entrada falhar, volta o login/modo que estavam em uso antes.
+    var antes = VLTV.licenca.loginAtual();
+    VLTV.licenca.definirLogin(ctx.modo === 'm3u' ? '' : ctx.user, ctx.modo);
+    function voltarLoginAntigo() { VLTV.licenca.definirLogin(antes.login, antes.modo); }
     return VLTV.licenca.verificar('').then(function (lic) {
-      if (VLTV.licenca.liberaListaComum(lic)) { return autenticarLista(ctx); }
+      if (VLTV.licenca.liberaListaComum(lic)) {
+        return autenticarLista(ctx).then(function (res) {
+          if (!res || res.estado !== 'ok') { voltarLoginAntigo(); }
+          return res;
+        }, function (erro) { voltarLoginAntigo(); throw erro; });
+      }
       // Não entrou: se a lista de parceiro em uso continua valendo, devolve o aviso dela para a VPS.
+      voltarLoginAntigo();
       if (eraParceiro && codigoAntigo) { VLTV.licenca.informarParceiro(codigoAntigo); }
       return { estado: 'sem_licenca', lic: lic };
     });

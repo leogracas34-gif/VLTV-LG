@@ -159,7 +159,7 @@
   }
 
   function guardar(j, id) {
-    estadoAtual = { estado: j.estado, vitalicio: !!j.vitalicio || (j.expira_em - agoraS() > 10 * 365 * 86400), codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url };
+    estadoAtual = { estado: j.estado, vitalicio: !!j.vitalicio || (j.expira_em - agoraS() > 10 * 365 * 86400), codigo: j.codigo, dias: j.dias, expira_em: j.expira_em, pagar_url: j.pagar_url, liberado: !!j.liberado };
     gravar(CH_CACHE, JSON.stringify({ e: estadoAtual, token: j.token, id: id, em: agoraS() }));
   }
 
@@ -250,6 +250,7 @@
     var e = estadoAtual;
     if (ehParceiro) { return 'Ativo'; }
     if (!e) { return ''; }
+    if (e.liberado) { return 'Ativo'; }   // login cadastrado no painel (aba Usuário): igual ao código de parceiro
     if (e.estado === 'active') { return e.vitalicio ? 'Vitalícia (sem vencimento)' : 'Ativa até ' + dataBr(e.expira_em); }
     return 'Teste grátis: ' + e.dias + (e.dias === 1 ? ' dia' : ' dias') + ' (até ' + dataBr(e.expira_em) + ')';
   }
@@ -277,7 +278,7 @@
     var lista = [];
     var limite = VLTV.config.AVISO_VENCIMENTO_DIAS;
     var e = estadoAtual;
-    if (e && !ehParceiro && !e.vitalicio && e.expira_em) {
+    if (e && !ehParceiro && !e.liberado && !e.vitalicio && e.expira_em) {
       var d = diasAte(e.expira_em);
       if (d <= limite && d >= 0) {
         var quando = d === 0 ? 'hoje' : d === 1 ? 'amanhã' : 'em ' + d + ' dias';
@@ -303,6 +304,7 @@
     reenviarParceiroPendente: reenviarParceiroPendente,
     ehAtivo: ehAtivo,
     ehParceiro: function () { return ehParceiro; },
+    loginAtual: function () { return { login: ler(CH_LOGIN) || '', modo: ler(CH_MODO) || '' }; },
     parceiroAtual: function () { return ler(CH_PARC) || ''; },
     avisos: avisos,
     textoCurto: textoCurto,

@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.4.1',
+  VERSAO: '1.4.2',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -60,7 +60,7 @@ VLTV.config = {
   MOSTRAR_QUALIDADE: false,
 
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
-  DIAGNOSTICO: true,   // TESTE: mostra o que foi tentado quando um vídeo falha E um relógio na tela com o tempo de cada abertura. Volte para false antes de enviar à loja.
+  DIAGNOSTICO: false,
 
   // Canal ao vivo: quantos segundos a imagem pode ficar parada antes de o app derrubar a conexão e abrir o canal de novo.
   // Baixo demais (era 6) causa o ciclo "carregando / reconectando" quando o servidor engasga por um instante.

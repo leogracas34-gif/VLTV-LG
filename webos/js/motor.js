@@ -60,7 +60,14 @@
   // chegando, desiste do nativo em 8 s (canal) e passa para hls.js / mpegts.js / AVPlay; com dados chegando, +8 s.
   var ESPERA_NATIVO_AVANC_MS = { live: 8000, vod: 20000 };
   var ESPERA_EXTRA_LIVE_AVANC_MS = 8000;
-  var TRAVOU_MS = { live: 6000, vod: 40000 };   // parado por tanto tempo = reconecta
+  // Canal ao vivo parado por tanto tempo = reconecta. Antes eram 6 s: qualquer engasgo do servidor (comum em lista via
+  // redirect) derrubava a conexão e abria de novo do zero, e isso virava o ciclo carregando -> reconectando -> erro.
+  // Agora a TV espera a própria tag <video> se recuperar (config.js: LIVE_TRAVOU_S, padrão 25 s).
+  function travouMs(modo) {
+    if (modo === 'vod') { return 40000; }
+    var s = (window.VLTV && VLTV.config && Number(VLTV.config.LIVE_TRAVOU_S)) || 25;
+    return Math.max(8, s) * 1000;
+  }
   var MAX_RECONEXOES = { live: 8, vod: 4 };
   var ESTAVEL_MS = 30000;                         // tocando tanto tempo sem problema zera as reconexões
   // Canal ao vivo que não abriu ou caiu: reconecta NA HORA. A 1ª reabertura é imediata, as seguintes são bem rápidas
@@ -586,7 +593,7 @@
       if ((this.reconexoes > 0 || this.reabertas > 0) && this.inicioEstavel && n - this.inicioEstavel > ESTAVEL_MS) { this.reconexoes = 0; this.reabertas = 0; }
       return;
     }
-    if (n - this.ultimoMovimento > TRAVOU_MS[this.modo]) { this.reconectar('travou'); }
+    if (n - this.ultimoMovimento > travouMs(this.modo)) { this.reconectar('travou'); }
   };
 
   P.reconectar = function (motivo) {

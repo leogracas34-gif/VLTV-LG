@@ -554,15 +554,22 @@
     else if (tipo === 'hls') { gravarTsFalhas(lerTsFalhas() + 1); }
   }
 
+  var timerEsperaOverlay = null;
   var motor = VLTV.motor.criar(video, {
     modo: 'live',
     aoPlaying: function () {
       reproduzindo = true;
+      clearTimeout(timerEsperaOverlay);
       esconderOverlay();
       contarFormato();
       setTimeout(atualizarQualidade, 1200);   // a TV leva um instante para informar a resolução real
     },
-    aoEspera: function () { reproduzindo = false; if (tocando) { mostrarOverlay('Carregando...'); } },
+    // Só mostra "Carregando..." se o engasgo durar mais de 2 s (a TV avisa 'waiting' a cada micro-falta de dados).
+    aoEspera: function () {
+      reproduzindo = false;
+      clearTimeout(timerEsperaOverlay);
+      timerEsperaOverlay = setTimeout(function () { if (tocando && !reproduzindo) { mostrarOverlay('Carregando...'); } }, 2000);
+    },
     aoReconectando: function (msg) { reproduzindo = false; if (tocando) { mostrarOverlay(msg); } },
     aoFalha: function (msg) {
       reproduzindo = false;
@@ -616,6 +623,7 @@
     tocando = null;
     listaTocando = null;
     textoQualidade('');
+    clearTimeout(timerEsperaOverlay);
     motor.parar();
     esconderOverlay();
     marcarTocando();

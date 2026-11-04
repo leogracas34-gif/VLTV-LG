@@ -4,7 +4,7 @@ window.VLTV = window.VLTV || {};
 
 VLTV.config = {
   // Versão mostrada em Configurações (mantenha igual ao appinfo.json).
-  VERSAO: '1.4.0',
+  VERSAO: '1.4.1',
 
   // Contato de suporte mostrado em Configurações > Sobre (ex: 'suporte@seudominio.com'). Vazio = não mostra.
   SUPORTE: 'leandro_gracas@yahoo.com.br',
@@ -62,6 +62,10 @@ VLTV.config = {
   // true = quando um vídeo não toca, a mensagem mostra o que foi tentado e o motivo (ajuda no suporte).
   DIAGNOSTICO: true,   // TESTE: mostra o que foi tentado quando um vídeo falha E um relógio na tela com o tempo de cada abertura. Volte para false antes de enviar à loja.
 
+  // Canal ao vivo: quantos segundos a imagem pode ficar parada antes de o app derrubar a conexão e abrir o canal de novo.
+  // Baixo demais (era 6) causa o ciclo "carregando / reconectando" quando o servidor engasga por um instante.
+  LIVE_TRAVOU_S: 25,
+
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',
 
@@ -110,7 +114,7 @@ VLTV.config = {
   OCIOSO_LEVE_MS: 600,
   // Durante filme, série ou canal em tela cheia o carregamento em segundo plano continua, só bem mais devagar (1 passo a cada ~4 s).
   // Se notar travadinha na imagem nessa hora, troque por false: aí ele espera o vídeo terminar.
-  SEGUNDO_PLANO_DURANTE_VIDEO: true,
+  SEGUNDO_PLANO_DURANTE_VIDEO: false,
 
   // Cache do catálogo na TV: dentro desse tempo (ms) a TV nem confere o painel de novo.
   // Fora dele ela mostra o que está guardado e confere por trás.

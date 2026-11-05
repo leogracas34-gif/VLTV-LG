@@ -199,12 +199,14 @@
     <!-- Temporizador para dormir: aviso 1 minuto antes de fechar o aplicativo -->
     <div id="aviso-sono" class="confirma escondida" role="dialog" aria-modal="true">
       <div class="confirma-caixa">
-        <h2>Ainda está assistindo?</h2>
-        <p id="aviso-sono-contagem">O aplicativo fecha em 60 segundos.</p>
+        <h2>Quer continuar assistindo?</h2>
+        <p id="aviso-sono-contagem">O aplicativo vai fechar em 60 segundos.</p>
+        <!-- Dois botões visíveis (em vez de explicar teclas): o cliente só escolhe e aperta OK. -->
         <div class="confirma-botoes">
-          <button id="aviso-sono-continuar" type="button" class="botao-conf">Continuar assistindo</button>
+          <button id="aviso-sono-continuar" type="button" class="botao-conf perigo">Continuar assistindo</button>
+          <button id="aviso-sono-fechar" type="button" class="botao-conf">Fechar agora</button>
         </div>
-        <p class="aviso-sub">OK: continuar  •  Voltar: fechar agora</p>
+        <p class="aviso-sub">Use as setas para escolher e aperte OK.</p>
       </div>
     </div>
 

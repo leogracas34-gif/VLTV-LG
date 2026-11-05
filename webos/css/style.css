@@ -15,6 +15,22 @@
   --ok: #5be3a4;
 }
 
+/* Fonte dos nomes dos canais: Plus Jakarta Sans (embutida no app, igual em LG e Samsung; licença OFL em fonts/) */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/plus-jakarta-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/plus-jakarta-sans-latin-700-normal.woff2") format("woff2");
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -2297,3 +2313,26 @@ input::placeholder { color: #5f5f6b; }
   overflow: hidden;
 }
 #live-canais li .estrela { margin-left: 6px; }
+
+/* ── Nome dos canais: tipografia mais limpa + botão de ordem ───────────── */
+#live-canais li span.nome {
+  font-family: "Plus Jakarta Sans", "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  font-size: 25px;
+  line-height: 1.22;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+#live-canais li.sel span.nome,
+#live-canais li.tocando span.nome { font-weight: 700; }
+#live-canais li .num-canal { font-family: "Plus Jakarta Sans", "LG Smart UI", Arial, sans-serif; font-weight: 700; }
+
+.chip-ordem { margin-left: 16px; display: -webkit-flex; display: flex; align-items: center; }
+.chip-ordem::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: var(--destaque-claro);   /* bolinha vermelha = tecla vermelha do controle */
+}

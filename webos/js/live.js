@@ -32,7 +32,7 @@
     ENTER: 13, ESC: 27, VOLTAR: 461,
     ESQ: 37, CIMA: 38, DIR: 39, BAIXO: 40,
     PG_CIMA: 33, PG_BAIXO: 34, CH_MAIS: 427, CH_MENOS: 428, AMARELO: 405,
-    VERDE: 404, AZUL: 406, GUIA: 458
+    VERDE: 404, AZUL: 406, GUIA: 458, VERMELHO: 403
   };
   var TEMPO_NUMERO_MS = 1800;    // depois do último dígito, espera isso e troca de canal
   var MAX_DIGITOS = 5;
@@ -55,6 +55,7 @@
   var infoProximos = $('live-proximos');
   var elNumero = $('live-numero');
   var btnGuia = $('live-btn-guia');
+  var btnOrdem = $('live-btn-ordem');
 
   // Estado
   var categorias = [];
@@ -76,6 +77,7 @@
   var foco = 'cat';              // 'cat' ou 'canais'
   var focoEstrela = false;       // cursor na estrela do canal (e não no nome)
   var focoBotaoGuia = false;     // cursor no botão "Guia de programação" (depois da estrela, mais uma vez para a direita)
+  var focoBotaoOrdem = false;    // cursor no botão "Ordem" (à direita do botão do guia)
   var cheio = false;
   var falhaCategorias = false;
   var focarAoCarregar = false;
@@ -130,6 +132,7 @@
   function definirEstrela(ligada) {
     focoEstrela = ligada;
     definirBotaoGuia(false);
+    definirBotaoOrdem(false);
     if (liSelCanal) { liSelCanal.classList.toggle('foco-estrela', ligada); }
   }
 
@@ -137,6 +140,74 @@
   function definirBotaoGuia(ligado) {
     focoBotaoGuia = ligado;
     if (btnGuia) { btnGuia.classList.toggle('foco', ligado); }
+  }
+
+  // Foco no botão "Ordem" (A–Z / Z–A / Padrão). OK troca a ordem.
+  function definirBotaoOrdem(ligado) {
+    focoBotaoOrdem = ligado;
+    if (btnOrdem) { btnOrdem.classList.toggle('foco', ligado); }
+  }
+
+  // ── Ordem dos canais ──────────────────────────────────────────────
+  // 'padrao' = do jeito que vem do servidor; 'az' = A a Z; 'za' = Z a A. A escolha fica guardada na TV.
+  var CHAVE_ORDEM = 'vltv_ordem_canais';
+  var ORDENS = ['padrao', 'az', 'za'];
+  var ROTULO_ORDEM = { padrao: 'Ordem: Padrão', az: 'Ordem: A–Z', za: 'Ordem: Z–A' };
+
+  function lerOrdem() {
+    try {
+      var o = localStorage.getItem(CHAVE_ORDEM);
+      return ORDENS.indexOf(o) >= 0 ? o : 'padrao';
+    } catch (e) { return 'padrao'; }
+  }
+  function gravarOrdem(o) {
+    try { localStorage.setItem(CHAVE_ORDEM, o); } catch (e) { /* ignora */ }
+  }
+  var ordem = lerOrdem();
+
+  function mostrarOrdem() {
+    if (btnOrdem) { btnOrdem.textContent = ROTULO_ORDEM[ordem]; }
+  }
+
+  // Chave de comparação: sem acento, sem maiúscula e sem símbolos na frente (ex.: "[HD] Globo" fica em G).
+  function chaveNome(nome) {
+    var t = String(nome || '').toLowerCase();
+    try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* TV sem normalize: segue sem tirar acento */ }
+    return t.replace(/^[^a-z0-9]+/, '');
+  }
+
+  // Compara "canal 2" antes de "canal 10" (números pelo valor, não letra por letra).
+  function compararNatural(a, b) {
+    var pa = a.match(/\d+|\D+/g) || [];
+    var pb = b.match(/\d+|\D+/g) || [];
+    var n = Math.min(pa.length, pb.length);
+    for (var i = 0; i < n; i++) {
+      var x = pa[i];
+      var y = pb[i];
+      if (x === y) { continue; }
+      var dx = /^\d/.test(x);
+      var dy = /^\d/.test(y);
+      if (dx && dy) {
+        var nx = parseInt(x, 10);
+        var ny = parseInt(y, 10);
+        if (nx !== ny) { return nx < ny ? -1 : 1; }
+      } else {
+        return x < y ? -1 : 1;
+      }
+    }
+    return pa.length - pb.length;
+  }
+
+  // Devolve uma lista nova na ordem escolhida (a lista original do servidor não é mexida).
+  function ordenarCanais(lista) {
+    if (ordem === 'padrao' || !lista || lista.length < 2) { return lista; }
+    var itens = lista.map(function (c, i) { return { c: c, i: i, k: chaveNome(c && c.name) }; });
+    var sinal = ordem === 'za' ? -1 : 1;
+    itens.sort(function (a, b) {
+      var r = compararNatural(a.k, b.k);
+      return r !== 0 ? r * sinal : a.i - b.i;
+    });
+    return itens.map(function (x) { return x.c; });
   }
 
   function mostrarOverlay(texto, tipo) {
@@ -265,7 +336,7 @@
   }
 
   function aplicarCanais(lista, focar) {
-    lista = VLTV.parental.filtrarItens(lista, 'canais');
+    lista = ordenarCanais(VLTV.parental.filtrarItens(lista, 'canais'));
     canais = lista;
     canalIdx = 0;
     renderizados = 0;
@@ -377,7 +448,7 @@
 
   // Refaz a lista de Favoritos na tela (um canal saiu dela), mantendo o cursor por perto.
   function refazerFavoritos(idxManter) {
-    var favs = VLTV.dados.favoritosDe('canais');
+    var favs = ordenarCanais(VLTV.dados.favoritosDe('canais'));
     var eraLista = (listaTocando === canais);
     canais = favs;
     renderizados = 0;
@@ -882,6 +953,33 @@
 
   if (btnGuia) { btnGuia.addEventListener('click', abrirGuia); }
 
+  // Troca a ordem (Padrão → A–Z → Z–A → Padrão), refaz a lista na tela e mantém o cursor e o canal que está tocando.
+  function alternarOrdem() {
+    ordem = ORDENS[(ORDENS.indexOf(ordem) + 1) % ORDENS.length];
+    gravarOrdem(ordem);
+    mostrarOrdem();
+    if (catCarregada < 0 || canais.length === 0) { return; }
+    var idSel = canais[canalIdx] ? canais[canalIdx].stream_id : null;
+    var eraLista = (listaTocando === canais);
+    var tinhaEstrela = focoEstrela;
+    var cat = categorias[catCarregada];
+    if (!cat) { return; }
+    var fonte = cat.especial === 'fav' ? VLTV.dados.favoritosDe('canais') : cacheCanais[cat.category_id];
+    if (!fonte) { return; }
+    aplicarCanais(fonte, false);
+    if (idSel !== null) {
+      var j = indiceDoCanal(canais, idSel);
+      if (j !== -1) { canalIdx = j; marcarCanal(); }
+    }
+    if (eraLista && tocando) {
+      var p = indiceDoCanal(canais, tocando.stream_id);
+      if (p !== -1) { listaTocando = canais; idxTocando = p; marcarTocando(); }
+    }
+    if (foco === 'canais' && tinhaEstrela) { definirEstrela(true); }
+  }
+  mostrarOrdem();
+  if (btnOrdem) { btnOrdem.addEventListener('click', alternarOrdem); }
+
   // ── Controle remoto ───────────────────────────────────────────────
   function mover(passo) {
     if (canais.length === 0) { return; }
@@ -923,8 +1021,16 @@
     if (focoBotaoGuia) {
       // No botão: OK abre o guia; esquerda/cima voltam para a estrela. Nada abre sozinho.
       if (k === TECLA.ENTER) { abrirGuia(); return true; }
+      if (k === TECLA.DIR) { definirBotaoGuia(false); definirBotaoOrdem(true); return true; }
       if (k === TECLA.ESQ || k === TECLA.CIMA) { definirEstrela(true); return true; }
       return true;   // as outras teclas não fazem nada enquanto o botão está em foco
+    }
+    if (focoBotaoOrdem) {
+      // No botão Ordem: OK troca a ordem; esquerda volta para o botão do guia; cima volta para a estrela.
+      if (k === TECLA.ENTER) { alternarOrdem(); return true; }
+      if (k === TECLA.ESQ) { definirBotaoOrdem(false); definirBotaoGuia(true); return true; }
+      if (k === TECLA.CIMA) { definirEstrela(true); return true; }
+      return true;
     }
     if (focoEstrela) {
       if (k === TECLA.ENTER) { alternarFavoritoCanal(); return true; }
@@ -1074,8 +1180,10 @@
 
     if (cheio) { return teclaCheio(k); }
 
+    if (k === TECLA.VERMELHO) { alternarOrdem(); return true; }
+
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
-      if (focoBotaoGuia) { definirEstrela(true); }
+      if (focoBotaoGuia || focoBotaoOrdem) { definirEstrela(true); }
       else if (focoEstrela) { definirEstrela(false); }
       else if (foco === 'canais') { voltarParaCategorias(); }
       else { sair(); }

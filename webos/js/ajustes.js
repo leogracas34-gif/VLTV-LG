@@ -295,7 +295,7 @@
       var ingles = !VLTV.idioma || VLTV.idioma.ehIngles();
       linha('Política de privacidade', base + (ingles ? '/en/' : '/'));
     }
-    texto('O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.');
+    texto('O VLTV Play é apenas um reprodutor de mídia. Ele não vende, não comercializa e não oferece canais, filmes, séries ou listas, e em hipótese alguma pratica ou incentiva pirataria. Para usar o aplicativo, você precisa ter um serviço contratado por conta própria com terceiros, em um servidor da sua preferência. O aplicativo apenas reproduz esse conteúdo.');
     if (foco === 'dir') { rolagem = conteudo.scrollTop = Math.max(0, rolagem); }
     var dica = document.createElement('div');
     dica.className = 'cfg-dica';

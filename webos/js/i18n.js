@@ -168,8 +168,8 @@ window.VLTV = window.VLTV || {};
     'Código da TV': 'TV code',
     'Licença': 'License',
     'Suporte': 'Support',
-    'O VLTV Play é um reprodutor de mídia. Ele não inclui nenhum canal, filme, série ou lista: o conteúdo vem do serviço que você contratou por conta própria, e o aplicativo apenas reproduz.':
-      'VLTV Play is a media player. It does not include any channel, movie, series or list: the content comes from the service you subscribed to on your own, and the app only plays it.',
+    'O VLTV Play é apenas um reprodutor de mídia. Ele não vende, não comercializa e não oferece canais, filmes, séries ou listas, e em hipótese alguma pratica ou incentiva pirataria. Para usar o aplicativo, você precisa ter um serviço contratado por conta própria com terceiros, em um servidor da sua preferência. O aplicativo apenas reproduz esse conteúdo.':
+      'VLTV Play is only a media player. It does not sell, market or offer channels, movies, series or lists, and under no circumstances engages in or encourages piracy. To use the app, you need a service you subscribed to on your own from a third party, on a server of your choice. The app only plays that content.',
     'Bloqueio de conteúdo adulto': 'Adult content block',
     'Ativado': 'On',
     'Desativado': 'Off',

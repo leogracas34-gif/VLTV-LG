@@ -215,7 +215,8 @@
   }
 
   // ── Temporizador para dormir ──
-  // Escolher o tempo liga o temporizador: no fim o aplicativo fecha (um minuto antes aparece um aviso).
+  // Escolher o tempo liga o temporizador: no fim o aplicativo fecha (um minuto antes aparece um aviso;
+  // se o cliente escolher "Continuar assistindo", o temporizador desliga).
   function rotuloTempo(min) {
     if (min === 0) { return 'Desligado'; }
     if (min < 60) { return min + ' minutos'; }
@@ -237,7 +238,7 @@
     esvaziar(conteudo);
     dirItens.forEach(function (it, i) { linhaOpcao(it.rotulo, it.valor, it.classe, foco === 'dir' && i === dirIdx); });
     if (atual > 0) {
-      texto('O aplicativo fecha às ' + S.horaFim() + '. Um minuto antes aparece um aviso: OK continua assistindo.');
+      texto('O aplicativo fecha às ' + S.horaFim() + '. Um minuto antes aparece um aviso. Se você escolher continuar assistindo, o temporizador desliga.');
     } else {
       texto('Escolha em quanto tempo o aplicativo deve fechar sozinho. A imagem para e o aplicativo fecha no fim do tempo.');
     }
@@ -295,7 +296,7 @@
       var ingles = !VLTV.idioma || VLTV.idioma.ehIngles();
       linha('Política de privacidade', base + (ingles ? '/en/' : '/'));
     }
-    texto('O VLTV Play é apenas um reprodutor de mídia. Ele não vende, não comercializa e não oferece canais, filmes, séries ou listas, e em hipótese alguma pratica ou incentiva pirataria. Para usar o aplicativo, você precisa ter um serviço contratado por conta própria com terceiros, em um servidor da sua preferência. O aplicativo apenas reproduz esse conteúdo.');
+    texto('O VLTV Play é apenas um reprodutor de mídia. Ele não vende, não comercializa e não oferece canais, filmes, séries ou listas, e em hipótese alguma pratica ou incentiva pirataria. Para usar o aplicativo, você precisa ter um serviço contratado por conta própria com um provedor da sua preferência. O aplicativo apenas reproduz esse conteúdo.');
     if (foco === 'dir') { rolagem = conteudo.scrollTop = Math.max(0, rolagem); }
     var dica = document.createElement('div');
     dica.className = 'cfg-dica';

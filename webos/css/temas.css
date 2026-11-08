@@ -1,0 +1,78 @@
+/* VLTV Play | Temas: fundo do aplicativo e cor dos painéis (Configurações > Tema do aplicativo).
+   O tema "Padrão" não tem regra aqui: continua valendo o visual original do style.css.
+   Cada tema troca só o fundo (html e body) e as cores dos painéis (--painel, --painel-2, --borda).
+   A cor de destaque (vermelho ou a do painel ADM) não muda.
+   Mesma estrutura do fundo original (3 brilhos, textura diagonal, vinheta e degradê), para pesar igual na TV.
+   Para criar outro tema: copie um bloco, troque o nome em data-tema e as cores, e inclua o nome em js/tema.js. */
+
+/* ── Meia-noite (azul) ───────────────────────────────── */
+html[data-tema="meia-noite"],
+html[data-tema="meia-noite"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(37, 99, 235, 0.30), rgba(37, 99, 235, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #0b1020 0%, #070a14 100%);
+}
+html[data-tema="meia-noite"] { --painel: #101524; --painel-2: #1a2136; --borda: #28324a; }
+
+/* ── Violeta ─────────────────────────────────────────── */
+html[data-tema="violeta"],
+html[data-tema="violeta"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(139, 92, 246, 0.30), rgba(139, 92, 246, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(139, 92, 246, 0.12), rgba(139, 92, 246, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #120d1f 0%, #0a0710 100%);
+}
+html[data-tema="violeta"] { --painel: #17121f; --painel-2: #211a2e; --borda: #342b47; }
+
+/* ── Esmeralda (verde) ───────────────────────────────── */
+html[data-tema="esmeralda"],
+html[data-tema="esmeralda"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(16, 185, 129, 0.26), rgba(16, 185, 129, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(20, 184, 166, 0.16), rgba(20, 184, 166, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #07140f 0%, #050b09 100%);
+}
+html[data-tema="esmeralda"] { --painel: #0f1814; --painel-2: #18241f; --borda: #25352e; }
+
+/* ── Pôr do sol (laranja e rosa) ─────────────────────── */
+html[data-tema="por-do-sol"],
+html[data-tema="por-do-sol"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(249, 115, 22, 0.28), rgba(249, 115, 22, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(249, 115, 22, 0.12), rgba(249, 115, 22, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #1a0f0c 0%, #0d0707 100%);
+}
+html[data-tema="por-do-sol"] { --painel: #1c1412; --painel-2: #2a1d19; --borda: #3d2b25; }
+
+/* ── Grafite (cinza neutro) ──────────────────────────── */
+html[data-tema="grafite"],
+html[data-tema="grafite"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(148, 163, 184, 0.10), rgba(148, 163, 184, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #16161a 0%, #0c0c0e 100%);
+}
+html[data-tema="grafite"] { --painel: #1a1a1e; --painel-2: #26262b; --borda: #3a3a41; }
+
+/* ── Preto total (sem degradê: o mais leve para TVs antigas e bom para TVs OLED) ── */
+html[data-tema="preto"],
+html[data-tema="preto"] body {
+  background: #000;
+}
+html[data-tema="preto"] { --painel: #0a0a0a; --painel-2: #151515; --borda: #262626; }

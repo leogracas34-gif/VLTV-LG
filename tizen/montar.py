@@ -18,6 +18,9 @@ versao = json.load(open(os.path.join(WEBOS, 'appinfo.json')))['version']
 cfg = open(os.path.join(TIZEN, 'config.xml'), encoding='utf-8').read().replace('__VERSAO__', versao)
 open(os.path.join(SAIDA, 'config.xml'), 'w', encoding='utf-8').write(cfg)
 shutil.copy(os.path.join(TIZEN, 'tizen-shim.js'), os.path.join(SAIDA, 'js', 'tizen-shim.js'))
+# Ícone da Samsung: 117x117 (o da LG é 80x80). Se tizen/icon.png existir, ele substitui o da LG.
+if os.path.exists(os.path.join(TIZEN, 'icon.png')):
+    shutil.copy(os.path.join(TIZEN, 'icon.png'), os.path.join(SAIDA, 'icon.png'))
 
 caminho = os.path.join(SAIDA, 'index.html')
 html = open(caminho, encoding='utf-8').read()

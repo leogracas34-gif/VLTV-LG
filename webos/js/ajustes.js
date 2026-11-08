@@ -14,6 +14,7 @@
   var ITENS = [
     { id: 'info', nome: 'Informação geral' },
     { id: 'idioma', nome: 'Idioma' },
+    { id: 'tema', nome: 'Tema do aplicativo' },
     { id: 'sono', nome: 'Temporizador para dormir' },
     { id: 'parental', nome: 'Controle parental' },
     { id: 'cache', nome: 'Limpar cache' },
@@ -151,6 +152,7 @@
   }
 
   function desenharDireita() {
+    tirarDica();
     conteudo.classList.remove('cfg-rolavel', 'cfg-foco');
     conteudo.scrollTop = 0;
     var item = ITENS[idx];
@@ -161,6 +163,8 @@
       lerMac(function () { if (ITENS[idx].id === 'info') { desenharInfo(); } });
     } else if (item.id === 'idioma') {
       desenharIdioma();
+    } else if (item.id === 'tema') {
+      desenharTema();
     } else if (item.id === 'sono') {
       desenharSono();
     } else if (item.id === 'parental') {
@@ -214,6 +218,39 @@
     texto('Escolha o idioma do aplicativo. A mudança vale na hora: o aplicativo reinicia sozinho.');
   }
 
+  // ── Tema do aplicativo ──
+  // Cada opção mostra uma miniatura do tema. OK aplica na hora (o fundo e os painéis mudam sem reiniciar) e fica guardado na TV.
+  function desenharTema() {
+    var T = VLTV.tema;
+    var atual = T.codigo();
+    dirItens = T.lista().map(function (t) {
+      return { codigo: t.codigo, nome: t.nome, acao: function () { T.definir(t.codigo); } };
+    });
+    if (foco !== 'dir') {
+      dirIdx = 0;
+      dirItens.forEach(function (it, i) { if (it.codigo === atual) { dirIdx = i; } });
+    }
+    esvaziar(conteudo);
+    dirItens.forEach(function (it, i) {
+      var l = document.createElement('div');
+      l.className = 'cfg-linha' + (foco === 'dir' && i === dirIdx ? ' sel' : '');
+      l.style.alignItems = 'center';
+      var a = document.createElement('span');
+      a.className = 'cfg-rotulo';
+      a.style.display = 'flex';
+      a.style.alignItems = 'center';
+      a.appendChild(T.amostra(it.codigo));
+      a.appendChild(document.createTextNode(it.nome));
+      var b = document.createElement('span');
+      b.className = 'cfg-valor ok';
+      b.textContent = it.codigo === atual ? '✓' : '';
+      l.appendChild(a);
+      l.appendChild(b);
+      conteudo.appendChild(l);
+    });
+    texto('Escolha o fundo e as cores do aplicativo. A mudança vale na hora.');
+  }
+
   // ── Temporizador para dormir ──
   // Escolher o tempo liga o temporizador: no fim o aplicativo fecha (um minuto antes aparece um aviso;
   // se o cliente escolher "Continuar assistindo", o temporizador desliga).
@@ -248,6 +285,7 @@
   function redesenharDir() {
     var id = ITENS[idx].id;
     if (id === 'idioma') { desenharIdioma(); }
+    else if (id === 'tema') { desenharTema(); }
     else if (id === 'sono') { desenharSono(); }
     else if (id === 'sobre') { desenharSobre(); }
     else { desenharParental(); }
@@ -275,6 +313,7 @@
   // ── Sobre o aplicativo ──
   function desenharSobre() {
     var rolagem = conteudo.scrollTop;
+    tirarDica();
     esvaziar(conteudo);
     conteudo.classList.add('cfg-rolavel');
     conteudo.classList.toggle('cfg-foco', foco === 'dir');
@@ -301,7 +340,7 @@
     var dica = document.createElement('div');
     dica.className = 'cfg-dica';
     dica.id = 'cfg-dica';
-    conteudo.appendChild(dica);
+    conteudo.parentNode.appendChild(dica);     // fora da área que rola, para ficar fixo embaixo do painel
     atualizarDica();
   }
 
@@ -309,6 +348,13 @@
   function rolarSobre(delta) {
     conteudo.scrollTop = Math.max(0, conteudo.scrollTop + delta);
     atualizarDica();
+    setTimeout(atualizarDica, 500);     // a rolagem é suave: confere de novo quando ela termina (para mostrar "Fim do texto")
+  }
+
+  // Tira o aviso de rolagem (ele fica no painel, fora do conteúdo, então precisa ser removido ao trocar de item).
+  function tirarDica() {
+    var d = $('cfg-dica');
+    if (d && d.parentNode) { d.parentNode.removeChild(d); }
   }
 
   function atualizarDica() {
@@ -455,6 +501,7 @@
       var id = ITENS[idx].id;
       if (id === 'parental') { abrirParental(); }
       else if (id === 'idioma') { foco = 'dir'; desenharIdioma(); }
+      else if (id === 'tema') { foco = 'dir'; desenharTema(); }
       else if (id === 'sono') { foco = 'dir'; desenharSono(); }
       else if (id === 'sobre') { foco = 'dir'; desenharSobre(); }
       else if (k === TECLA.DIR) { return true; }
@@ -506,7 +553,7 @@
   // Linha de opção (Controle parental ou Idioma) sob o cursor. O Idioma responde ao cursor mesmo antes de abrir.
   function indiceOpcao(e) {
     if (ITENS[idx].id === 'sobre') { return -1; }
-    if (foco !== 'dir' && ITENS[idx].id !== 'idioma' && ITENS[idx].id !== 'sono') { return -1; }
+    if (foco !== 'dir' && ITENS[idx].id !== 'idioma' && ITENS[idx].id !== 'tema' && ITENS[idx].id !== 'sono') { return -1; }
     var l = filhoDe(conteudo, e.target);
     if (!l || !l.classList.contains('cfg-linha')) { return -1; }
     var i = Array.prototype.indexOf.call(conteudo.children, l);

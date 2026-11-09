@@ -1,11 +1,21 @@
-/* VLTV Play | Temas: fundo do aplicativo e cor dos painéis (Configurações > Tema do aplicativo).
+/* VLTV Play | Temas: fundo, painéis e cores de destaque (Configurações > Tema do aplicativo).
    O tema "Padrão" não tem regra aqui: continua valendo o visual original do style.css.
-   Cada tema troca só o fundo (html e body) e as cores dos painéis (--painel, --painel-2, --borda).
-   A cor de destaque (vermelho ou a do painel ADM) não muda.
+   Cada tema troca:
+     1) o fundo (html e body);
+     2) os painéis e bordas (--painel, --painel-2, --borda);
+     3) a cor de destaque (--destaque, --destaque-claro, --destaque-escuro e os "-rgb" usados nos brilhos):
+        botões, linhas coloridas em volta das listas, seleção, EPG, barras de progresso, brilho do foco, engrenagem;
+     4) os três botões grandes da Home (TV ao vivo, Filmes, Séries) e o botão ASSISTIR (fica na cor do tema, letras brancas).
+   Permanecem iguais em todos os temas: cores de significado (faixa etária, estrelas/favorito, erro, "ok") e o contorno branco do foco.
+   O "!important" em --destaque e --destaque-claro faz o tema ganhar da cor que o painel ADM manda; no Padrão o painel continua valendo.
    Mesma estrutura do fundo original (3 brilhos, textura diagonal, vinheta e degradê), para pesar igual na TV.
    Para criar outro tema: copie um bloco, troque o nome em data-tema e as cores, e inclua o nome em js/tema.js. */
 
-/* ── Meia-noite (azul) ───────────────────────────────── */
+/* Botão ASSISTIR (banner e destaque da semana): no Padrão continua a pílula branca; nos temas pega a cor do tema */
+html[data-tema]:not([data-tema="padrao"]) .bn-botao { color: #fff; background: var(--destaque); }
+
+
+/* ── Meia-noite (azul) ── */
 html[data-tema="meia-noite"],
 html[data-tema="meia-noite"] body {
   background:
@@ -16,9 +26,25 @@ html[data-tema="meia-noite"] body {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(180deg, #0b1020 0%, #070a14 100%);
 }
-html[data-tema="meia-noite"] { --painel: #101524; --painel-2: #1a2136; --borda: #28324a; }
+html[data-tema="meia-noite"] {
+  --painel: #101524; --painel-2: #1a2136; --borda: #28324a;
+  --destaque: #2563eb !important; --destaque-claro: #60a5fa !important; --destaque-escuro: #1d4ed8;
+  --destaque-rgb: 37, 99, 235; --destaque-claro-rgb: 96, 165, 250;
+}
+html[data-tema="meia-noite"] .tile { background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 55%, #0b1020 100%); border-color: rgba(96, 165, 250, 0.45); }
+html[data-tema="meia-noite"] .tile:focus,
+html[data-tema="meia-noite"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #60a5fa 0%, #2147a6 55%, #101a36 100%); }
+html[data-tema="meia-noite"] #tile-live { background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 55%, #0b1020 100%); }
+html[data-tema="meia-noite"] #tile-live:focus,
+html[data-tema="meia-noite"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #60a5fa 0%, #2147a6 55%, #101a36 100%); }
+html[data-tema="meia-noite"] #tile-filmes { background: linear-gradient(135deg, #0ea5e9 0%, #1e40af 55%, #0a1224 100%); }
+html[data-tema="meia-noite"] #tile-filmes:focus,
+html[data-tema="meia-noite"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #38bdf8 0%, #2a56c6 55%, #0f1b38 100%); }
+html[data-tema="meia-noite"] #tile-series { background: linear-gradient(135deg, #6366f1 0%, #312e81 55%, #0d1022 100%); }
+html[data-tema="meia-noite"] #tile-series:focus,
+html[data-tema="meia-noite"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #818cf8 0%, #4338ca 55%, #131738 100%); }
 
-/* ── Violeta ─────────────────────────────────────────── */
+/* ── Violeta ── */
 html[data-tema="violeta"],
 html[data-tema="violeta"] body {
   background:
@@ -29,9 +55,25 @@ html[data-tema="violeta"] body {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(180deg, #120d1f 0%, #0a0710 100%);
 }
-html[data-tema="violeta"] { --painel: #17121f; --painel-2: #211a2e; --borda: #342b47; }
+html[data-tema="violeta"] {
+  --painel: #17121f; --painel-2: #211a2e; --borda: #342b47;
+  --destaque: #7c3aed !important; --destaque-claro: #a78bfa !important; --destaque-escuro: #5b21b6;
+  --destaque-rgb: 124, 58, 237; --destaque-claro-rgb: 167, 139, 250;
+}
+html[data-tema="violeta"] .tile { background: linear-gradient(135deg, #8b5cf6 0%, #4c1d95 55%, #120d1f 100%); border-color: rgba(167, 139, 250, 0.45); }
+html[data-tema="violeta"] .tile:focus,
+html[data-tema="violeta"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #a78bfa 0%, #6d28d9 55%, #1c1330 100%); }
+html[data-tema="violeta"] #tile-live { background: linear-gradient(135deg, #8b5cf6 0%, #4c1d95 55%, #120d1f 100%); }
+html[data-tema="violeta"] #tile-live:focus,
+html[data-tema="violeta"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #a78bfa 0%, #6d28d9 55%, #1c1330 100%); }
+html[data-tema="violeta"] #tile-filmes { background: linear-gradient(135deg, #c026d3 0%, #581c87 55%, #150c24 100%); }
+html[data-tema="violeta"] #tile-filmes:focus,
+html[data-tema="violeta"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #d946ef 0%, #7e22ce 55%, #1f1035 100%); }
+html[data-tema="violeta"] #tile-series { background: linear-gradient(135deg, #6366f1 0%, #3b0764 55%, #0f0b24 100%); }
+html[data-tema="violeta"] #tile-series:focus,
+html[data-tema="violeta"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #818cf8 0%, #581c87 55%, #171238 100%); }
 
-/* ── Esmeralda (verde) ───────────────────────────────── */
+/* ── Esmeralda (verde) ── */
 html[data-tema="esmeralda"],
 html[data-tema="esmeralda"] body {
   background:
@@ -42,9 +84,25 @@ html[data-tema="esmeralda"] body {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(180deg, #07140f 0%, #050b09 100%);
 }
-html[data-tema="esmeralda"] { --painel: #0f1814; --painel-2: #18241f; --borda: #25352e; }
+html[data-tema="esmeralda"] {
+  --painel: #0f1814; --painel-2: #18241f; --borda: #25352e;
+  --destaque: #047857 !important; --destaque-claro: #34d399 !important; --destaque-escuro: #065f46;
+  --destaque-rgb: 4, 120, 87; --destaque-claro-rgb: 52, 211, 153;
+}
+html[data-tema="esmeralda"] .tile { background: linear-gradient(135deg, #10b981 0%, #065f46 55%, #07140f 100%); border-color: rgba(52, 211, 153, 0.45); }
+html[data-tema="esmeralda"] .tile:focus,
+html[data-tema="esmeralda"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #34d399 0%, #047857 55%, #0d2119 100%); }
+html[data-tema="esmeralda"] #tile-live { background: linear-gradient(135deg, #10b981 0%, #065f46 55%, #07140f 100%); }
+html[data-tema="esmeralda"] #tile-live:focus,
+html[data-tema="esmeralda"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #34d399 0%, #047857 55%, #0d2119 100%); }
+html[data-tema="esmeralda"] #tile-filmes { background: linear-gradient(135deg, #14b8a6 0%, #115e59 55%, #071516 100%); }
+html[data-tema="esmeralda"] #tile-filmes:focus,
+html[data-tema="esmeralda"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #2dd4bf 0%, #0f766e 55%, #0d2123 100%); }
+html[data-tema="esmeralda"] #tile-series { background: linear-gradient(135deg, #22c55e 0%, #14532d 55%, #07150a 100%); }
+html[data-tema="esmeralda"] #tile-series:focus,
+html[data-tema="esmeralda"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #4ade80 0%, #166534 55%, #0d2113 100%); }
 
-/* ── Pôr do sol (laranja e rosa) ─────────────────────── */
+/* ── Pôr do sol (laranja e rosa) ── */
 html[data-tema="por-do-sol"],
 html[data-tema="por-do-sol"] body {
   background:
@@ -55,9 +113,25 @@ html[data-tema="por-do-sol"] body {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(180deg, #1a0f0c 0%, #0d0707 100%);
 }
-html[data-tema="por-do-sol"] { --painel: #1c1412; --painel-2: #2a1d19; --borda: #3d2b25; }
+html[data-tema="por-do-sol"] {
+  --painel: #1c1412; --painel-2: #2a1d19; --borda: #3d2b25;
+  --destaque: #dc5409 !important; --destaque-claro: #fb923c !important; --destaque-escuro: #b43f06;
+  --destaque-rgb: 220, 84, 9; --destaque-claro-rgb: 251, 146, 60;
+}
+html[data-tema="por-do-sol"] .tile { background: linear-gradient(135deg, #f97316 0%, #9a3412 55%, #1a0f0c 100%); border-color: rgba(251, 146, 60, 0.45); }
+html[data-tema="por-do-sol"] .tile:focus,
+html[data-tema="por-do-sol"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #fb923c 0%, #c2410c 55%, #2a1812 100%); }
+html[data-tema="por-do-sol"] #tile-live { background: linear-gradient(135deg, #f97316 0%, #9a3412 55%, #1a0f0c 100%); }
+html[data-tema="por-do-sol"] #tile-live:focus,
+html[data-tema="por-do-sol"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #fb923c 0%, #c2410c 55%, #2a1812 100%); }
+html[data-tema="por-do-sol"] #tile-filmes { background: linear-gradient(135deg, #ec4899 0%, #9d174d 55%, #1c0d14 100%); }
+html[data-tema="por-do-sol"] #tile-filmes:focus,
+html[data-tema="por-do-sol"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #f472b6 0%, #be185d 55%, #2c141f 100%); }
+html[data-tema="por-do-sol"] #tile-series { background: linear-gradient(135deg, #f59e0b 0%, #92400e 55%, #1a1208 100%); }
+html[data-tema="por-do-sol"] #tile-series:focus,
+html[data-tema="por-do-sol"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #fbbf24 0%, #b45309 55%, #2a1d0e 100%); }
 
-/* ── Grafite (cinza neutro) ──────────────────────────── */
+/* ── Grafite (cinza neutro) ── */
 html[data-tema="grafite"],
 html[data-tema="grafite"] body {
   background:
@@ -68,11 +142,43 @@ html[data-tema="grafite"] body {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(180deg, #16161a 0%, #0c0c0e 100%);
 }
-html[data-tema="grafite"] { --painel: #1a1a1e; --painel-2: #26262b; --borda: #3a3a41; }
+html[data-tema="grafite"] {
+  --painel: #1a1a1e; --painel-2: #26262b; --borda: #3a3a41;
+  --destaque: #64748b !important; --destaque-claro: #cbd5e1 !important; --destaque-escuro: #475569;
+  --destaque-rgb: 100, 116, 139; --destaque-claro-rgb: 203, 213, 225;
+}
+html[data-tema="grafite"] .tile { background: linear-gradient(135deg, #6b7280 0%, #374151 55%, #16161a 100%); border-color: rgba(203, 213, 225, 0.45); }
+html[data-tema="grafite"] .tile:focus,
+html[data-tema="grafite"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #9ca3af 0%, #4b5563 55%, #222228 100%); }
+html[data-tema="grafite"] #tile-live { background: linear-gradient(135deg, #6b7280 0%, #374151 55%, #16161a 100%); }
+html[data-tema="grafite"] #tile-live:focus,
+html[data-tema="grafite"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #9ca3af 0%, #4b5563 55%, #222228 100%); }
+html[data-tema="grafite"] #tile-filmes { background: linear-gradient(135deg, #64748b 0%, #334155 55%, #14161c 100%); }
+html[data-tema="grafite"] #tile-filmes:focus,
+html[data-tema="grafite"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #94a3b8 0%, #475569 55%, #1e222c 100%); }
+html[data-tema="grafite"] #tile-series { background: linear-gradient(135deg, #737373 0%, #404040 55%, #171717 100%); }
+html[data-tema="grafite"] #tile-series:focus,
+html[data-tema="grafite"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #a3a3a3 0%, #525252 55%, #222222 100%); }
 
-/* ── Preto total (sem degradê: o mais leve para TVs antigas e bom para TVs OLED) ── */
+/* ── Preto total ── */
 html[data-tema="preto"],
 html[data-tema="preto"] body {
-  background: #000;
+  background: #000;   /* sem degradê e sem riscos: o mais leve para TVs antigas */
 }
-html[data-tema="preto"] { --painel: #0a0a0a; --painel-2: #151515; --borda: #262626; }
+html[data-tema="preto"] {
+  --painel: #0a0a0a; --painel-2: #151515; --borda: #262626;
+  --destaque: #52525b !important; --destaque-claro: #d4d4d8 !important; --destaque-escuro: #3f3f46;
+  --destaque-rgb: 82, 82, 91; --destaque-claro-rgb: 212, 212, 216;
+}
+html[data-tema="preto"] .tile { background: linear-gradient(135deg, #3f3f46 0%, #18181b 55%, #050505 100%); border-color: rgba(212, 212, 216, 0.45); }
+html[data-tema="preto"] .tile:focus,
+html[data-tema="preto"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #71717a 0%, #27272a 55%, #0f0f10 100%); }
+html[data-tema="preto"] #tile-live { background: linear-gradient(135deg, #3f3f46 0%, #18181b 55%, #050505 100%); }
+html[data-tema="preto"] #tile-live:focus,
+html[data-tema="preto"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #71717a 0%, #27272a 55%, #0f0f10 100%); }
+html[data-tema="preto"] #tile-filmes { background: linear-gradient(135deg, #52525b 0%, #1f1f23 55%, #050505 100%); }
+html[data-tema="preto"] #tile-filmes:focus,
+html[data-tema="preto"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #7c7c85 0%, #2e2e33 55%, #101011 100%); }
+html[data-tema="preto"] #tile-series { background: linear-gradient(135deg, #44403c 0%, #1c1917 55%, #050505 100%); }
+html[data-tema="preto"] #tile-series:focus,
+html[data-tema="preto"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #78716c 0%, #292524 55%, #10100f 100%); }

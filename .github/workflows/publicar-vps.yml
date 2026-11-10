@@ -1,0 +1,132 @@
+name: Publicar atualização na VPS (LG + Samsung)
+
+# Botão manual: GitHub > Actions > "Publicar atualização na VPS" > Run workflow.
+# Nada é enviado para a VPS quando você apenas salva (commit) um arquivo no repositório.
+#
+# O que faz:
+#  1) Gera o pacote da LG e o da Samsung (com as chaves dos Secrets).
+#  2) Envia os dois pacote.json para a VPS e, só depois, os dois versao.json (é o versao.json que avisa as TVs).
+#  3) Confere pela internet que a VPS está entregando a versão nova.
+#  4) Guarda no repositório a versão nova (config.js, appinfo.json e atualizador.js).
+#
+# Secrets necessários neste repositório (Settings > Secrets and variables > Actions):
+#  TMDB_API_KEY, VPS_APP_KEY, VPS_HOST, VPS_USER, VPS_SSH_KEY   (opcional: VPS_PORT, padrão 22)
+#
+# Só roda no repositório de testes (onde o atualizador está com ATIVO = true).
+
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Nova versão (ex.: 1.4.4). Vazio = usa a versão que já está no código.'
+        required: false
+        default: ''
+      notas:
+        description: 'Texto curto que aparece no pop-up da TV (ex.: Correção do banner)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar-vps
+  cancel-in-progress: false
+
+env:
+  PASTA_VPS: /var/www/vltvplay.tech/apptv
+  URL_PUBLICA: https://vltvplay.tech/apptv
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Conferir que este é o repositório de testes
+        run: |
+          if ! grep -q "var ATIVO = true;" webos/js/atualizador.js; then
+            echo "::error::Aqui o atualizador está desligado (ATIVO = false). Este botão só vale no repositório de testes."
+            exit 1
+          fi
+
+      - name: Conferir os Secrets
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VPS_APP_KEY: ${{ secrets.VPS_APP_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          faltou=0
+          for nome in TMDB_API_KEY VPS_APP_KEY VPS_HOST VPS_USER VPS_SSH_KEY; do
+            if [ -z "${!nome}" ]; then echo "::error::Falta o Secret $nome"; faltou=1; fi
+          done
+          exit $faltou
+
+      - name: Gerar os pacotes (LG e Samsung)
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VPS_APP_KEY: ${{ secrets.VPS_APP_KEY }}
+          VERSAO: ${{ inputs.versao }}
+          NOTAS: ${{ inputs.notas }}
+        run: |
+          ARGS=()
+          if [ -n "$VERSAO" ]; then ARGS+=(--versao "$VERSAO"); fi
+          python3 ferramentas/publicar.py --plataforma lg "${ARGS[@]}" --notas "$NOTAS"
+          python3 ferramentas/publicar.py --plataforma samsung --notas "$NOTAS"
+          ls -la publicar/lg publicar/samsung
+
+      - name: Enviar para a VPS (pacotes primeiro, avisos por último)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          PORTA="${VPS_PORT:-22}"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          OPTS=(-i ~/.ssh/vps_key -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20)
+          DESTINO="$VPS_USER@$VPS_HOST"
+
+          ssh "${OPTS[@]}" -p "$PORTA" "$DESTINO" "mkdir -p $PASTA_VPS/lg $PASTA_VPS/samsung"
+
+          # 1) os dois pacotes (enviados com nome temporário e trocados de uma vez, para a TV nunca pegar arquivo pela metade)
+          for p in lg samsung; do
+            scp "${OPTS[@]}" -P "$PORTA" "publicar/$p/pacote.json" "$DESTINO:$PASTA_VPS/$p/pacote.json.novo"
+            ssh "${OPTS[@]}" -p "$PORTA" "$DESTINO" "mv -f $PASTA_VPS/$p/pacote.json.novo $PASTA_VPS/$p/pacote.json"
+          done
+          # 2) só agora os avisos: a partir daqui as TVs veem a versão nova
+          for p in lg samsung; do
+            scp "${OPTS[@]}" -P "$PORTA" "publicar/$p/versao.json" "$DESTINO:$PASTA_VPS/$p/versao.json.novo"
+            ssh "${OPTS[@]}" -p "$PORTA" "$DESTINO" "mv -f $PASTA_VPS/$p/versao.json.novo $PASTA_VPS/$p/versao.json"
+          done
+          rm -f ~/.ssh/vps_key
+
+      - name: Conferir pela internet que a VPS entrega a versão nova
+        run: |
+          for p in lg samsung; do
+            esperada=$(python3 -c "import json;print(json.load(open('publicar/$p/versao.json'))['versao'])")
+            no_ar=$(curl -fsS "$URL_PUBLICA/$p/versao.json?t=$(date +%s)" | python3 -c "import json,sys;print(json.load(sys.stdin)['versao'])")
+            local_sha=$(sha256sum "publicar/$p/pacote.json" | cut -d' ' -f1)
+            no_ar_sha=$(curl -fsS "$URL_PUBLICA/$p/pacote.json?t=$(date +%s)" | sha256sum | cut -d' ' -f1)
+            echo "$p: versão esperada $esperada, no ar $no_ar"
+            [ "$esperada" = "$no_ar" ] || { echo "::error::$p: a VPS está entregando outra versão"; exit 1; }
+            [ "$local_sha" = "$no_ar_sha" ] || { echo "::error::$p: o pacote no ar é diferente do gerado"; exit 1; }
+          done
+          echo "Tudo certo: LG e Samsung no ar."
+
+      - name: Guardar a versão nova no repositório
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add webos/appinfo.json webos/js/config.js webos/js/atualizador.js
+          if git diff --cached --quiet; then
+            echo "Nada a guardar (a versão já estava no repositório)."
+          else
+            git commit -m "Versão publicada na VPS"
+            git push
+          fi

@@ -132,6 +132,7 @@ window.VLTV = window.VLTV || {};
     'Tema do aplicativo': 'App theme',
     'Padrão': 'Default',
     'Meia-noite': 'Midnight',
+    'Natal': 'Christmas',
     'Violeta': 'Violet',
     'Esmeralda': 'Emerald',
     'Pôr do sol': 'Sunset',

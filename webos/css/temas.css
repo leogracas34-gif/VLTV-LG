@@ -182,3 +182,67 @@ html[data-tema="preto"] #tile-filmes:not([disabled]):hover { background: linear-
 html[data-tema="preto"] #tile-series { background: linear-gradient(135deg, #44403c 0%, #1c1917 55%, #050505 100%); }
 html[data-tema="preto"] #tile-series:focus,
 html[data-tema="preto"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #78716c 0%, #292524 55%, #10100f 100%); }
+
+
+/* ── Natal (vermelho e verde, com neve, pisca-pisca e gorro no logo) ── */
+html[data-tema="natal"],
+html[data-tema="natal"] body {
+  background:
+    radial-gradient(1300px 760px at 10% -8%, rgba(220, 38, 38, 0.30), rgba(220, 38, 38, 0) 62%),
+    radial-gradient(1000px 700px at 104% 108%, rgba(22, 163, 74, 0.20), rgba(22, 163, 74, 0) 62%),
+    radial-gradient(900px 420px at 50% 118%, rgba(220, 38, 38, 0.10), rgba(220, 38, 38, 0) 70%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 2px, rgba(255, 255, 255, 0) 2px, rgba(255, 255, 255, 0) 30px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #1a0a0c 0%, #0a0f0b 100%);
+}
+html[data-tema="natal"] {
+  --painel: #1c1214; --painel-2: #2a1a1d; --borda: #43282c;
+  --destaque: #b91c1c !important; --destaque-claro: #f87171 !important; --destaque-escuro: #991b1b;
+  --destaque-rgb: 185, 28, 28; --destaque-claro-rgb: 248, 113, 113;
+}
+html[data-tema="natal"] .tile { background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 55%, #1a0a0c 100%); border-color: rgba(248, 113, 113, 0.45); }
+html[data-tema="natal"] .tile:focus,
+html[data-tema="natal"] .tile:not([disabled]):hover { background: linear-gradient(135deg, #ef4444 0%, #991b1b 55%, #2a1215 100%); }
+html[data-tema="natal"] #tile-live { background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 55%, #1a0a0c 100%); }
+html[data-tema="natal"] #tile-live:focus,
+html[data-tema="natal"] #tile-live:not([disabled]):hover { background: linear-gradient(135deg, #ef4444 0%, #991b1b 55%, #2a1215 100%); }
+html[data-tema="natal"] #tile-filmes { background: linear-gradient(135deg, #16a34a 0%, #14532d 55%, #08130c 100%); }
+html[data-tema="natal"] #tile-filmes:focus,
+html[data-tema="natal"] #tile-filmes:not([disabled]):hover { background: linear-gradient(135deg, #22c55e 0%, #166534 55%, #0d2113 100%); }
+html[data-tema="natal"] #tile-series { background: linear-gradient(135deg, #d97706 0%, #78350f 55%, #1a1008 100%); }
+html[data-tema="natal"] #tile-series:focus,
+html[data-tema="natal"] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #f59e0b 0%, #92400e 55%, #2a1a0c 100%); }
+
+/* Gorro de Papai Noel no logo (tela de carregamento, login, licença e Home) */
+html[data-tema="natal"] .logo,
+html[data-tema="natal"] .logo-pequeno { position: relative; }
+html[data-tema="natal"] .logo::before,
+html[data-tema="natal"] .logo-pequeno::before {
+  content: '';
+  position: absolute;
+  left: -0.2em;
+  top: -0.52em;
+  width: 0.86em;
+  height: 0.77em;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 90'><path d='M10 70 C 16 34 44 8 74 12 C 82 14 92 22 94 34 C 84 28 74 30 72 40 C 70 52 82 62 92 70 Z' fill='%23dc2626'/><path d='M30 24 C 40 16 52 12 62 12 C 54 22 52 40 56 70 L 30 70 C 24 52 24 36 30 24 Z' fill='%23b91c1c' opacity='0.55'/><rect x='2' y='62' width='96' height='22' rx='11' fill='%23ffffff'/><circle cx='90' cy='30' r='11' fill='%23ffffff'/></svg>") no-repeat center / contain;
+  transform: rotate(-14deg);
+}
+
+/* Neve e pisca-pisca (criados por js/tema.js só no tema Natal). Ficam abaixo do player (z-index 50/60) e dos pop-ups. */
+#natal-enfeites { position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 40; }
+.natal-floco { position: absolute; top: 0; display: block; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); animation-name: natal-cai-a; animation-timing-function: linear; animation-iteration-count: infinite; }
+.natal-floco-b { animation-name: natal-cai-b; }
+@keyframes natal-cai-a {
+  0%   { transform: translate3d(0, -20px, 0); }
+  50%  { transform: translate3d(45px, 55vh, 0); }
+  100% { transform: translate3d(-10px, 108vh, 0); }
+}
+@keyframes natal-cai-b {
+  0%   { transform: translate3d(0, -20px, 0); }
+  50%  { transform: translate3d(-45px, 55vh, 0); }
+  100% { transform: translate3d(10px, 108vh, 0); }
+}
+.natal-luzes { position: absolute; top: 0; left: 0; width: 100%; height: 60px; }
+.natal-pisca-a { animation: natal-pisca 2.4s ease-in-out infinite; }
+.natal-pisca-b { animation: natal-pisca 2.4s ease-in-out -1.2s infinite; }
+@keyframes natal-pisca { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }

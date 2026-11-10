@@ -19,7 +19,8 @@ window.VLTV = window.VLTV || {};
     { codigo: 'esmeralda',  nome: 'Esmeralda',   previa: ['16,185,129',  '20,184,166', '#07140f', '#050b09', '#0f1814'] },
     { codigo: 'por-do-sol', nome: 'Pôr do sol',  previa: ['249,115,22',  '236,72,153', '#1a0f0c', '#0d0707', '#1c1412'] },
     { codigo: 'grafite',    nome: 'Grafite',     previa: ['255,255,255', '148,163,184', '#16161a', '#0c0c0e', '#1a1a1e'] },
-    { codigo: 'preto',      nome: 'Preto total', previa: ['0,0,0',       '0,0,0',      '#000000', '#000000', '#0a0a0a'] }
+    { codigo: 'preto',      nome: 'Preto total', previa: ['0,0,0',       '0,0,0',      '#000000', '#000000', '#0a0a0a'] },
+    { codigo: 'natal',      nome: 'Natal',       previa: ['220,38,38',   '22,163,74',  '#1a0a0c', '#0a0f0b', '#1c1214'] }
   ];
 
   function achar(codigo) {
@@ -39,8 +40,74 @@ window.VLTV = window.VLTV || {};
 
   var atual = ler();
 
+  // ── Natal: neve caindo e pisca-pisca no topo (só existem enquanto o tema Natal está escolhido) ──
+  // Tudo anima só com transform/opacity (leve para a TV) e fica abaixo do player, dos pop-ups e dos avisos (z-index 40).
+  var natalEl = null;
+
+  function montarNatal() {
+    if (natalEl || !document.body) { return; }
+    var sem = 7, i, x, y, tam, dur, atraso, cor, ang, html = '';
+    function rnd() { sem = (sem * 9301 + 49297) % 233280; return sem / 233280; }   // sorteio fixo: igual em toda TV
+
+    // flocos de neve
+    for (i = 0; i < 26; i++) {
+      tam = 4 + Math.round(rnd() * 6);
+      dur = 11 + Math.round(rnd() * 12);
+      atraso = -Math.round(rnd() * dur);
+      html += '<i class="natal-floco natal-floco-' + (i % 2 ? 'b' : 'a') + '" style="left:' + Math.round(rnd() * 100) + '%;' +
+        'width:' + tam + 'px;height:' + tam + 'px;opacity:' + (0.5 + rnd() * 0.45).toFixed(2) + ';' +
+        'animation-duration:' + dur + 's;animation-delay:' + atraso + 's"></i>';
+    }
+
+    // fio de luzes com lâmpadas (duas turmas piscando em revezamento) e algumas bolas penduradas
+    var cores = ['#ef4444', '#facc15', '#22c55e', '#60a5fa'];
+    var fio = 'M0,6', grupoA = '', grupoB = '', bolas = '';
+    for (i = 0; i < 32; i++) {
+      x = i * 60;
+      fio += ' Q' + (x + 30) + ',30 ' + (x + 60) + ',6';
+      for (y = 0; y < 2; y++) {
+        cor = cores[(i * 2 + y) % 4];
+        ang = '<ellipse cx="' + (x + 15 + y * 30) + '" cy="20" rx="9" ry="11" fill="' + cor + '" opacity="0.28"/>' +
+          '<rect x="' + (x + 12 + y * 30) + '" y="11" width="6" height="4" rx="1" fill="#1f2937"/>' +
+          '<ellipse cx="' + (x + 15 + y * 30) + '" cy="20" rx="4.5" ry="6.5" fill="' + cor + '"/>';
+        if ((i * 2 + y) % 2) { grupoB += ang; } else { grupoA += ang; }
+      }
+    }
+    var posBolas = [4, 9, 14, 19, 24, 28];
+    for (i = 0; i < posBolas.length; i++) {
+      x = posBolas[i] * 60 + 30;
+      cor = i % 2 ? '#fbbf24' : '#dc2626';
+      bolas += '<line x1="' + x + '" y1="18" x2="' + x + '" y2="34" stroke="#9ca3af" stroke-width="1.5"/>' +
+        '<rect x="' + (x - 4) + '" y="32" width="8" height="5" rx="1" fill="#d1d5db"/>' +
+        '<circle cx="' + x + '" cy="46" r="10" fill="' + cor + '"/>' +
+        '<ellipse cx="' + (x - 3.5) + '" cy="42" rx="3" ry="4" fill="#fff" opacity="0.35"/>';
+    }
+    html += '<svg class="natal-luzes" width="1920" height="60" viewBox="0 0 1920 60" preserveAspectRatio="none">' +
+      '<path d="' + fio + '" fill="none" stroke="#111827" stroke-width="2.5"/>' +
+      '<g class="natal-pisca-a">' + grupoA + '</g><g class="natal-pisca-b">' + grupoB + '</g>' + bolas + '</svg>';
+
+    natalEl = document.createElement('div');
+    natalEl.id = 'natal-enfeites';
+    natalEl.setAttribute('aria-hidden', 'true');
+    natalEl.innerHTML = html;
+    document.body.appendChild(natalEl);
+  }
+
+  function natal(ligar) {
+    try {
+      if (ligar) {
+        if (document.body) { montarNatal(); }
+        else { document.addEventListener('DOMContentLoaded', function () { if (atual === 'natal') { montarNatal(); } }); }
+      } else if (natalEl) {
+        if (natalEl.parentNode) { natalEl.parentNode.removeChild(natalEl); }
+        natalEl = null;
+      }
+    } catch (e) { /* sem enfeites: o tema continua valendo */ }
+  }
+
   function aplicar(codigo) {
     try { document.documentElement.setAttribute('data-tema', codigo); } catch (e) { /* ignora */ }
+    natal(codigo === 'natal');
   }
 
   function definir(codigo) {

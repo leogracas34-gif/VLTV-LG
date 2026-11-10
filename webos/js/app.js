@@ -728,6 +728,9 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
 
+    // Pop-up de atualização (só existe no pacote de testes): fica com as teclas enquanto está aberto.
+    if (VLTV.atualizador && VLTV.atualizador.aberto()) { if (VLTV.atualizador.tecla(k)) { e.preventDefault(); } return; }
+
     // Avisos que ficam por cima de tudo: temporizador para dormir e lembrete de programa.
     if (VLTV.sono.avisoAberto()) { VLTV.sono.tecla(k); e.preventDefault(); return; }
     if (VLTV.guia.lembreteAberto()) { VLTV.guia.teclaLembrete(k); e.preventDefault(); return; }

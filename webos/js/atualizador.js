@@ -19,7 +19,7 @@ window.VLTV = window.VLTV || {};
 
   // ── Ajustes (o publicar.py confere VERSAO_APK com config.js e appinfo.json) ──
   var ATIVO = true;                                   // true só no repositório de testes
-  var VERSAO_APK = '1.4.5';                           // versão do que está instalado na TV
+  var VERSAO_APK = '1.4.6';                           // versão do que está instalado na TV
   var URL_BASE = 'https://vltvplay.tech/apptv/';      // pasta na VPS (termina com /)
   var TIMEOUT_VERSAO_MS = 3000;                       // consulta da versão: não segura o app
   var TIMEOUT_PACOTE_MS = 60000;                      // download do pacote
@@ -69,9 +69,22 @@ window.VLTV = window.VLTV || {};
           apagar(CH_PACOTE); apagar(CH_TENTATIVAS);
         } else {
           guardar(CH_TENTATIVAS, String(tent + 1));
-          document.open();
-          document.write(pac.html);
-          document.close();
+          // O navegador IGNORA document.open() enquanto ainda está lendo o index.html (o pacote entraria no meio da página
+          // instalada e o app antigo continuaria valendo). Por isso a troca só acontece depois que essa leitura termina.
+          var htmlNovo = pac.html;
+          var trocar = function () {
+            setTimeout(function () {
+              try {
+                var n = setTimeout(function () { /* só para saber o último número de timer */ }, 0);
+                while (n > 0) { clearTimeout(n); clearInterval(n); n--; }   // para os timers do app antigo
+                window.VLTV = {};                                            // o app novo começa com o espaço de nomes limpo
+                document.open();
+                document.write(htmlNovo);
+                document.close();
+              } catch (e) { apagar(CH_PACOTE); apagar(CH_TENTATIVAS); }
+            }, 0);
+          };
+          if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', trocar); } else { trocar(); }
           return;   // o app novo (com este mesmo arquivo dentro) assume daqui; este contexto para
         }
       }
@@ -216,6 +229,8 @@ window.VLTV = window.VLTV || {};
       if (!info || !info.versao) { return; }
       // Compara com o que está RODANDO agora (o app instalado ou o pacote já aplicado).
       var rodando = (VLTV.config && VLTV.config.VERSAO) || VERSAO_APK;
+      // Pacote da VPS em uso: ele mesmo diz qual versão é (nunca oferece de novo a versão que já está rodando).
+      if (window.__VLTV_REMOTO && maior(window.__VLTV_REMOTO, rodando)) { rodando = window.__VLTV_REMOTO; }
       if (!maior(info.versao, rodando)) { return; }
       if (ler(CH_RECUSADA) === info.versao) { return; }
       // Só interrompe na Home (nunca no meio de um filme ou canal). Fora dela, tenta de novo em 1 minuto.

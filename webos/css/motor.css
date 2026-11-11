@@ -103,14 +103,14 @@ html.avplay-ativo .player.cheio {
 
 .pausa-topo {
   position: absolute;
-  top: 56px;
-  right: 100px;
+  top: 84px;
+  right: 140px;
   max-width: 900px;
   text-align: right;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
 }
-.pa-nome { font-size: 46px; font-weight: 700; line-height: 1.15; }
-.pa-ep { margin-top: 10px; font-size: 32px; color: #e5e5ea; line-height: 1.25; }
+.pa-nome { font-size: 27px; font-weight: 700; line-height: 1.2; }
+.pa-ep { margin-top: 6px; font-size: 24px; color: #e5e5ea; line-height: 1.25; }
 
 .pausa-logo {
   position: absolute;

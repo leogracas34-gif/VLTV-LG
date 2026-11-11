@@ -396,7 +396,10 @@
 
         novo.el.classList.add('ativo');
         velho.el.classList.remove('ativo');
-        if (!raiz.classList.contains('visivel')) { raiz.classList.add('visivel'); }
+        if (!raiz.classList.contains('visivel')) {
+          raiz.classList.add('visivel');
+          setTimeout(function () { if (raiz && minhaSessao === sessao) { raiz.classList.remove('primeiro'); } }, 6000);
+        }
 
         // Libera a imagem da capa que acabou de sair (depois do fade) para não pesar na memória da TV.
         setTimeout(function () {
@@ -416,7 +419,7 @@
     ativo = true;
     sessao++;
     fila = [];
-    raiz.className = '';                 // tira 'escondido'
+    raiz.className = 'primeiro';         // tira 'escondido'; 'primeiro' deixa a 1ª capa entrar bem devagar
     // força o navegador a registrar o estado inicial antes de animar a entrada
     void raiz.offsetWidth;
     mostrarProximo(sessao, 0);

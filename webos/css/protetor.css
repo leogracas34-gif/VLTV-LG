@@ -19,11 +19,11 @@
   overflow: hidden;
   background: #000;      /* fundo sólido: cobre até o vídeo que a Samsung desenha atrás da página */
   opacity: 0;
-  transition: opacity 0.7s ease;
+  transition: opacity 0.4s ease;          /* saindo: rápido, o controle responde na hora */
   font-family: "Plus Jakarta Sans", "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
 }
 #protetor.escondido { display: none; }
-#protetor.visivel { opacity: 1; }
+#protetor.visivel { opacity: 1; transition: opacity 2.4s ease-in-out; }   /* entrando: o app escurece devagar */
 
 .pt-slide {
   position: absolute;
@@ -32,9 +32,11 @@
   width: 1920px;
   height: 1080px;
   opacity: 0;
-  transition: opacity 1.4s ease;
+  transition: opacity 2s ease-in-out;     /* troca de capa: uma dissolve na outra, bem suave */
 }
 .pt-slide.ativo { opacity: 1; }
+/* Primeira capa: só aparece depois que a tela já escureceu, para não dar susto */
+#protetor.primeiro .pt-slide.ativo { transition: opacity 2.6s ease-in-out 1.4s; }
 
 .pt-fundo {
   position: absolute;
@@ -64,7 +66,7 @@
   bottom: 170px;
   width: 820px;
   opacity: 0;
-  transition: opacity 0.9s ease 0.5s;
+  transition: opacity 1.4s ease-in-out 0.9s;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
 }
 .pt-slide.ativo .pt-info { opacity: 1; }

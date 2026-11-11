@@ -107,6 +107,9 @@ VLTV.config = {
   // passam capas de filmes e séries do TMDB com logo, gêneros e data de estreia. Qualquer tecla do controle fecha.
   // PROTETOR_SEGUNDOS = quantos segundos parado até começar (0 = desligada). PROTETOR_TAMANHO_FUNDO = qualidade da capa
   // ('w1280' é leve e segura para todas as TVs; 'w1920' fica mais nítida, só use se a sua TV aguentar).
+  // Medidor de travadas (só para testes): true mostra, no canto de cima da tela, as últimas vezes em que o app ficou preso.
+  DIAGNOSTICO_TRAVADAS: true,
+
   PROTETOR_SEGUNDOS: 90,
   PROTETOR_TAMANHO_FUNDO: 'w1280',
 

@@ -6,7 +6,18 @@
 
   function enc(texto) { return encodeURIComponent(texto); }
 
+  // Chamadas feitas dentro de VLTV.api.quieto(fn) são de segundo plano: a lista é baixada na hora, mas só é
+  // lida (JSON.parse, que trava a TV por um instante) quando o controle está parado.
+  var modoQuieto = false;
+  function emQuieto(fn) {
+    modoQuieto = true;
+    try { return fn(); } finally { modoQuieto = false; }
+  }
+
+  function marcar(texto) { if (VLTV.marcar) { VLTV.marcar(texto); } }
+
   function chamar(acao, extra) {
+    var quieto = modoQuieto;
     var s = VLTV.sessao.ler();
     if (!s) { return Promise.reject(new Error('sem sessão')); }
 
@@ -15,7 +26,16 @@
 
     return VLTV.http.fetchComTimeout(url, TIMEOUT_MS).then(function (r) {
       if (!r.ok) { throw new Error('HTTP ' + r.status); }
-      return r.json();
+      if (!quieto || !VLTV.quandoLivre) {
+        return r.json().then(function (d) { marcar('json ' + acao); return d; });
+      }
+      return r.text().then(function (texto) {
+        return new Promise(function (ok, falha) {
+          VLTV.quandoLivre(true, function () {
+            try { var d = JSON.parse(texto); marcar('json-fundo ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB'); ok(d); } catch (e) { falha(e); }
+          }, 60000);
+        });
+      });
     });
   }
 
@@ -133,6 +153,7 @@
   }
 
   VLTV.api = {
+    quieto: emQuieto,
     separarEpg: separarEpg,
     normalizarEpg: normalizarEpg,
     decodificar: decodificar,

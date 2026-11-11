@@ -6,7 +6,6 @@
   'use strict';
 
   var VALIDADE_PADRAO_MS = 10 * 60 * 1000;   // dentro desse tempo não precisa conferir o painel de novo
-  var LIMITE_COMPARACAO = 8000;              // listas maiores comparam só tamanho e pontas
 
   var emVoo = {};          // buscas em andamento (a mesma busca nunca roda duas vezes)
   var fila = [];           // pré-carregamentos pendentes
@@ -28,16 +27,21 @@
     return (s.dns || '') + '|' + (s.user || '');
   }
 
+  // Compara duas listas sem transformar a lista inteira em texto (isso travava a TV por mais de 1 s em listas grandes).
+  // Listas pequenas: compara tudo. Listas grandes: tamanho + cerca de 40 títulos espalhados + o último.
+  // Se uma diferença escapar, nada se perde: a lista nova já foi guardada e aparece na próxima abertura.
   function igual(a, b) {
     if (!Array.isArray(a) || !Array.isArray(b)) { return false; }
     if (a.length !== b.length) { return false; }
-    if (a.length === 0) { return true; }
+    var n = a.length;
+    if (n === 0) { return true; }
     try {
-      if (a.length > LIMITE_COMPARACAO) {
-        var ult = a.length - 1;
-        return JSON.stringify(a[0]) === JSON.stringify(b[0]) && JSON.stringify(a[ult]) === JSON.stringify(b[ult]);
+      if (n <= 60) { return JSON.stringify(a) === JSON.stringify(b); }
+      var passo = Math.floor(n / 40);
+      for (var i = 0; i < n; i += passo) {
+        if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) { return false; }
       }
-      return JSON.stringify(a) === JSON.stringify(b);
+      return JSON.stringify(a[n - 1]) === JSON.stringify(b[n - 1]);
     } catch (e) {
       return false;
     }
@@ -81,7 +85,7 @@
         var fresco = (new Date().getTime() - reg.t) < validade();
         var atualizacao = fresco
           ? Promise.resolve(null)
-          : buscarUmaVez(k, buscar).then(function (novo) {
+          : buscarUmaVez(k, function () { return VLTV.api.quieto(buscar); }).then(function (novo) {
               guardar(k, novo);
               return (Array.isArray(novo) && novo.length > 0 && !igual(reg.valor, novo)) ? novo : null;
             }).catch(function () { return null; });
@@ -115,7 +119,8 @@
     }
     VLTV.armazem.ler(proximo.k).then(function (reg) {
       if (reg && reg.valor) { return; }               // já está guardado
-      return buscarUmaVez(proximo.k, proximo.buscar).then(function (dados) { guardar(proximo.k, dados); });
+      var buscarFundo = proximo.quieto ? function () { return VLTV.api.quieto(proximo.buscar); } : proximo.buscar;
+      return buscarUmaVez(proximo.k, buscarFundo).then(function (dados) { guardar(proximo.k, dados); });
     }).catch(function () { /* sem problema: abre normal quando o usuário pedir */ })
       .then(function () { setTimeout(rodar, pausado && proximo.quieto ? RITMO_VIDEO_MS : 150); });
   }

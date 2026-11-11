@@ -59,6 +59,7 @@
             var r = req.result;
             if (!r) { resolve(null); return; }
             var reg = { valor: r.valor, t: r.t };
+            if (VLTV.marcar) { VLTV.marcar('idb-ler ' + String(chave).slice(-22)); }
             lembrar(chave, reg);
             resolve(reg);
           };
@@ -99,6 +100,7 @@
         try {
           var tx = db.transaction(LOJA, 'readwrite');
           tx.objectStore(LOJA).put({ chave: chave, valor: valor, t: reg.t });
+          if (VLTV.marcar) { VLTV.marcar('idb-gravar ' + String(chave).slice(-22)); }
           tx.oncomplete = function () { resolve(); };
           tx.onerror = function () { resolve(); };
           tx.onabort = function () { resolve(); };   // sem espaço: segue sem guardar

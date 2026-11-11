@@ -1,6 +1,7 @@
 // VLTV Play - webOS | Medidor de travadas (só para testes). Ligue em config.js: DIAGNOSTICO_TRAVADAS: true.
 // Mostra, em letras amarelas pequenas no canto de cima da tela, as últimas vezes em que o app ficou "preso":
-// quanto tempo travou, quanto tempo depois de abrir o app, quanto tempo depois da última tecla e em que tela estava.
+// quanto tempo travou, quanto tempo depois de abrir o app, quanto tempo depois da última tecla, em que tela estava
+// e a CAUSA (o que o app tinha acabado de fazer: ler uma lista, guardar na TV, montar o índice...).
 // Desligado (false), este arquivo não faz nada.
 (function () {
   'use strict';
@@ -12,9 +13,25 @@
   var ultimaTecla = 0;
   var ultimo = new Date().getTime();
   var linhas = [];
+  var marcas = [];          // o que o app terminou de fazer há pouco: { t, nome }
   var caixa = null;
 
   function agora() { return new Date().getTime(); }
+
+  // Os módulos chamam VLTV.marcar('nome') quando terminam algo pesado; a travada mostra o que terminou junto dela.
+  VLTV.marcar = function (nome) {
+    marcas.push({ t: agora(), nome: String(nome) });
+    while (marcas.length > 40) { marcas.shift(); }
+  };
+
+  function causa(fim, atraso) {
+    var de = fim - atraso - 400;
+    var nomes = [];
+    for (var i = 0; i < marcas.length; i++) {
+      if (marcas[i].t >= de && marcas[i].t <= fim + 50 && nomes.indexOf(marcas[i].nome) === -1) { nomes.push(marcas[i].nome); }
+    }
+    return nomes.length ? nomes.slice(-2).join(' + ') : '?';
+  }
 
   function tela() {
     var el = document.querySelector('#app > .tela:not(.escondida)');
@@ -27,7 +44,7 @@
       caixa.style.cssText = 'position:absolute;top:6px;left:8px;z-index:9999;padding:6px 10px;background:rgba(0,0,0,0.7);color:#ffe14d;font:18px/1.35 monospace;white-space:pre;pointer-events:none;';
       document.body.appendChild(caixa);
     }
-    caixa.textContent = 'TRAVADAS (duração | após abrir | após tecla | tela)\n' + (linhas.length ? linhas.join('\n') : '(nenhuma até agora)');
+    caixa.textContent = 'TRAVADAS (duração | após abrir | após tecla | tela | causa)\n' + (linhas.length ? linhas.join('\n') : '(nenhuma até agora)');
   }
 
   document.addEventListener('keydown', function () { ultimaTecla = agora(); }, true);
@@ -38,7 +55,7 @@
     ultimo = n;
     if (atraso >= LIMITE_MS) {
       var apos = ultimaTecla ? ((n - ultimaTecla) / 1000).toFixed(1) + 's' : '-';
-      linhas.push((atraso / 1000).toFixed(1) + 's | ' + ((n - inicio) / 1000).toFixed(0) + 's | ' + apos + ' | ' + tela());
+      linhas.push((atraso / 1000).toFixed(1) + 's | ' + ((n - inicio) / 1000).toFixed(0) + 's | ' + apos + ' | ' + tela() + ' | ' + causa(n, atraso));
       while (linhas.length > MAX_LINHAS) { linhas.shift(); }
       desenhar();
     }

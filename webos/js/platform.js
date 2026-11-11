@@ -119,11 +119,19 @@
 
   // Detector de travada: se o app ficou "preso" (o relógio atrasou), o trabalho em segundo plano recua por 2 s.
   // Assim ele continua andando enquanto você usa o controle, mas sai da frente sozinho quando a TV está sofrendo.
+  // O recuo cresce quando as travadas se repetem (2 s, 4 s, 8 s... até 30 s) e volta a 2 s depois de 30 s sem travar.
+  // Antes era sempre 2 s: o trabalho voltava a cada 2 s e travava a TV de novo, em ciclo.
   var recuarAteMs = 0;
   var ultimoTickMs = 0;
+  var recuoAtualMs = 2000;
+  var ultimaTravadaMs = 0;
   setInterval(function () {
     var n = new Date().getTime();
-    if (ultimoTickMs && (n - ultimoTickMs) > 450) { recuarAteMs = n + 2000; }
+    if (ultimoTickMs && (n - ultimoTickMs) > 450) {
+      recuoAtualMs = (n - ultimaTravadaMs) < 30000 ? Math.min(recuoAtualMs * 2, 30000) : 2000;
+      ultimaTravadaMs = n;
+      recuarAteMs = n + recuoAtualMs;
+    }
     ultimoTickMs = n;
   }, 250);
 
@@ -141,6 +149,18 @@
     var cfg = VLTV.config || {};
     var minimo = leve ? (cfg.OCIOSO_LEVE_MS || 600) : (cfg.OCIOSO_MS || 3000);
     return (n - ultimaAtividadeMs) >= minimo;
+  };
+
+  // Roda fn() só quando o controle estiver parado (leve = true: folga curta; false: folga longa).
+  // Usado para o trabalho que não dá para dividir em pedaços, como ler (JSON.parse) uma lista grande que acabou de chegar:
+  // a TV baixa a lista em qualquer momento, mas só a "abre" quando você solta o controle.
+  // Se o controle nunca parar, roda mesmo assim depois de esperaMaxMs (padrão 60 s).
+  VLTV.quandoLivre = function (leve, fn, esperaMaxMs) {
+    var limite = new Date().getTime() + (esperaMaxMs || 60000);
+    (function tentar() {
+      if (VLTV.segundoPlanoLivre(leve) || new Date().getTime() >= limite) { fn(); return; }
+      setTimeout(tentar, 400);
+    })();
   };
 
   // Fila do trabalho pesado em segundo plano (preparo de canais, filmes, séries e pesquisa).

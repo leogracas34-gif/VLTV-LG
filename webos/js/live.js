@@ -1246,7 +1246,7 @@
     return null;
   }
 
-  function gravarNoDisco() {
+  function gravarNoDiscoAgora() {
     try {
       if (!prep.brutas) { return; }
       var cat = primeiraCategoriaReal(prep.brutas);
@@ -1256,7 +1256,17 @@
         if (texto.length <= LIMITE_DISCO_CHARS) { pacote.catId = cat.category_id; pacote.canais = cacheCanais[cat.category_id]; }
       }
       localStorage.setItem(chaveDisco(), JSON.stringify(pacote));
+      if (VLTV.marcar) { VLTV.marcar('live-gravar-disco'); }
     } catch (e) { /* sem espaço ou sem armazenamento: segue sem guardar */ }
+  }
+
+  // Guardar na TV transforma as listas em texto (trava um instante): só acontece com o controle parado.
+  var gravacaoPendente = false;
+  function gravarNoDisco() {
+    if (gravacaoPendente) { return; }
+    gravacaoPendente = true;
+    var executar = function () { gravacaoPendente = false; gravarNoDiscoAgora(); };
+    if (VLTV.quandoLivre) { VLTV.quandoLivre(false, executar, 60000); } else { executar(); }
   }
 
   // Se o app acabou de abrir e ainda não tem nada em memória, usa o que ficou guardado (marcado como velho: atualiza escondido).
@@ -1296,6 +1306,9 @@
     var fila = montarCategorias(minha.brutas).filter(function (c) {
       return !c.especial && !categoriaTrancada(c);    // Favoritos já está na TV; categorias +18 bloqueadas não são baixadas
     });
+    // Só as primeiras categorias são baixadas sozinhas (as outras carregam quando você abre). Baixar todas travava o controle.
+    var maxCats = (VLTV.config && typeof VLTV.config.LIVE_SYNC_MAX_CATEGORIAS === 'number') ? VLTV.config.LIVE_SYNC_MAX_CATEGORIAS : 8;
+    if (maxCats > 0 && fila.length > maxCats) { fila = fila.slice(0, maxCats); }
     var i = 0;
     var baixouAlgo = false;
     syncRodando = true;
@@ -1308,7 +1321,7 @@
       if (i >= fila.length) { syncRodando = false; if (baixouAlgo) { gravarNoDisco(); } return; }    // tudo sincronizado
       var cat = fila[i++];
       baixouAlgo = true;
-      VLTV.api.canaisAoVivo(cat.category_id)
+      VLTV.api.quieto(function () { return VLTV.api.canaisAoVivo(cat.category_id); })
         .then(function (lista) {
           if (prep !== minha) { return; }
           cacheCanais[cat.category_id] = lista;

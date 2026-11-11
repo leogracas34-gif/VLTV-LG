@@ -175,6 +175,7 @@
         }
         if (i < itens.length) { setTimeout(fatia, 25); return; }
         e.unico = unico; e.nomes = nms; e.ids = ids;
+        if (VLTV.marcar) { VLTV.marcar('indice-pronto ' + unico.length); }
         resolve();
       }
       fatia();
@@ -183,20 +184,32 @@
 
   function esperar(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 
-  function consultarVps(tipo, e, versao, tentativa) {
+  // Lista grande chegando em segundo plano: baixa na hora, mas só lê (JSON.parse) com o controle parado.
+  function lerJson(r, quieto) {
+    if (!quieto || !VLTV.quandoLivre) { return r.json(); }
+    return r.text().then(function (texto) {
+      return new Promise(function (ok, falha) {
+        VLTV.quandoLivre(false, function () {
+          try { var d = JSON.parse(texto); if (VLTV.marcar) { VLTV.marcar('json-indice ' + Math.round(texto.length / 1024) + 'KB'); } ok(d); } catch (err) { falha(err); }
+        }, 60000);
+      });
+    });
+  }
+
+  function consultarVps(tipo, e, versao, tentativa, quieto) {
     var s = VLTV.sessao.ler();
     if (!s) { return Promise.resolve({ estado: 'erro' }); }
     var url = s.dns + '/player_api.php?username=' + encodeURIComponent(s.user) + '&password=' + encodeURIComponent(s.pass) +
       '&action=vltv_indice&tipo=' + tipo + (versao ? '&v=' + encodeURIComponent(versao) : '');
     return VLTV.http.fetchComTimeout(url, TEMPO_DOWNLOAD_MS).then(function (r) {
       if (!r.ok) { return { estado: r.status === 404 ? 'antigo' : 'erro' }; }
-      return r.json();
+      return lerJson(r, quieto);
     }).then(function (j) {
       if (j && j.estado) { return j; }
       if (!j || j.ok !== true) { return { estado: 'antigo' }; }   // gateway sem o índice (ainda não atualizado)
       if (j.pronto === false) {
         if (tentativa >= MAX_ESPERAS_VPS) { return { estado: 'erro' }; }
-        return esperar(ESPERA_VPS_MS).then(function () { return consultarVps(tipo, e, versao, tentativa + 1); });
+        return esperar(ESPERA_VPS_MS).then(function () { return consultarVps(tipo, e, versao, tentativa + 1, quieto); });
       }
       return { estado: 'ok', dados: j };
     }, function () { return { estado: 'erro' }; });
@@ -224,7 +237,7 @@
       function quando() {
         if (recente) { return Promise.resolve({ estado: 'recente' }); }
         if (quieto && deveEsperar()) { return esperar(1500).then(quando); }
-        return consultarVps(tipo, e, temLocal ? e.versao : '', 0);
+        return consultarVps(tipo, e, temLocal ? e.versao : '', 0, quieto);
       }
       return passoLocal.then(quando).then(function (r) {
         if (r.estado !== 'ok') { return temLocal; }

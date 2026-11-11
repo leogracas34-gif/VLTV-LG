@@ -19,7 +19,7 @@ window.VLTV = window.VLTV || {};
 
   // ── Ajustes (o publicar.py confere VERSAO_APK com config.js e appinfo.json) ──
   var ATIVO = true;                                   // true só no repositório de testes
-  var VERSAO_APK = '1.4.6';                           // versão do que está instalado na TV
+  var VERSAO_APK = '1.4.7';                           // versão do que está instalado na TV
   var URL_BASE = 'https://vltvplay.tech/apptv/';      // pasta na VPS (termina com /)
   var TIMEOUT_VERSAO_MS = 3000;                       // consulta da versão: não segura o app
   var TIMEOUT_PACOTE_MS = 60000;                      // download do pacote

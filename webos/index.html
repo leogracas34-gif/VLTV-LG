@@ -12,7 +12,14 @@
       if (w && w < 1900) { document.documentElement.style.zoom = String(w / 1920); }
     })();
   </script>
-  <script src="js/atualizador.js"></script>
+  <script>
+    // Limpeza única: tira da TV o pacote de atualização que versões de teste antigas guardaram (o app não usa mais isso).
+    (function () {
+      try {
+        ['vltv_pacote_remoto', 'vltv_pacote_tentativas', 'vltv_pacote_recusada'].forEach(function (k) { window.localStorage.removeItem(k); });
+      } catch (e) { /* sem acesso ao armazenamento: segue */ }
+    })();
+  </script>
   <script src="js/tema.js"></script>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/motor.css">

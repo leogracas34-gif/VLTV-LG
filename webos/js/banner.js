@@ -321,6 +321,8 @@
       var s = fila.shift();
       if (!s) { gravarCache(chaveCarregada, slides); return; }
       if (s.resolvido || s.indisponivel) { proximo(); return; }
+      // Conferir os destaques no painel é trabalho de segundo plano: espera o controle ficar parado.
+      if (VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(false)) { fila.unshift(s); setTimeout(proximo, 800); return; }
       resolverSlide(s).then(function () { setTimeout(proximo, 300); });
     }
     proximo();

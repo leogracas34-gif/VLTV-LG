@@ -97,11 +97,11 @@
     if (VLTV.sync && VLTV.sync.pausar) { VLTV.sync.pausar(nome === 'player'); }   // vídeo tocando: o preparo de Filmes e Séries anda mais devagar
     if (VLTV.live && VLTV.live.pausar) { VLTV.live.pausar(nome === 'player'); }   // durante filme/série em tela cheia a sincronização dos canais anda mais devagar
     if (nome === 'home') {
-      VLTV.indice.aquecer();   // deixa a pesquisa de Filmes e Séries pronta em segundo plano
-      // Deixa TV ao vivo pronta em segundo plano (categorias + canais da primeira), depois que a Home já apareceu
-      setTimeout(function () { if (VLTV.live && VLTV.live.preparar) { VLTV.live.preparar(); } }, 1500);
-      // Filmes e Séries também: primeiras categorias baixadas por trás, só com o controle parado
-      setTimeout(function () { if (VLTV.catalogo && VLTV.catalogo.preparar) { VLTV.catalogo.preparar(); } }, 2500);
+      // Preparo em segundo plano (canais, filmes/séries e pesquisa): entra numa fila que roda uma tarefa por vez,
+      // só com o controle parado e depois da folga inicial. O que já está guardado na TV continua abrindo na hora.
+      VLTV.emSegundoPlano(function () { if (VLTV.live && VLTV.live.preparar) { VLTV.live.preparar(); } });
+      VLTV.emSegundoPlano(function () { if (VLTV.catalogo && VLTV.catalogo.preparar) { VLTV.catalogo.preparar(); } });
+      VLTV.emSegundoPlano(function () { VLTV.indice.aquecer(); });   // pesquisa de Filmes e Séries
     }
     if (nome === 'home') { VLTV.parental.travar(); }
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }

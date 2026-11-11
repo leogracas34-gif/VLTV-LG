@@ -111,7 +111,9 @@ VLTV.config = {
   // Quanto tempo (ms) o controle precisa ficar parado para o trabalho PESADO em segundo plano (índice da pesquisa) andar.
   OCIOSO_MS: 3000,
   // Folga (ms) sem tecla para os passos leves (listas de categorias) andarem mesmo com o controle em uso.
-  OCIOSO_LEVE_MS: 600,
+  OCIOSO_LEVE_MS: 1200,
+  // Logo que o app abre, nada roda em segundo plano por este tempo (ms): a TV está ocupada abrindo o app e o controle fica livre.
+  GRACA_INICIAL_MS: 8000,
   // Durante filme, série ou canal em tela cheia o carregamento em segundo plano continua, só bem mais devagar (1 passo a cada ~4 s).
   // Se notar travadinha na imagem nessa hora, troque por false: aí ele espera o vídeo terminar.
   SEGUNDO_PLANO_DURANTE_VIDEO: false,

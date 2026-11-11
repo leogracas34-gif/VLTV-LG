@@ -145,22 +145,40 @@
     return !!s && s.modo !== 'm3u' && !VLTV.m3u.ativo();
   }
 
-  function aplicarIndice(e, itens, nomes) {
-    var campo = null;
-    var unico = [];
-    var nms = [];
-    var ids = {};
-    for (var i = 0; i < itens.length; i++) {
-      var raw = itens[i];
-      if (campo === null) { campo = raw.series_id !== undefined && raw.stream_id === undefined ? 'series_id' : 'stream_id'; }
-      var id = raw[campo];
-      if (id === undefined || id === null || ids[id]) { continue; }
-      if (raw.cn && adulta(raw.cn)) { continue; }
-      ids[id] = true;
-      unico.push(raw);
-      nms.push(nomes && nomes.length === itens.length ? nomes[i] : norm(raw.name));
-    }
-    e.unico = unico; e.nomes = nms; e.ids = ids;
+  // Monta o índice em fatias (milhares de títulos de uma vez travavam o controle por alguns segundos).
+  // Entre uma fatia e outra a TV respira; em segundo plano (quieto) ela ainda espera o controle ficar parado.
+  var FATIA_INDICE = 1500;
+  function aplicarIndice(e, itens, nomes, quieto) {
+    return new Promise(function (resolve) {
+      var campo = null;
+      var unico = [];
+      var nms = [];
+      var ids = {};
+      var cnAdulta = {};      // o nome da categoria se repete em milhares de títulos: confere uma vez só
+      var i = 0;
+      var usarNomes = !!(nomes && nomes.length === itens.length);
+      function fatia() {
+        if (quieto && deveEsperar()) { setTimeout(fatia, 700); return; }
+        var fim = Math.min(itens.length, i + FATIA_INDICE);
+        for (; i < fim; i++) {
+          var raw = itens[i];
+          if (campo === null) { campo = raw.series_id !== undefined && raw.stream_id === undefined ? 'series_id' : 'stream_id'; }
+          var id = raw[campo];
+          if (id === undefined || id === null || ids[id]) { continue; }
+          if (raw.cn) {
+            if (cnAdulta[raw.cn] === undefined) { cnAdulta[raw.cn] = adulta(raw.cn); }
+            if (cnAdulta[raw.cn]) { continue; }
+          }
+          ids[id] = true;
+          unico.push(raw);
+          nms.push(usarNomes ? nomes[i] : norm(raw.name));
+        }
+        if (i < itens.length) { setTimeout(fatia, 25); return; }
+        e.unico = unico; e.nomes = nms; e.ids = ids;
+        resolve();
+      }
+      fatia();
+    });
   }
 
   function esperar(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
@@ -191,13 +209,15 @@
     return VLTV.armazem.ler(k).then(function (reg) {
       var v = reg && reg.valor;
       var temLocal = !!(v && Array.isArray(v.itens) && v.itens.length);
+      var passoLocal = Promise.resolve();
       if (temLocal) {
-        aplicarIndice(e, v.itens, v.nomes);
-        e.versao = v.v || '';
-        e.pelaVps = true;
-        e.completo = true;
-        e.total = 1;
-        if (e.ouvinte) { e.ouvinte(1, 1); }
+        passoLocal = aplicarIndice(e, v.itens, v.nomes, quieto).then(function () {
+          e.versao = v.v || '';
+          e.pelaVps = true;
+          e.completo = true;
+          e.total = 1;
+          if (e.ouvinte) { e.ouvinte(1, 1); }
+        });
       }
       // Guardado há menos de 30 min: nem pergunta à VPS (ligar e desligar a TV não baixa nada).
       var recente = temLocal && reg.t && (new Date().getTime() - reg.t) < 30 * 60 * 1000;
@@ -206,7 +226,7 @@
         if (quieto && deveEsperar()) { return esperar(1500).then(quando); }
         return consultarVps(tipo, e, temLocal ? e.versao : '', 0);
       }
-      return quando().then(function (r) {
+      return passoLocal.then(quando).then(function (r) {
         if (r.estado !== 'ok') { return temLocal; }
         var d = r.dados;
         if (d.mudou === false) {
@@ -214,15 +234,16 @@
           return true;
         }
         if (!Array.isArray(d.itens) || d.itens.length === 0) { return temLocal; }
-        aplicarIndice(e, d.itens, null);
-        e.versao = d.v || '';
-        e.pelaVps = true;
-        e.total = 1;
-        e.completo = d.completo !== false;
-        if (!e.completo) { e.promessa = null; }                     // incompleto: a próxima pesquisa pergunta de novo
-        VLTV.armazem.gravar(k, { v: e.versao, itens: d.itens, nomes: e.nomes.length === d.itens.length ? e.nomes : null });
-        if (e.ouvinte) { e.ouvinte(1, 1); }
-        return true;
+        return aplicarIndice(e, d.itens, null, quieto).then(function () {
+          e.versao = d.v || '';
+          e.pelaVps = true;
+          e.total = 1;
+          e.completo = d.completo !== false;
+          if (!e.completo) { e.promessa = null; }                     // incompleto: a próxima pesquisa pergunta de novo
+          VLTV.armazem.gravar(k, { v: e.versao, itens: d.itens, nomes: e.nomes.length === d.itens.length ? e.nomes : null });
+          if (e.ouvinte) { e.ouvinte(1, 1); }
+          return true;
+        });
       });
     });
   }
@@ -294,11 +315,9 @@
     if (!d || d === aquecidoPara) { return; }
     if (VLTV.config && VLTV.config.PREPARO_PESQUISA === false) { return; }
     aquecidoPara = d;
-    setTimeout(function () {
-      try {
-        preparar('filmes', true).then(function () { return preparar('series', true); });
-      } catch (e) { /* a pesquisa tenta de novo quando for aberta */ }
-    }, 3000);
+    try {
+      preparar('filmes', true).then(function () { return preparar('series', true); });
+    } catch (e) { /* a pesquisa tenta de novo quando for aberta */ }
   }
 
   function pausar(sim) { pausado = !!sim; }
@@ -349,11 +368,13 @@
     var melhorLista = null;
     var melhorPontos = 0;
 
-    function avaliar(lista) {
+    function avaliar(lista, nomesVarridos) {
       for (var i = 0; i < lista.length; i++) {
         var raw = lista[i];
         if (raw[campo] === undefined || raw[campo] === null) { continue; }
-        if (norm(raw.name).indexOf(alvo) === -1) { continue; }            // filtro barato
+        // Com o índice da VPS os nomes já estão varridos: não normaliza título por título de novo.
+        var nomeNorm = nomesVarridos && nomesVarridos.length === lista.length ? nomesVarridos[i] : norm(raw.name);
+        if (nomeNorm.indexOf(alvo) === -1) { continue; }            // filtro barato
         var b = VLTV.titulo.paraBusca(raw.name);
         if (norm(b.query) !== alvo) { continue; }
         var pontos = (busca.ano && b.ano) ? (String(busca.ano) === String(b.ano) ? 3 : 1) : 2;
@@ -363,7 +384,7 @@
 
     var e = estado(tipo);
     if (e.pelaVps && e.unico.length) {
-      avaliar(e.unico);
+      avaliar(e.unico, e.nomes);
       if (!melhor) { return Promise.resolve(null); }
       var catId = melhor.category_id;
       melhorLista = e.unico.filter(function (x) { return x.category_id === catId; });

@@ -129,12 +129,37 @@
 
   // leve = true: passo pequeno (lista de uma categoria), anda mesmo com o controle em uso, só com uma folguinha entre teclas.
   // leve = false: passo pesado (índice inteiro da pesquisa), só anda com o controle realmente parado.
+  // Logo que o app abre (TV acabou de ligar, vinha do YouTube...) a TV ainda está ocupada abrindo o próprio app.
+  // Nesse começo nenhum trabalho em segundo plano anda: o controle responde de imediato.
+  var inicioAppMs = new Date().getTime();
+
   VLTV.segundoPlanoLivre = function (leve) {
     var n = new Date().getTime();
+    var graca = (VLTV.config && typeof VLTV.config.GRACA_INICIAL_MS === 'number') ? VLTV.config.GRACA_INICIAL_MS : 8000;
+    if (n - inicioAppMs < graca) { return false; }
     if (n < recuarAteMs) { return false; }
     var cfg = VLTV.config || {};
     var minimo = leve ? (cfg.OCIOSO_LEVE_MS || 600) : (cfg.OCIOSO_MS || 3000);
     return (n - ultimaAtividadeMs) >= minimo;
+  };
+
+  // Fila do trabalho pesado em segundo plano (preparo de canais, filmes, séries e pesquisa).
+  // Roda UMA tarefa por vez, só com o controle parado, e deixa uma folga entre uma e outra.
+  // Antes, três preparos começavam juntos 1,5 s, 2,5 s e 3 s depois da Home e a TV travava.
+  var filaFundo = [];
+  var rodandoFundo = false;
+  var FOLGA_ENTRE_TAREFAS_MS = 1500;
+  function andarFundo() {
+    if (filaFundo.length === 0) { rodandoFundo = false; return; }
+    rodandoFundo = true;
+    if (!VLTV.segundoPlanoLivre(false)) { setTimeout(andarFundo, 500); return; }
+    var tarefa = filaFundo.shift();
+    try { tarefa(); } catch (e) { /* o preparo nunca pode atrapalhar o app */ }
+    setTimeout(andarFundo, FOLGA_ENTRE_TAREFAS_MS);
+  }
+  VLTV.emSegundoPlano = function (tarefa) {
+    filaFundo.push(tarefa);
+    if (!rodandoFundo) { setTimeout(andarFundo, 500); rodandoFundo = true; }
   };
 
   VLTV.cursor = {

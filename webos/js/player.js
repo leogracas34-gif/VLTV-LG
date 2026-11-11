@@ -3,6 +3,9 @@
 // - Botão "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (igual ao Android).
 // - Guarda de onde o usuário parou e retoma dali quando pedido.
 // - Tela de pausa estilo Netflix: nome (e T:E do episódio) em cima, logo do título, ícone + tempo + barra embaixo.
+// - Menu estilo Netflix (seta para cima ou para baixo, tocando ou pausado): em cima à esquerda voltar / assistir do início /
+//   próximo episódio (com o nome embaixo do ícone em foco); em cima à direita o nome e T:E; embaixo pausa, tempo, barra, tempo
+//   restante e, abaixo da barra, as combinações de idioma e legenda que o próprio arquivo oferece.
 (function () {
   'use strict';
 
@@ -12,6 +15,8 @@
   var APLICAR_PULO_MS = 700;        // espera o usuário parar de apertar antes de pular de fato
   var REPETIR_PULO_MS = 450;        // apertos dentro deste intervalo aceleram o pulo
   var PULO_LONGO_S = 30;
+  var TEMPO_MENU_MS = 9000;         // com o menu aberto (seta para cima/baixo) a barra fica um pouco mais na tela
+  var MAX_CHIPS = 4;                // quantas combinações de idioma/legenda aparecem antes do "Outro..."
 
   // Botão "Próximo episódio" (mesmos valores do PlayerActivity do Android)
   var CREDITOS_PADRAO_S = 50;       // sem dado da VPS: aparece faltando 50s
@@ -90,6 +95,21 @@
     return (h > 0 ? h + ':' : '') + mm + ':' + ('0' + r).slice(-2);
   }
 
+  // Tempo no formato da Netflix: 01:23 (ou 1:02:03 com horas).
+  function formatarNet(segundos) {
+    if (!isFinite(segundos) || segundos < 0) { return '00:00'; }
+    var s = Math.floor(segundos);
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var r = s % 60;
+    return (h > 0 ? h + ':' : '') + ('0' + m).slice(-2) + ':' + ('0' + r).slice(-2);
+  }
+
+  // Texto do menu no idioma do aplicativo (português por dentro, inglês quando a TV está em inglês).
+  function tx(pt, en) {
+    return VLTV.idioma && VLTV.idioma.ehIngles && VLTV.idioma.ehIngles() ? en : pt;
+  }
+
   function mostrarOverlay(texto, tipo) {
     overlay.textContent = texto;
     overlay.className = 'overlay' + (tipo ? ' ' + tipo : '');
@@ -138,6 +158,207 @@
     elLegenda.classList.remove('escondida');
   }
   function esconderLegenda() { mostrarLegenda(''); }
+
+  // ── Menu estilo Netflix (seta para cima ou para baixo) ────────────
+  // Três linhas de foco: 0 = ícones do topo (voltar, assistir do início, próximo), 1 = barra (pausa e pulo), 2 = idioma e legenda.
+  var menuModo = false;
+  var menuLinha = 1;
+  var topoPos = 0;
+  var chipPos = 0;
+  var chipsLista = [];
+  var timerChips = null;
+
+  var SVG_ICONES = {
+    voltar: '<svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>',
+    inicio: '<svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/><path d="M10 10v6l5-3z"/></svg>',
+    proximo: '<svg viewBox="0 0 24 24"><path d="M6 6l8.5 6L6 18V6z"/><rect x="16" y="6" width="2.2" height="12" rx="1"/></svg>',
+    engrenagem: '<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>'
+  };
+
+  // Em cima: ícones à esquerda (com o nome do ícone em foco embaixo) e nome + T:E à direita (o bloco que antes ficava só na pausa).
+  var elMenu = document.createElement('div');
+  elMenu.id = 'player-menu';
+  elMenu.className = 'pmenu escondida';
+  var elMenuEsq = document.createElement('div');
+  elMenuEsq.className = 'pm-esq escondida';
+  var elIcones = document.createElement('div');
+  elIcones.className = 'pm-icones';
+  var elRotulo = document.createElement('div');
+  elRotulo.className = 'pm-rotulo';
+  elMenuEsq.appendChild(elIcones);
+  elMenuEsq.appendChild(elRotulo);
+  elMenu.appendChild(elMenuEsq);
+  elMenu.appendChild(pausa.querySelector('.pausa-topo'));   // o nome da série e T:E agora aparecem também com o menu aberto
+  $('tela-player').appendChild(elMenu);
+
+  // Embaixo da barra: combinações de idioma e legenda.
+  var elChips = document.createElement('div');
+  elChips.id = 'player-chips';
+  elChips.className = 'pm-chips escondida';
+  controles.appendChild(elChips);
+
+  function acoesTopo() {
+    var a = [
+      { id: 'voltar', rotulo: tx('Voltar', 'Back') },
+      { id: 'inicio', rotulo: tx('Assistir do início', 'Watch from start') }
+    ];
+    if (temProximo()) { a.push({ id: 'proximo', rotulo: tx('Próximo episódio', 'Next episode') }); }
+    return a;
+  }
+
+  // Monta as combinações a partir do que o arquivo realmente oferece (nada de combinação inventada):
+  //   cada áudio sozinho (legenda desligada) e cada áudio "com legendas" (legenda em português, ou a que já estiver ligada).
+  //   Só um áudio e nenhuma legenda: aparece só ele. No fim, "Outro..." e a engrenagem abrem a lista completa.
+  function montarChips() {
+    var f = motor.faixas();
+    var audios = f.audio;
+    var legs = f.legenda;
+    var legAtiva = -1;
+    legs.forEach(function (x, i) { if (x.ativa) { legAtiva = i; } });
+    var legPadrao = legAtiva;
+    if (legPadrao < 0) {
+      for (var i = 0; i < legs.length; i++) {
+        if (/port|^pt|^por/i.test(legs[i].rotulo)) { legPadrao = i; break; }
+      }
+    }
+    if (legPadrao < 0 && legs.length > 0) { legPadrao = 0; }
+
+    var base = audios.length > 0 ? audios : [{ id: null, rotulo: tx('Áudio original', 'Original audio'), ativa: true }];
+    var lista = [];
+    base.forEach(function (a) {
+      var audioOk = a.id === null ? true : !!a.ativa;
+      lista.push({ tipo: 'combo', rotulo: a.rotulo, audioId: a.id, audioAtivo: audioOk, legId: null, ativa: audioOk && !f.legendaAtiva });
+      if (legPadrao >= 0) {
+        lista.push({
+          tipo: 'combo', rotulo: a.rotulo + ' ' + tx('com legendas', 'with subtitles'), audioId: a.id, audioAtivo: audioOk,
+          legId: legs[legPadrao].id, ativa: audioOk && f.legendaAtiva && legAtiva === legPadrao
+        });
+      }
+    });
+
+    if (lista.length > MAX_CHIPS) {
+      var ativo = -1;
+      lista.forEach(function (c, i) { if (c.ativa && ativo < 0) { ativo = i; } });
+      var corte = lista.slice(0, MAX_CHIPS);
+      if (ativo >= MAX_CHIPS) { corte[MAX_CHIPS - 1] = lista[ativo]; }   // a combinação em uso nunca fica de fora
+      lista = corte;
+    }
+    if (audios.length > 1 || legs.length > 0) { lista.push({ tipo: 'outro', rotulo: tx('Outro...', 'Other...') }); }
+    lista.push({ tipo: 'eng', rotulo: '' });
+    return lista;
+  }
+
+  function chipAtivo() {
+    var lista = montarChips();
+    for (var i = 0; i < lista.length; i++) { if (lista[i].ativa) { return i; } }
+    return 0;
+  }
+
+  function desenharChips() {
+    chipsLista = montarChips();
+    chipPos = Math.max(0, Math.min(chipsLista.length - 1, chipPos));
+    while (elChips.firstChild) { elChips.removeChild(elChips.firstChild); }
+    chipsLista.forEach(function (c, i) {
+      var el = document.createElement('div');
+      el.className = 'pm-chip' + (c.ativa ? ' ativa' : '') + (c.tipo === 'eng' ? ' pm-eng' : '') + (menuLinha === 2 && chipPos === i ? ' foco' : '');
+      if (c.tipo === 'eng') { el.innerHTML = SVG_ICONES.engrenagem; }
+      else { el.textContent = (c.ativa ? '\u2713  ' : '') + c.rotulo; }
+      el.addEventListener('click', function () { chipPos = i; escolherChip(); });
+      elChips.appendChild(el);
+    });
+  }
+
+  function desenharMenu() {
+    var visivel = menuModo && controlesVisiveis();
+    // O bloco de cima (nome + T:E) também aparece na tela de pausa, como antes.
+    elMenu.classList.toggle('escondida', !(visivel || pausaNaTela()));
+    elMenuEsq.classList.toggle('escondida', !visivel);
+    elChips.classList.toggle('escondida', !visivel);
+    // Fora do foco, o botão de pausa fica só o símbolo (sem o círculo branco), igual à Netflix.
+    elIcone.classList.toggle('sem-foco', visivel && menuLinha !== 1);
+    if (!visivel) { return; }
+
+    var ac = acoesTopo();
+    topoPos = Math.max(0, Math.min(ac.length - 1, topoPos));
+    while (elIcones.firstChild) { elIcones.removeChild(elIcones.firstChild); }
+    ac.forEach(function (a, i) {
+      var b = document.createElement('div');
+      b.className = 'pm-ic' + (menuLinha === 0 && topoPos === i ? ' foco' : '');
+      b.innerHTML = SVG_ICONES[a.id];
+      b.addEventListener('click', function () { topoPos = i; executarTopo(a.id); });
+      elIcones.appendChild(b);
+    });
+    elRotulo.textContent = menuLinha === 0 ? ac[topoPos].rotulo : tx('Opções', 'Options');
+    desenharChips();
+  }
+
+  function abrirMenu(linha) {
+    menuModo = true;
+    menuLinha = linha;
+    topoPos = 0;
+    mostrarControles();
+  }
+
+  function fecharMenu() {
+    if (!menuModo) { return; }
+    menuModo = false;
+    menuLinha = 1;
+    clearTimeout(timerChips);
+    desenharMenu();
+  }
+
+  function executarTopo(id) {
+    if (id === 'voltar') { sair(); return; }
+    if (id === 'inicio') {
+      puloAlvo = null;
+      inicioPendente = 0;
+      if (!motor.buscar(0)) { avisar(tx('Esta TV não conseguiu voltar ao início.', 'This TV could not go back to the start.')); }
+      if (motor.pausado()) { motor.play(); }
+      fecharMenu();
+      mostrarControles();
+      return;
+    }
+    if (id === 'proximo') { abrirProximo(true); }
+  }
+
+  function escolherChip() {
+    var c = chipsLista[chipPos];
+    if (!c) { return; }
+    if (c.tipo !== 'combo') { abrirFaixas(); return; }   // "Outro..." e engrenagem abrem a lista completa
+    if (c.audioId !== null && !c.audioAtivo) { motor.escolherAudio(c.audioId); }
+    motor.escolherLegenda(c.legId);
+    clearTimeout(timerChips);
+    timerChips = setTimeout(function () { if (menuModo) { desenharMenu(); } }, 450);   // a TV leva um instante para trocar
+    mostrarControles();
+  }
+
+  function teclaMenu(k) {
+    if (k === TECLA.AMARELO) { abrirFaixas(); return true; }
+
+    if (menuLinha === 0) {
+      var ac = acoesTopo();
+      if (k === TECLA.ESQ) { topoPos = Math.max(0, topoPos - 1); }
+      else if (k === TECLA.DIR) { topoPos = Math.min(ac.length - 1, topoPos + 1); }
+      else if (k === TECLA.BAIXO) { menuLinha = 1; }
+      else if (k === TECLA.ENTER) { executarTopo(ac[topoPos].id); return true; }
+    } else if (menuLinha === 1) {
+      if (k === TECLA.ESQ) { pular(-10, false); return true; }
+      if (k === TECLA.DIR) { pular(10, false); return true; }
+      if (k === TECLA.ENTER) {
+        if (cartaoVisivel()) { abrirProximo(true); } else { alternarPausa(); }
+        return true;
+      }
+      if (k === TECLA.CIMA) { menuLinha = 0; }
+      else if (k === TECLA.BAIXO) { menuLinha = 2; chipPos = chipAtivo(); }
+    } else {
+      if (k === TECLA.ESQ) { chipPos = Math.max(0, chipPos - 1); }
+      else if (k === TECLA.DIR) { chipPos = Math.min(chipsLista.length - 1, chipPos + 1); }
+      else if (k === TECLA.CIMA) { menuLinha = 1; }
+      else if (k === TECLA.ENTER) { escolherChip(); return true; }
+    }
+    mostrarControles();
+    return true;
+  }
 
   function desenharFaixas() {
     var f = motor.faixas();
@@ -246,8 +467,9 @@
     elProgresso.style.width = pct + '%';
     elPrevia.style.left = pct + '%';
     elPrevia.classList.toggle('escondida', puloAlvo === null);
-    elTempo.textContent = formatar(t);
-    elDuracao.textContent = valida ? formatar(d) : '';
+    elTempo.textContent = formatarNet(t);
+    // À direita fica o tempo que FALTA (igual à Netflix), não a duração total.
+    elDuracao.textContent = valida ? formatarNet(d - t) : '';
     // Ícone da barra: triângulo com o vídeo pausado, duas barrinhas tocando (igual à Netflix)
     elIcone.classList.toggle('tocando', !motor.pausado());
   }
@@ -287,6 +509,7 @@
       pausaLiberada = false;
       avalFoco = false;
       pausa.classList.add('escondida');
+      desenharMenu();
       return;
     }
     // Pausou: espera ATRASO_PAUSA_MS antes de mostrar a logo (a barra de controles já fica na tela).
@@ -299,6 +522,7 @@
     }
     pausa.classList.toggle('escondida', !(pausaLiberada && controlesVisiveis()));
     desenharAval();
+    desenharMenu();
   }
 
   // Prepara os textos e a logo do item que vai tocar. Sem logo (ou sem chave do TMDB), mostra o nome grande.
@@ -341,10 +565,12 @@
     // Pausado ou escolhendo botão, a barra continua na tela; tocando, some depois de alguns segundos.
     if (!motor.pausado()) {
       timerControles = setTimeout(function () {
+        menuModo = false;   // a barra some e o menu fecha junto
+        menuLinha = 1;
         controles.classList.add('escondida');
         ajustarCartao();
         atualizarPausa();
-      }, TEMPO_CONTROLES_MS);
+      }, menuModo ? TEMPO_MENU_MS : TEMPO_CONTROLES_MS);
     }
   }
 
@@ -359,6 +585,7 @@
   // O cartão do próximo episódio sobe para não ficar em cima da barra de controles.
   function ajustarCartao() {
     cartao.classList.toggle('com-controles', controlesVisiveis());
+    cartao.classList.toggle('com-menu', controlesVisiveis() && menuModo);   // com os chips embaixo da barra, o cartão sobe mais
   }
 
   // ── Avançar e voltar ──────────────────────────────────────────────
@@ -605,6 +832,8 @@
     inicioPendente = inicioSeg > 0 ? inicioSeg : 0;
     ultimoSalvo = 0;
     jaTocou = false;
+    menuModo = false;
+    menuLinha = 1;
     atualizarPausa();
 
     clearTimeout(timerPulo);
@@ -648,6 +877,10 @@
     elAviso.classList.add('escondida');
     controles.classList.add('escondida');
     pausa.classList.add('escondida');
+    menuModo = false;
+    menuLinha = 1;
+    clearTimeout(timerChips);
+    desenharMenu();
   }
 
   function sair() {
@@ -685,7 +918,7 @@
     aoReconectando: function (msg) { if (ativo) { mostrarOverlay(msg); } },
     aoFalha: function (msg) { if (ativo) { mostrarOverlay(msg, 'erro'); } },
     aoLegenda: function (texto) { mostrarLegenda(texto); },
-    aoFaixas: function () { if (faixasAberto) { desenharFaixas(); } },
+    aoFaixas: function () { if (faixasAberto) { desenharFaixas(); } else if (menuModo) { desenharMenu(); } },
     aoFim: function () {
       if (!ativo) { return; }
       var item = itens[idx];
@@ -707,6 +940,8 @@
   function tecla(k) {
     if (faixasAberto) { return teclaFaixas(k); }
     if (avalFoco && (k === TECLA.VOLTAR || k === TECLA.ESC)) { teclaAval(k); return true; }
+    // Com o menu aberto, Voltar só fecha o menu (uma segunda vez sai do player).
+    if (menuModo && (k === TECLA.VOLTAR || k === TECLA.ESC)) { fecharMenu(); mostrarControles(); return true; }
     if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.STOP) { sair(); return true; }
 
     // Teclas de mídia do controle (sempre iguais, em qualquer foco)
@@ -716,6 +951,9 @@
     if (k === TECLA.VOLTA) { pular(-PULO_LONGO_S, true); return true; }
     if (k === TECLA.AVANCA) { pular(PULO_LONGO_S, true); return true; }
 
+    // Menu estilo Netflix aberto: as setas andam entre topo, barra e idioma/legenda.
+    if (menuModo) { return teclaMenu(k); }
+
     // Esquerda/direita pulam, OK pausa/continua (ou abre o próximo episódio se o cartão estiver na tela).
     if (k === TECLA.ESQ) { pular(-10, false); }
     else if (k === TECLA.DIR) { pular(10, false); }
@@ -724,11 +962,12 @@
       if (cartaoVisivel()) { abrirProximo(true); }
       else { alternarPausa(); }
     }
-    else if (k === TECLA.BAIXO || k === TECLA.AMARELO) { abrirFaixas(); }
+    else if (k === TECLA.AMARELO) { abrirFaixas(); }
+    else if (k === TECLA.BAIXO) { abrirMenu(1); }   // seta para baixo: abre o menu (idioma e legenda ficam na linha de baixo)
     else if (k === TECLA.CIMA) {
       // Com a tela de pausa na tela e o título conhecido, a seta para cima vai para a avaliação.
-      if (pausaNaTela() && itens[idx] && itens[idx].logoId) { avalFoco = true; desenharAval(); }
-      mostrarControles();
+      if (pausaNaTela() && itens[idx] && itens[idx].logoId) { avalFoco = true; desenharAval(); mostrarControles(); }
+      else { abrirMenu(1); }   // senão, abre o menu (ícones em cima, nome da série e T:E)
     }
     return true;
   }

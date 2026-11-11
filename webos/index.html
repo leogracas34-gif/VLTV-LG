@@ -441,17 +441,20 @@
       <div id="player-proximo" class="proximo escondida">
         <div id="pp-temporada" class="pp-temporada escondida"></div>
         <div id="pp-contagem" class="pp-contagem"></div>
-        <div id="pp-botao" class="pp-botao">
-          <div id="pp-fill" class="pp-fill"></div>
-          <span class="pp-icone">
-            <svg width="52" height="52" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M6 4l11 8-11 8z"/><rect x="18" y="4" width="2.6" height="16" rx="1"/></svg>
-          </span>
-          <span class="pp-textos">
-            <span class="pp-rotulo">Próximo episódio</span>
-            <span id="pp-titulo" class="pp-titulo"></span>
-          </span>
+        <div class="pp-linha">
+          <div id="pp-creditos" class="pp-pilula pp-sec">
+            <svg class="pp-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2.4H4zM4 10.8h16v2.4H4zM4 15.6h10v2.4H4z"/></svg>
+            <span class="pp-rotulo">Créditos</span>
+          </div>
+          <div id="pp-botao" class="pp-pilula pp-prim foco">
+            <div id="pp-fill" class="pp-fill"></div>
+            <span class="pp-conteudo">
+              <svg class="pp-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l11 8-11 8z"/><rect x="17.6" y="4" width="2.6" height="16" rx="1"/></svg>
+              <span class="pp-rotulo">Próximo episódio</span>
+              <span id="pp-titulo" class="pp-titulo"></span>
+            </span>
+          </div>
         </div>
-        <div class="pp-dica">Aperte OK para assistir agora</div>
       </div>
 
       <!-- Tela de pausa (estilo Netflix): só aparece com o vídeo pausado. Nome em cima, logo do título, e embaixo o ícone, tempo e barra -->

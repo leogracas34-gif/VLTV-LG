@@ -303,6 +303,14 @@
     return e;
   }
 
+  // "VLTV" em branco e "PLAY" na cor de destaque, igual ao logo do app.
+  function marcaVltv(classe) {
+    var d = criar('div', classe);
+    d.appendChild(document.createTextNode('VLTV '));
+    d.appendChild(criar('span', '', 'PLAY'));
+    return d;
+  }
+
   function montarTela() {
     if (raiz) { return; }
     raiz = criar('div', 'escondido');
@@ -312,7 +320,7 @@
       var fundo = criar('div', 'pt-fundo');
       var grad = criar('div', 'pt-grad');
       var info = criar('div', 'pt-info');
-      var peq = criar('div', 'pt-marca-peq', 'VLTV PLAY');
+      var peq = marcaVltv('pt-marca-peq');
       var caixa = criar('div', 'pt-caixa-logo');
       var logo = criar('img', 'pt-logo');
       logo.alt = '';
@@ -329,9 +337,9 @@
       s.appendChild(grad);
       s.appendChild(info);
       raiz.appendChild(s);
-      slides.push({ el: s, fundo: fundo, logo: logo, titulo: tit, generos: gen, linha: lin });
+      slides.push({ el: s, fundo: fundo, logo: logo, titulo: tit, generos: gen, linha: lin, peq: peq });
     }
-    marca = criar('div', 'pt-marca', 'VLTV Play');
+    marca = marcaVltv('pt-marca');
     raiz.appendChild(marca);
     document.body.appendChild(raiz);
   }
@@ -391,6 +399,8 @@
           novo.titulo.textContent = it.titulo;
           novo.titulo.style.display = 'block';
         }
+        // Como na Netflix: o nome pequeno em cima do título aparece em algumas capas e em outras não.
+        novo.peq.style.display = Math.random() < 0.5 ? 'block' : 'none';
         novo.generos.textContent = (it.generos || []).join(' • ');
         novo.linha.textContent = it.linha || '';
 

@@ -9,6 +9,15 @@
   src: url("../fonts/bebas-neue-latin-400-normal.woff2") format("woff2");
 }
 
+/* Letras do "VLTV PLAY" da proteção de tela: grossas e firmes, no estilo do nome da Netflix */
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/oswald-latin-700-normal.woff2") format("woff2");
+}
+
 #protetor {
   position: absolute;
   top: 0;
@@ -72,13 +81,16 @@
 .pt-slide.ativo .pt-info { opacity: 1; }
 
 .pt-marca-peq {
-  font-family: "Bebas Neue", "Plus Jakarta Sans", Arial, sans-serif;
-  font-size: 30px;
+  font-family: "Oswald", "Bebas Neue", Arial, sans-serif;
+  font-weight: 700;
+  font-size: 38px;
   line-height: 1;
   letter-spacing: 2px;
-  color: var(--destaque, #e50914);
-  margin-bottom: 14px;
+  color: var(--texto, #f5f5f7);
+  margin-bottom: 22px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
+.pt-marca-peq span, .pt-marca span { color: var(--destaque-claro, #ff4b55); }
 
 .pt-caixa-logo {
   display: flex;
@@ -122,12 +134,13 @@
 
 .pt-marca {
   position: absolute;
-  right: 110px;
-  bottom: 96px;
-  font-family: "Bebas Neue", "Plus Jakarta Sans", Arial, sans-serif;
-  font-size: 66px;
+  right: 90px;
+  bottom: 64px;
+  font-family: "Oswald", "Bebas Neue", Arial, sans-serif;
+  font-weight: 700;
+  font-size: 62px;
   line-height: 1;
-  letter-spacing: 4px;
-  color: var(--destaque, #e50914);
+  letter-spacing: 3px;
+  color: var(--texto, #f5f5f7);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
 }

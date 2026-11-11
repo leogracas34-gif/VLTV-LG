@@ -2,7 +2,8 @@
 // - Barra de progresso com avançar/voltar (esquerda/direita), botões na tela e teclas de mídia.
 // - Botão "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (igual ao Android).
 // - Guarda de onde o usuário parou e retoma dali quando pedido.
-// - Tela de pausa estilo Netflix: nome (e T:E do episódio) em cima, logo do título, ícone + tempo + barra embaixo.
+// - Nome (e T:E do episódio) em cima à direita sempre que a barra aparece (início, pausa, pulo, menu). Depois de 5 s pausado entra
+//   também a tela de pausa estilo Netflix: logo do título e avaliação (não é pra mim / gostei / amei).
 // - Menu estilo Netflix (seta para cima ou para baixo, tocando ou pausado): em cima à esquerda voltar / assistir do início /
 //   próximo episódio (com o nome embaixo do ícone em foco); em cima à direita o nome e T:E; embaixo pausa, tempo, barra, tempo
 //   restante e, abaixo da barra, as combinações de idioma e legenda que o próprio arquivo oferece.
@@ -270,8 +271,9 @@
 
   function desenharMenu() {
     var visivel = menuModo && controlesVisiveis();
-    // O bloco de cima (nome + T:E) também aparece na tela de pausa, como antes.
-    elMenu.classList.toggle('escondida', !(visivel || pausaNaTela()));
+    // O bloco de cima (nome + T:E) aparece sempre que a barra de controles está na tela:
+    // ao iniciar o filme/episódio, ao pausar, ao pular, com o menu aberto e na tela de pausa.
+    elMenu.classList.toggle('escondida', !(ativo && (controlesVisiveis() || pausaNaTela())));
     elMenuEsq.classList.toggle('escondida', !visivel);
     elChips.classList.toggle('escondida', !visivel);
     // Fora do foco, o botão de pausa fica só o símbolo (sem o círculo branco), igual à Netflix.

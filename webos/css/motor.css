@@ -235,3 +235,32 @@ html.avplay-ativo .player.cheio {
 
 /* Cartão do próximo episódio sobe quando os chips aparecem embaixo da barra */
 .proximo.com-menu { bottom: 330px; }
+
+/* ── Fonte do player (barra, pausa, menu, avisos, "próximo episódio" e legenda) ─────────────
+   Plus Jakarta Sans (embutida no app, igual em LG e Samsung): letras limpas e modernas no lugar da fonte padrão da TV.
+   Os nomes grandes sem logo usam Bebas Neue, letras altas como nos títulos da Netflix. */
+#tela-player,
+#tela-player * {
+  font-family: "Plus Jakarta Sans", "LG Smart UI", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#tela-player .pa-nome { font-weight: 700; letter-spacing: 0; }
+#tela-player .pa-ep { font-weight: 500; letter-spacing: 0; }
+#tela-player .pa-logo-txt {
+  font-family: "Bebas Neue", "Plus Jakarta Sans", Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: 3px;
+  line-height: 0.95;
+}
+#tela-player .pm-rotulo { letter-spacing: 0.6px; }
+#tela-player .ctrl-tempo,
+#tela-player .ctrl-duracao { letter-spacing: 0.3px; }
+
+/* Legenda: branca, sem caixa, com contorno suave (igual à Netflix). Vale para a legenda do vídeo e para a desenhada pelo app. */
+video::cue {
+  font-family: "Plus Jakarta Sans", "LG Smart UI", Arial, sans-serif;
+  font-weight: 700;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 6px #000, 0 2px 4px #000, 2px 2px 3px #000, -2px 2px 3px #000;
+}

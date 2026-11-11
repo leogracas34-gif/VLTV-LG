@@ -103,6 +103,13 @@ VLTV.config = {
   // Quanto esperar (ms) pelo fundo do TMDB antes de usar a capa desfocada. Decide UMA vez, sem trocar depois.
   TMDB_FUNDO_ESPERA_MS: 1800,
 
+  // Proteção de tela estilo Netflix: com a TV parada (Home, Filmes, Séries, detalhes, Configurações ou player pausado),
+  // passam capas de filmes e séries do TMDB com logo, gêneros e data de estreia. Qualquer tecla do controle fecha.
+  // PROTETOR_SEGUNDOS = quantos segundos parado até começar (0 = desligada). PROTETOR_TAMANHO_FUNDO = qualidade da capa
+  // ('w1280' é leve e segura para todas as TVs; 'w1920' fica mais nítida, só use se a sua TV aguentar).
+  PROTETOR_SEGUNDOS: 90,
+  PROTETOR_TAMANHO_FUNDO: 'w1280',
+
   // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:
   // coloque false numa chave, gere o app e compare. Com false, nada disso roda sozinho (o app busca só quando você abre).
   PREPARO_PESQUISA: true,    // monta o índice de Filmes e Séries depois que a Home abre

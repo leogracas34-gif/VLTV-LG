@@ -117,8 +117,8 @@
       setTimeout(rodar, 400);
       return;
     }
-    VLTV.armazem.ler(proximo.k).then(function (reg) {
-      if (reg && reg.valor) { return; }               // já está guardado
+    VLTV.armazem.existe(proximo.k).then(function (jaTem) {
+      if (jaTem) { return; }                          // já está guardado (confere sem abrir a lista, que travava a TV)
       var buscarFundo = proximo.quieto ? function () { return VLTV.api.quieto(proximo.buscar); } : proximo.buscar;
       return buscarUmaVez(proximo.k, buscarFundo).then(function (dados) { guardar(proximo.k, dados); });
     }).catch(function () { /* sem problema: abre normal quando o usuário pedir */ })

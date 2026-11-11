@@ -373,6 +373,7 @@
     }
     renderMais();
     marcarItem();
+    if (VLTV.marcar) { VLTV.marcar('grade ' + lista.length); }
     if (focar) { trocarFoco('grade'); }
   }
 
@@ -437,7 +438,7 @@
       var pedidos = [];
       ordem.forEach(function (i) {
         var cat = categorias[i];
-        if (cat && !cat.especial) { pedidos.push({ chave: chaveItens(cat), buscar: buscarItens(cat) }); }
+        if (cat && !cat.especial) { pedidos.push({ chave: chaveItens(cat), buscar: buscarItens(cat), quieto: true }); }
       });
       VLTV.sync.aquecer(pedidos);
     }, ESPERA_AQUECER_MS);

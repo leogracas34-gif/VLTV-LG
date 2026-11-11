@@ -58,14 +58,37 @@
           req.onsuccess = function () {
             var r = req.result;
             if (!r) { resolve(null); return; }
-            var reg = { valor: r.valor, t: r.t };
+            var v = r.valor;
             if (VLTV.marcar) { VLTV.marcar('idb-ler ' + String(chave).slice(-22)); }
+            // fmt 1 = guardado como texto: ler texto é rápido; ler milhares de objetos do IndexedDB travava a TV por 1 a 2 s.
+            if (r.fmt === 1) {
+              try { v = JSON.parse(v); } catch (e2) { resolve(null); return; }
+              if (VLTV.marcar) { VLTV.marcar('idb-texto ' + String(chave).slice(-22)); }
+            }
+            var reg = { valor: v, t: r.t };
             lembrar(chave, reg);
             resolve(reg);
           };
           req.onerror = function () { resolve(null); };
         } catch (e) {
           resolve(null);
+        }
+      });
+    });
+  }
+
+  // true se a chave já está guardada. Confere sem abrir (e sem ler) a lista.
+  function existe(chave) {
+    if (memoria[chave]) { return Promise.resolve(true); }
+    return abrirBd().then(function (db) {
+      if (!db) { return false; }
+      return new Promise(function (resolve) {
+        try {
+          var req = db.transaction(LOJA, 'readonly').objectStore(LOJA).count(IDBKeyRange.only(chave));
+          req.onsuccess = function () { resolve(req.result > 0); };
+          req.onerror = function () { resolve(false); };
+        } catch (e) {
+          resolve(false);
         }
       });
     });
@@ -99,7 +122,9 @@
       return new Promise(function (resolve) {
         try {
           var tx = db.transaction(LOJA, 'readwrite');
-          tx.objectStore(LOJA).put({ chave: chave, valor: valor, t: reg.t });
+          var texto = null;
+          try { texto = JSON.stringify(valor); } catch (e3) { texto = null; }
+          tx.objectStore(LOJA).put(texto === null ? { chave: chave, valor: valor, t: reg.t } : { chave: chave, valor: texto, t: reg.t, fmt: 1 });
           if (VLTV.marcar) { VLTV.marcar('idb-gravar ' + String(chave).slice(-22)); }
           tx.oncomplete = function () { resolve(); };
           tx.onerror = function () { resolve(); };
@@ -133,5 +158,5 @@
     });
   }
 
-  VLTV.armazem = { ler: ler, gravar: gravar, limpar: limpar };
+  VLTV.armazem = { ler: ler, existe: existe, gravar: gravar, limpar: limpar };
 })();

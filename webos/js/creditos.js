@@ -5,11 +5,13 @@
 (function () {
   'use strict';
 
-  var MIN_S = 10;     // faixa aceita: 10s a 10min (igual ao backend)
-  var MAX_S = 600;
+  // Faixa aceita no app: 10s a 3min. O backend aceita até 10min, mas marcações de 5 a 8 minutos eram sobras de quem
+  // saía pelo "voltar" e faziam o botão aparecer cedo demais: acima de 3min o app ignora e usa o tempo padrão.
+  var MIN_S = 10;
+  var MAX_S = 180;
   var TEMPO_LIMITE_MS = 6000;
 
-  function chaveLocal(serie) { return 'vltv_creditos_seg_' + serie; }
+  function chaveLocal(serie) { return 'vltv_creditos_seg2_' + serie; }   // 2: descarta as marcações antigas guardadas na TV
 
   function valido(n) {
     return typeof n === 'number' && isFinite(n) && n >= MIN_S && n <= MAX_S;

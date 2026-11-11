@@ -1,6 +1,6 @@
 // VLTV Play - webOS | Player de filmes e episódios (tela cheia).
 // - Barra de progresso com avançar/voltar (esquerda/direita), botões na tela e teclas de mídia.
-// - Botão "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (igual ao Android).
+// - Botões "Créditos" e "Próximo episódio" estilo Netflix, com os créditos aprendidos pela VPS (só pelo toque no botão).
 // - Guarda de onde o usuário parou e retoma dali quando pedido.
 // - Nome (e T:E do episódio) em cima à direita sempre que a barra aparece (início, pausa, pulo, menu). Depois de 5 s pausado entra
 //   também a tela de pausa estilo Netflix: logo do título e avaliação (não é pra mim / gostei / amei).
@@ -21,7 +21,7 @@
 
   // Botão "Próximo episódio" (mesmos valores do PlayerActivity do Android)
   var CREDITOS_PADRAO_S = 50;       // sem dado da VPS: aparece faltando 50s
-  var ANTECEDENCIA_S = 10;          // com dado da VPS: aparece 10s antes dos créditos
+  var ANTECEDENCIA_S = 3;           // com dado da VPS: aparece 3s antes dos créditos (praticamente junto com eles)
   var ESPERA_APRENDER_MS = 6000;    // só aprende com o toque de quem esperou o botão
 
   var TECLA = {
@@ -45,6 +45,9 @@
   var elAvisoTemporada = $('pp-temporada');
   var elContagem = $('pp-contagem');
   var elBotaoProximo = $('pp-botao');
+  var elBotaoCreditos = $('pp-creditos');
+  var cartaoFoco = 1;           // 0 = Créditos, 1 = Próximo episódio
+  var cartaoDispensado = false; // tocou em Créditos: o cartão não volta neste episódio
   var elProximoTitulo = $('pp-titulo');
   var elProximoFill = $('pp-fill');
   var elIcone = $('player-icone');
@@ -683,24 +686,20 @@
     });
   }
 
-  // Aprende o ponto dos créditos com um sinal confiável do cliente:
-  //  - toque no botão "Próximo episódio" (só vale se o botão já estava na tela há 6s ou mais);
-  //  - sair pelo "voltar" na reta final (75%+ assistido, 20s a 10min restantes).
-  // Não aprende quando o próximo episódio abre sozinho.
-  function aprenderCreditos(toqueNoBotao) {
+  // Aprende o ponto dos créditos SÓ com o toque no botão "Próximo episódio" (e só se o botão já estava na tela há 6s ou mais).
+  // Sair pelo "voltar" NÃO marca mais nada, e o próximo episódio abrindo sozinho também não.
+  // Série que já tem marcação (da VPS ou da TV) não é alterada por um toque: senão cada cliente empurrava o ponto
+  // um pouco mais para frente e ele andava a cada episódio.
+  function aprenderCreditos() {
     if (!serieChave || creditosEnviados || proximoLancado) { return; }
+    if (creditosRestante !== null) { return; }
     var d = motor.duracao();
     var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     if (!isFinite(d) || d <= 0 || t < 0) { return; }
     var restante = Math.floor(d - t);
 
-    if (toqueNoBotao) {
-      var esperou = botaoDesdeMs !== 0 && (new Date().getTime() - botaoDesdeMs) >= ESPERA_APRENDER_MS;
-      if (!esperou) { return; }
-    } else {
-      var progresso = t / d;
-      if (restante < 20 || restante > VLTV.creditos.MAX_S || progresso < 0.75) { return; }
-    }
+    var esperou = botaoDesdeMs !== 0 && (new Date().getTime() - botaoDesdeMs) >= ESPERA_APRENDER_MS;
+    if (!esperou) { return; }
     if (!VLTV.creditos.valido(restante)) { return; }
 
     creditosEnviados = true;
@@ -745,12 +744,25 @@
     botaoDesdeMs = 0;
   }
 
+  function desenharCartao() {
+    elBotaoCreditos.classList.toggle('foco', cartaoFoco === 0);
+    elBotaoProximo.classList.toggle('foco', cartaoFoco === 1);
+  }
+
+  // "Créditos": esconde o cartão para assistir os créditos. O próximo episódio abre sozinho quando este acabar.
+  function dispensarCartao() {
+    cartaoDispensado = true;
+    esconderCartao();
+  }
+
   function mostrarCartao() {
     var prox = itens[idx + 1];
     elProximoTitulo.textContent = prox ? (prox.titulo || '') : '';
     var aviso = avisoTemporada();
     elAvisoTemporada.textContent = aviso;
     elAvisoTemporada.classList.toggle('escondida', !aviso);
+    cartaoFoco = 1;
+    desenharCartao();
     cartao.classList.remove('escondida');
     ajustarCartao();
     botaoDesdeMs = new Date().getTime();
@@ -766,6 +778,12 @@
 
     var restante = Math.floor(d - t);
     var limiar = limiarBotao();
+
+    if (cartaoDispensado) {
+      if (restante > limiar) { cartaoDispensado = false; }   // voltou antes dos créditos: o cartão pode aparecer de novo
+      else if (restante <= 0) { abrirProximo(false); }
+      return;
+    }
 
     if (restante <= limiar) {
       if (!contagemAtiva) {
@@ -784,7 +802,7 @@
 
   function abrirProximo(porToque) {
     if (proximoLancado || !temProximo()) { return; }
-    if (porToque) { aprenderCreditos(true); }
+    if (porToque) { aprenderCreditos(); }
     proximoLancado = true;
     esconderCartao();
     salvarPosicao();
@@ -843,6 +861,7 @@
     puloAlvo = null;
     puloSequencia = 0;
     proximoLancado = false;
+    cartaoDispensado = false;
     esconderCartao();
     pararTimersProximo();
     iniciarCreditos();
@@ -888,8 +907,7 @@
   function sair() {
     var ultimo = idx;
     if (ativo) {
-      aprenderCreditos(false);
-      salvarPosicao();
+      salvarPosicao();   // sair pelo "voltar" só guarda onde parou; não marca os créditos
     }
     parar();
     if (aoSair) { aoSair(ultimo); }
@@ -933,6 +951,9 @@
     }
   });
 
+  elBotaoProximo.addEventListener('click', function () { abrirProximo(true); });
+  elBotaoCreditos.addEventListener('click', function () { dispensarCartao(); });
+
   // ── Controle remoto ───────────────────────────────────────────────
   function alternarPausa() {
     if (motor.pausado()) { motor.play(); } else { motor.pause(); }
@@ -957,11 +978,18 @@
     if (menuModo) { return teclaMenu(k); }
 
     // Esquerda/direita pulam, OK pausa/continua (ou abre o próximo episódio se o cartão estiver na tela).
-    if (k === TECLA.ESQ) { pular(-10, false); }
-    else if (k === TECLA.DIR) { pular(10, false); }
+    if (k === TECLA.ESQ) {
+      // Com o cartão na tela, a primeira seta para a esquerda vai para "Créditos"; depois disso volta a recuar o vídeo.
+      if (cartaoVisivel() && cartaoFoco === 1) { cartaoFoco = 0; desenharCartao(); }
+      else { pular(-10, false); }
+    }
+    else if (k === TECLA.DIR) {
+      if (cartaoVisivel() && cartaoFoco === 0) { cartaoFoco = 1; desenharCartao(); }
+      else { pular(10, false); }
+    }
     else if (k === TECLA.ENTER) {
-      // Com o cartão do próximo episódio na tela, OK vai direto para o próximo (igual ao Android).
-      if (cartaoVisivel()) { abrirProximo(true); }
+      // Com o cartão do próximo episódio na tela, OK usa o botão em foco (por padrão, o próximo episódio).
+      if (cartaoVisivel()) { if (cartaoFoco === 0) { dispensarCartao(); } else { abrirProximo(true); } }
       else { alternarPausa(); }
     }
     else if (k === TECLA.AMARELO) { abrirFaixas(); }

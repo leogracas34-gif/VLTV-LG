@@ -124,6 +124,7 @@ window.VLTV = window.VLTV || {};
     'Sua resposta': 'Your answer',
     'Salvar': 'Save',
     'Próximo episódio': 'Next episode',
+    'Créditos': 'Credits',
     'Aperte OK para assistir agora': 'Press OK to watch now',
 
     // ── Configurações ──

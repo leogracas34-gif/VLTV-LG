@@ -48,7 +48,8 @@
   }
 
   // Resolve com { valor, t } ou null.
-  function ler(chave) {
+  // semLembrar = true: não deixa o resultado na memória (usado nos pedaços do índice de pesquisa, para não expulsar as listas do Catálogo).
+  function ler(chave, semLembrar) {
     if (memoria[chave]) { return Promise.resolve(memoria[chave]); }
     return abrirBd().then(function (db) {
       if (!db) { return null; }
@@ -66,7 +67,7 @@
               if (VLTV.marcar) { VLTV.marcar('idb-texto ' + String(chave).slice(-22)); }
             }
             var reg = { valor: v, t: r.t };
-            lembrar(chave, reg);
+            if (!semLembrar) { lembrar(chave, reg); }
             resolve(reg);
           };
           req.onerror = function () { resolve(null); };
@@ -114,9 +115,9 @@
     } catch (e) { /* ignora */ }
   }
 
-  function gravar(chave, valor) {
+  function gravar(chave, valor, semLembrar) {
     var reg = { valor: valor, t: new Date().getTime() };
-    lembrar(chave, reg);
+    if (!semLembrar) { lembrar(chave, reg); }
     return abrirBd().then(function (db) {
       if (!db) { return; }
       return new Promise(function (resolve) {

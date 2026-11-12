@@ -145,6 +145,79 @@
     return !!s && s.modo !== 'm3u' && !VLTV.m3u.ativo();
   }
 
+  // ── Índice guardado na TV, em PEDAÇOS ─────────────────────────────
+  // Antes o índice inteiro (dezenas de milhares de títulos) era UM registro só: ler e transformar em objetos (JSON.parse)
+  // travava o controle por 1 a 2 segundos de uma vez (aparecia como "idb-ler ...vltv_idx2_" no medidor de travadas).
+  // Agora ele fica em pedaços de TAMANHO_PEDACO títulos (cada um lê em poucas dezenas de ms), com uma pausa entre eles
+  // e só com o controle parado (em segundo plano). Um registro "capa" (a chave principal) diz quantos pedaços existem.
+  // A capa é gravada POR ÚLTIMO: se a TV desligar no meio, o índice incompleto simplesmente não é usado.
+  // O formato antigo (um registro só) ainda é lido uma vez e já é regravado em pedaços.
+  var TAMANHO_PEDACO = 3000;
+  var PAUSA_PEDACO_MS = 30;
+
+  function deveEsperarLeve() {
+    return pausado || !(VLTV.segundoPlanoLivre && VLTV.segundoPlanoLivre(true));
+  }
+
+  // Dá a vez ao controle entre um pedaço e outro. Em segundo plano (quieto) espera o controle ficar parado.
+  function esperarVez(quieto) {
+    if (quieto && deveEsperarLeve()) { return esperar(500).then(function () { return esperarVez(quieto); }); }
+    return esperar(PAUSA_PEDACO_MS);
+  }
+
+  // Resolve com { v, itens, nomes, t, antigo } (índice guardado) ou null (nada guardado, ou incompleto).
+  function lerGuardado(k, quieto) {
+    return VLTV.armazem.ler(k).then(function (reg) {
+      var capa = reg && reg.valor;
+      if (!capa) { return null; }
+      if (Array.isArray(capa.itens)) {           // formato antigo: tudo num registro só
+        return { v: capa.v || '', itens: capa.itens, nomes: capa.nomes || null, t: reg.t, antigo: true };
+      }
+      var n = capa.pedacos;
+      if (!(n > 0)) { return null; }
+      var itens = [];
+      var nomes = [];
+      var temNomes = true;
+      var i = 0;
+      function proximo() {
+        if (i >= n) {
+          return Promise.resolve({ v: capa.v || '', itens: itens, nomes: temNomes ? nomes : null, t: reg.t, antigo: false });
+        }
+        return esperarVez(quieto).then(function () {
+          return VLTV.armazem.ler(k + '#' + i, true);       // true = não deixa o pedaço na memória (não expulsa as listas do Catálogo)
+        }).then(function (r) {
+          var p = r && r.valor;
+          if (!p || !Array.isArray(p.itens)) { return null; }   // pedaço faltando: não usa o índice incompleto
+          for (var x = 0; x < p.itens.length; x++) { itens.push(p.itens[x]); }
+          if (Array.isArray(p.nomes) && p.nomes.length === p.itens.length) {
+            for (var y = 0; y < p.nomes.length; y++) { nomes.push(p.nomes[y]); }
+          } else {
+            temNomes = false;
+          }
+          i++;
+          return proximo();
+        });
+      }
+      return proximo();
+    });
+  }
+
+  // Grava o índice em pedaços (um de cada vez, com pausa). A capa vai por último.
+  function salvarGuardado(k, v, itens, nomes, quieto) {
+    var n = Math.ceil(itens.length / TAMANHO_PEDACO);
+    var temNomes = Array.isArray(nomes) && nomes.length === itens.length;
+    var i = 0;
+    function proximo() {
+      if (i >= n) { return VLTV.armazem.gravar(k, { v: v, pedacos: n, total: itens.length }); }
+      var de = i * TAMANHO_PEDACO;
+      var ate = Math.min(itens.length, de + TAMANHO_PEDACO);
+      return esperarVez(quieto).then(function () {
+        return VLTV.armazem.gravar(k + '#' + i, { itens: itens.slice(de, ate), nomes: temNomes ? nomes.slice(de, ate) : null }, true);
+      }).then(function () { i++; return proximo(); });
+    }
+    return proximo().catch(function () { /* sem espaço: o índice vem da VPS de novo na próxima vez */ });
+  }
+
   // Monta o índice em fatias (milhares de títulos de uma vez travavam o controle por alguns segundos).
   // Entre uma fatia e outra a TV respira; em segundo plano (quieto) ela ainda espera o controle ficar parado.
   var FATIA_INDICE = 1500;
@@ -219,21 +292,22 @@
   function viaVps(tipo, quieto) {
     var e = estado(tipo);
     var k = chaveArmazem(tipo);
-    return VLTV.armazem.ler(k).then(function (reg) {
-      var v = reg && reg.valor;
-      var temLocal = !!(v && Array.isArray(v.itens) && v.itens.length);
+    return lerGuardado(k, quieto).then(function (g) {
+      var temLocal = !!(g && g.itens.length);
       var passoLocal = Promise.resolve();
       if (temLocal) {
-        passoLocal = aplicarIndice(e, v.itens, v.nomes, quieto).then(function () {
-          e.versao = v.v || '';
+        passoLocal = aplicarIndice(e, g.itens, g.nomes, quieto).then(function () {
+          e.versao = g.v || '';
           e.pelaVps = true;
           e.completo = true;
           e.total = 1;
           if (e.ouvinte) { e.ouvinte(1, 1); }
         });
+        // Veio do formato antigo (um registro só, que trava a TV a cada abertura): regrava em pedaços, em segundo plano.
+        if (g.antigo) { salvarGuardado(k, g.v, g.itens, g.nomes, true); }
       }
       // Guardado há menos de 30 min: nem pergunta à VPS (ligar e desligar a TV não baixa nada).
-      var recente = temLocal && reg.t && (new Date().getTime() - reg.t) < 30 * 60 * 1000;
+      var recente = temLocal && g.t && (new Date().getTime() - g.t) < 30 * 60 * 1000;
       function quando() {
         if (recente) { return Promise.resolve({ estado: 'recente' }); }
         if (quieto && deveEsperar()) { return esperar(1500).then(quando); }
@@ -253,7 +327,7 @@
           e.total = 1;
           e.completo = d.completo !== false;
           if (!e.completo) { e.promessa = null; }                     // incompleto: a próxima pesquisa pergunta de novo
-          VLTV.armazem.gravar(k, { v: e.versao, itens: d.itens, nomes: e.nomes.length === d.itens.length ? e.nomes : null });
+          salvarGuardado(k, e.versao, d.itens, e.nomes.length === d.itens.length ? e.nomes : null, true);   // em pedaços, em segundo plano
           if (e.ouvinte) { e.ouvinte(1, 1); }
           return true;
         });

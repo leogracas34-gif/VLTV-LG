@@ -115,7 +115,7 @@ VLTV.config = {
 
   // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:
   // coloque false numa chave, gere o app e compare. Com false, nada disso roda sozinho (o app busca só quando você abre).
-  PREPARO_PESQUISA: true,    // monta o índice de Filmes e Séries depois que a Home abre
+  PREPARO_PESQUISA: false,   // TESTE: false = o índice só carrega quando você abre Pesquisar ou "Títulos semelhantes". Se o controle ficar livre, volte para true
   PREPARO_CATALOGO: true,    // deixa as primeiras categorias de Filmes e Séries já baixadas
   PREPARO_CANAIS: true,      // deixa categorias e canais de TV ao vivo prontos
   // Quantas categorias de TV ao vivo são baixadas sozinhas em segundo plano (as outras carregam quando você abre). 0 = todas (como era antes).

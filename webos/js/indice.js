@@ -152,7 +152,7 @@
   // e só com o controle parado (em segundo plano). Um registro "capa" (a chave principal) diz quantos pedaços existem.
   // A capa é gravada POR ÚLTIMO: se a TV desligar no meio, o índice incompleto simplesmente não é usado.
   // O formato antigo (um registro só) ainda é lido uma vez e já é regravado em pedaços.
-  var TAMANHO_PEDACO = 3000;
+  var TAMANHO_PEDACO = 1000;   // era 3000: cada leitura trava menos (cerca de 0,1 s em vez de 0,3 s)
   var PAUSA_PEDACO_MS = 30;
 
   function deveEsperarLeve() {
@@ -220,7 +220,7 @@
 
   // Monta o índice em fatias (milhares de títulos de uma vez travavam o controle por alguns segundos).
   // Entre uma fatia e outra a TV respira; em segundo plano (quieto) ela ainda espera o controle ficar parado.
-  var FATIA_INDICE = 1500;
+  var FATIA_INDICE = 150;      // era 1500: cada fatia prende a TV por ~0,04 s em vez de 0,3 a 0,45 s
   function aplicarIndice(e, itens, nomes, quieto) {
     return new Promise(function (resolve) {
       var campo = null;

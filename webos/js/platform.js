@@ -145,6 +145,8 @@
     var n = new Date().getTime();
     var graca = (VLTV.config && typeof VLTV.config.GRACA_INICIAL_MS === 'number') ? VLTV.config.GRACA_INICIAL_MS : 8000;
     if (n - inicioAppMs < graca) { return false; }
+    // Modo rápido (como antes): carrega e guarda tudo logo, sem esperar o controle parar nem recuar quando a TV trava.
+    if (VLTV.config && VLTV.config.PREPARO_RAPIDO === true) { return true; }
     if (n < recuarAteMs) { return false; }
     var cfg = VLTV.config || {};
     var minimo = leve ? (cfg.OCIOSO_LEVE_MS || 600) : (cfg.OCIOSO_MS || 3000);

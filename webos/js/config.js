@@ -108,14 +108,17 @@ VLTV.config = {
   // PROTETOR_SEGUNDOS = quantos segundos parado até começar (0 = desligada). PROTETOR_TAMANHO_FUNDO = qualidade da capa
   // ('w1280' é leve e segura para todas as TVs; 'w1920' fica mais nítida, só use se a sua TV aguentar).
   // Medidor de travadas (só para testes): true mostra, no canto de cima da tela, as últimas vezes em que o app ficou preso.
-  DIAGNOSTICO_TRAVADAS: true,
+  DIAGNOSTICO_TRAVADAS: false,
 
   PROTETOR_SEGUNDOS: 90,
   PROTETOR_TAMANHO_FUNDO: 'w1280',
 
   // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:
   // coloque false numa chave, gere o app e compare. Com false, nada disso roda sozinho (o app busca só quando você abre).
-  PREPARO_PESQUISA: false,   // TESTE: false = o índice só carrega quando você abre Pesquisar ou "Títulos semelhantes". Se o controle ficar livre, volte para true
+  PREPARO_PESQUISA: true,    // monta o índice de Filmes e Séries logo depois que a Home abre (a pesquisa já abre pronta)
+  // true = como antes: nas primeiras aberturas o controle pode ficar preso por alguns segundos enquanto a TV carrega e guarda tudo;
+  // depois disso Filmes e Séries abrem quase na hora, do que ficou guardado. false = trabalho espalhado, esperando o controle parar (mais lento).
+  PREPARO_RAPIDO: true,
   PREPARO_CATALOGO: true,    // deixa as primeiras categorias de Filmes e Séries já baixadas
   PREPARO_CANAIS: true,      // deixa categorias e canais de TV ao vivo prontos
   // Quantas categorias de TV ao vivo são baixadas sozinhas em segundo plano (as outras carregam quando você abre). 0 = todas (como era antes).
@@ -125,7 +128,7 @@ VLTV.config = {
   // Folga (ms) sem tecla para os passos leves (listas de categorias) andarem mesmo com o controle em uso.
   OCIOSO_LEVE_MS: 2500,
   // Logo que o app abre, nada roda em segundo plano por este tempo (ms): a TV está ocupada abrindo o app e o controle fica livre.
-  GRACA_INICIAL_MS: 8000,
+  GRACA_INICIAL_MS: 1500,
   // Durante filme, série ou canal em tela cheia o carregamento em segundo plano continua, só bem mais devagar (1 passo a cada ~4 s).
   // Se notar travadinha na imagem nessa hora, troque por false: aí ele espera o vídeo terminar.
   SEGUNDO_PLANO_DURANTE_VIDEO: false,

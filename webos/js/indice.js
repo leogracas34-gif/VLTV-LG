@@ -261,10 +261,10 @@
   function lerJson(r, quieto) {
     if (!quieto || !VLTV.quandoLivre) { return r.json(); }
     return r.text().then(function (texto) {
-      return new Promise(function (ok, falha) {
-        VLTV.quandoLivre(false, function () {
-          try { var d = JSON.parse(texto); if (VLTV.marcar) { VLTV.marcar('json-indice ' + Math.round(texto.length / 1024) + 'KB'); } ok(d); } catch (err) { falha(err); }
-        }, 60000);
+      // O índice de 8 MB é lido em fatias pequenas (antes travava a TV por ~1,7 s de uma vez).
+      return VLTV.jsonEmFatias(texto, 'itens', false).then(function (d) {
+        if (VLTV.marcar) { VLTV.marcar('json-indice ' + Math.round(texto.length / 1024) + 'KB'); }
+        return d;
       });
     });
   }

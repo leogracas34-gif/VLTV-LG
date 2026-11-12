@@ -30,10 +30,10 @@
         return r.json().then(function (d) { marcar('json ' + acao); return d; });
       }
       return r.text().then(function (texto) {
-        return new Promise(function (ok, falha) {
-          VLTV.quandoLivre(true, function () {
-            try { var d = JSON.parse(texto); marcar('json-fundo ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB'); ok(d); } catch (e) { falha(e); }
-          }, 60000);
+        // Lista grande (milhares de títulos): lida em fatias pequenas, sem travar o controle.
+        return VLTV.jsonEmFatias(texto, null, true).then(function (d) {
+          marcar('json-fundo ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB');
+          return d;
         });
       });
     });

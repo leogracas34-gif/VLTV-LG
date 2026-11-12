@@ -163,6 +163,89 @@
     })();
   };
 
+  // Lê (JSON.parse) uma lista grande em FATIAS PEQUENAS, em vez de uma travada só de 1 a 2 segundos.
+  // Acha a lista de itens (a própria resposta, se for lista, ou o campo "campo", ex.: "itens"), corta nos limites de cada item
+  // e lê um lote por vez (~20 ms), parando enquanto o controle estiver em uso. Se algo fugir do esperado, lê tudo de uma vez.
+  // Resolve com o mesmo objeto que JSON.parse(texto) daria.
+  VLTV.jsonEmFatias = function (texto, campo, leve) {
+    return new Promise(function (ok, falha) {
+      function tudoDeUmaVez() { VLTV.quandoLivre(!!leve, function () { try { ok(JSON.parse(texto)); } catch (e) { falha(e); } }, 60000); }
+      if (!texto || texto.length < 200 * 1024) { tudoDeUmaVez(); return; }
+      var ini = -1, raiz = false;
+      if (campo) {
+        var p = texto.indexOf('"' + campo + '":[');
+        if (p < 0) { p = texto.indexOf('"' + campo + '": ['); }
+        if (p >= 0) { ini = texto.indexOf('[', p); }
+      } else {
+        var k = 0;
+        while (k < texto.length && texto.charCodeAt(k) <= 32) { k++; }
+        if (texto.charCodeAt(k) === 91) { ini = k; raiz = true; }
+      }
+      if (ini < 0) { tudoDeUmaVez(); return; }
+
+      var partes = [];          // lotes já lidos
+      var pos = ini + 1;        // onde o corte parou
+      var iniItem = -1;         // começo do item atual
+      var prof = 0, emTexto = false, escapou = false;
+      var lote = [];            // pedaços de texto (um por item) do lote em andamento
+      var fim = -1;             // posição do "]" que fecha a lista
+      var LOTE = 400;           // itens por leitura
+      var ORCAMENTO_MS = 18;
+
+      function ler(pedacos) {
+        var a = JSON.parse('[' + pedacos.join(',') + ']');
+        for (var i = 0; i < a.length; i++) { partes.push(a[i]); }
+      }
+      function terminar() {
+        try {
+          if (lote.length) { ler(lote); lote = []; }
+          if (raiz) { ok(partes); return; }
+          var esqueleto = JSON.parse(texto.slice(0, ini + 1) + texto.slice(fim));   // o resto da resposta (sem a lista)
+          esqueleto[campo] = partes;
+          ok(esqueleto);
+        } catch (e) { tudoDeUmaVez(); }
+      }
+      function passo() {
+        if (VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(!!leve)) { setTimeout(passo, 300); return; }
+        var t0 = new Date().getTime();
+        try {
+          var n = texto.length;
+          while (pos < n && fim < 0) {
+            var c = texto.charCodeAt(pos);
+            if (emTexto) {
+              if (escapou) { escapou = false; }
+              else if (c === 92) { escapou = true; }
+              else if (c === 34) { emTexto = false; }
+            } else if (c === 34) {
+              emTexto = true;
+              if (prof === 0 && iniItem < 0) { iniItem = pos; }
+            } else if (c === 123 || c === 91) {
+              if (prof === 0 && iniItem < 0) { iniItem = pos; }
+              prof++;
+            } else if (c === 125 || c === 93) {
+              if (prof === 0) { if (c === 93) { fim = pos; if (iniItem >= 0) { lote.push(texto.slice(iniItem, pos)); iniItem = -1; } } }
+              else {
+                prof--;
+                if (prof === 0 && iniItem >= 0) { lote.push(texto.slice(iniItem, pos + 1)); iniItem = -1; }
+              }
+            } else if (prof === 0 && c === 44) {
+              if (iniItem >= 0) { lote.push(texto.slice(iniItem, pos).replace(/\s+$/, '')); iniItem = -1; }
+            } else if (prof === 0 && iniItem < 0 && c > 32) {
+              iniItem = pos;                                   // número, true, false, null
+            }
+            pos++;
+            if (lote.length >= LOTE) { ler(lote); lote = []; if (new Date().getTime() - t0 > ORCAMENTO_MS) { break; } }
+            else if ((pos & 8191) === 0 && new Date().getTime() - t0 > ORCAMENTO_MS) { break; }
+          }
+          if (fim >= 0) { terminar(); return; }
+          if (pos >= n) { tudoDeUmaVez(); return; }
+        } catch (e) { tudoDeUmaVez(); return; }
+        setTimeout(passo, 30);
+      }
+      passo();
+    });
+  };
+
   // Fila do trabalho pesado em segundo plano (preparo de canais, filmes, séries e pesquisa).
   // Roda UMA tarefa por vez, só com o controle parado, e deixa uma folga entre uma e outra.
   // Antes, três preparos começavam juntos 1,5 s, 2,5 s e 3 s depois da Home e a TV travava.

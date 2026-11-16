@@ -311,6 +311,45 @@
     return d;
   }
 
+  // ── Tamanho do título e do "VLTV PLAY" em cima dele ───────────────
+  // O "VLTV PLAY" pequeno fica sempre colado em cima do título (o bloco cresce para cima a partir de baixo).
+  // A logo é encaixada numa caixa (LOGO_MAX_L x LOGO_MAX_A): a pequena aumenta, a grande diminui.
+  // O "VLTV PLAY" acompanha o tamanho da logo, sem nunca ficar coberto.
+  var LOGO_MAX_L = 640;
+  var LOGO_MAX_A = 270;
+  var TEXTO_MAX_A = 270;
+
+  function tamanhoMarca(slide, larguraTitulo) {
+    var t = Math.round(larguraTitulo * 0.06);
+    t = Math.max(30, Math.min(42, t));
+    slide.peq.style.fontSize = t + 'px';
+    slide.peq.style.marginBottom = Math.round(t * 0.5) + 'px';
+  }
+
+  function ajustarLogo(slide) {
+    var l = slide.logo;
+    var w = l.naturalWidth;
+    var h = l.naturalHeight;
+    if (!w || !h) { return; }
+    var esc = Math.min(LOGO_MAX_L / w, LOGO_MAX_A / h, 3);
+    var lw = Math.max(1, Math.round(w * esc));
+    var lh = Math.max(1, Math.round(h * esc));
+    l.style.width = lw + 'px';
+    l.style.height = lh + 'px';
+    tamanhoMarca(slide, lw);
+  }
+
+  function ajustarTitulo(slide) {
+    var t = slide.titulo;
+    var fs = 128;
+    t.style.fontSize = fs + 'px';
+    while (fs > 48 && (t.offsetHeight > TEXTO_MAX_A || t.scrollWidth > t.clientWidth + 1)) {
+      fs -= 6;
+      t.style.fontSize = fs + 'px';
+    }
+    tamanhoMarca(slide, 640);
+  }
+
   function montarTela() {
     if (raiz) { return; }
     raiz = criar('div', 'escondido');
@@ -389,18 +428,24 @@
         vez = 1 - vez;
 
         novo.fundo.style.backgroundImage = 'url("' + it.fundo + '")';
+        // Como na Netflix: o nome pequeno em cima do título aparece em algumas capas e em outras não.
+        novo.peq.style.display = Math.random() < 0.5 ? 'block' : 'none';
         if (logoOk) {
+          novo.logo.onload = function () { ajustarLogo(novo); };
           novo.logo.src = it.logo;
           novo.logo.style.display = 'block';
           novo.titulo.style.display = 'none';
+          if (novo.logo.complete && novo.logo.naturalWidth) { ajustarLogo(novo); }
         } else {
+          novo.logo.onload = null;
           novo.logo.removeAttribute('src');
           novo.logo.style.display = 'none';
           novo.titulo.textContent = it.titulo;
           novo.titulo.style.display = 'block';
+          ajustarTitulo(novo);
+          // A fonte do título pode terminar de carregar depois: confere de novo.
+          setTimeout(function () { if (minhaSessao === sessao) { ajustarTitulo(novo); } }, 400);
         }
-        // Como na Netflix: o nome pequeno em cima do título aparece em algumas capas e em outras não.
-        novo.peq.style.display = Math.random() < 0.5 ? 'block' : 'none';
         novo.generos.textContent = (it.generos || []).join(' • ');
         novo.linha.textContent = it.linha || '';
 

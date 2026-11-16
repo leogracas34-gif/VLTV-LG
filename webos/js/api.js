@@ -16,6 +16,16 @@
 
   function marcar(texto) { if (VLTV.marcar) { VLTV.marcar(texto); } }
 
+  // Falha passageira (painel ocupado, conexão que oscilou): tenta de novo sozinho, sem o usuário apertar OK.
+  // Erro que não adianta repetir (sem sessão, senha recusada, não encontrado) falha na hora.
+  var ESPERAS_MS = [700, 1500, 3000];   // até 3 novas tentativas depois da primeira
+  function vale_repetir(erro) {
+    var m = String((erro && erro.message) || '');
+    if (m === 'sem sessão') { return false; }
+    if (/^HTTP (401|403|404)$/.test(m)) { return false; }
+    return true;
+  }
+
   function chamar(acao, extra) {
     var quieto = modoQuieto;
     var s = VLTV.sessao.ler();
@@ -24,19 +34,34 @@
     var url = s.dns + '/player_api.php?username=' + enc(s.user) +
               '&password=' + enc(s.pass) + '&action=' + acao + (extra || '');
 
-    return VLTV.http.fetchComTimeout(url, TIMEOUT_MS).then(function (r) {
-      if (!r.ok) { throw new Error('HTTP ' + r.status); }
-      if (!quieto || !VLTV.quandoLivre) {
-        return r.json().then(function (d) { marcar('json ' + acao); return d; });
-      }
-      return r.text().then(function (texto) {
-        // Lista grande (milhares de títulos): lida em fatias pequenas, sem travar o controle.
-        return VLTV.jsonEmFatias(texto, null, true).then(function (d) {
-          marcar('json-fundo ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB');
-          return d;
+    function uma() {
+      return VLTV.http.fetchComTimeout(url, TIMEOUT_MS).then(function (r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        if (!quieto || !VLTV.quandoLivre) {
+          return r.json().then(function (d) { marcar('json ' + acao); return d; });
+        }
+        return r.text().then(function (texto) {
+          // Lista grande (milhares de títulos): lida em fatias pequenas, sem travar o controle.
+          return VLTV.jsonEmFatias(texto, null, true).then(function (d) {
+            marcar('json-fundo ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB');
+            return d;
+          });
         });
       });
-    });
+    }
+
+    function tentar(n) {
+      return uma().catch(function (erro) {
+        var estourou = String((erro && erro.message) || '') === 'tempo esgotado';
+        // Quando o painel nem respondeu (tempo esgotado), repete só uma vez para não deixar o usuário esperando demais.
+        var limite = estourou ? 1 : ESPERAS_MS.length;
+        if (n >= limite || !vale_repetir(erro) || !VLTV.sessao.ler()) { throw erro; }
+        marcar('repete ' + acao + ' ' + (n + 1));
+        return new Promise(function (ok) { setTimeout(ok, ESPERAS_MS[n]); }).then(function () { return tentar(n + 1); });
+      });
+    }
+
+    return tentar(0);
   }
 
   function comoLista(dados) { return Array.isArray(dados) ? dados : []; }

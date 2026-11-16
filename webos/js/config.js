@@ -64,7 +64,13 @@ VLTV.config = {
 
   // Canal ao vivo: quantos segundos a imagem pode ficar parada antes de o app derrubar a conexão e abrir o canal de novo.
   // Baixo demais (era 6) causa o ciclo "carregando / reconectando" quando o servidor engasga por um instante.
-  LIVE_TRAVOU_S: 25,
+  LIVE_TRAVOU_S: 12,
+
+  // Filme/série: true = se a imagem parar (ex.: o DNS caiu no meio do filme), o app pede de novo ao gateway e volta do mesmo
+  // ponto, mesmo com MOTOR_AVANCADO desligado. false = só o motor avançado faz isso.
+  VOD_VIGIA: true,
+  // Filme/série: segundos com a imagem parada antes de reconectar (mínimo 8). Seek em servidor lento pode demorar; 20 é seguro.
+  VOD_TRAVOU_S: 20,
 
   // Licença (teste grátis de 7 dias + ativação anual) e visual remoto: mesma VPS, por HTTPS.
   LICENCA_URL: 'https://api.vltvplay.tech',

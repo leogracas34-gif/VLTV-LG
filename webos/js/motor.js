@@ -64,11 +64,16 @@
   // redirect) derrubava a conexão e abria de novo do zero, e isso virava o ciclo carregando -> reconectando -> erro.
   // Agora a TV espera a própria tag <video> se recuperar (config.js: LIVE_TRAVOU_S, padrão 25 s).
   function travouMs(modo) {
-    if (modo === 'vod') { return 40000; }
+    if (modo === 'vod') {
+      var sv = (window.VLTV && VLTV.config && Number(VLTV.config.VOD_TRAVOU_S)) || 20;
+      return Math.max(8, sv) * 1000;
+    }
     var s = (window.VLTV && VLTV.config && Number(VLTV.config.LIVE_TRAVOU_S)) || 25;
     return Math.max(8, s) * 1000;
   }
-  var MAX_RECONEXOES = { live: 8, vod: 4 };
+  // Filme/série: 10 (era 4). Quando um DNS cai, o gateway manda um servidor diferente a cada pedido repetido; com vários DNS
+  // fora do ar podem ser necessárias algumas repetições até achar um que funciona.
+  var MAX_RECONEXOES = { live: 8, vod: 10 };
   var ESTAVEL_MS = 30000;                         // tocando tanto tempo sem problema zera as reconexões
   // Canal ao vivo que não abriu ou caiu: reconecta NA HORA. A 1ª reabertura é imediata, as seguintes são bem rápidas
   // e depois se mantêm a cada 3 s (o app continua tentando sozinho; o tempo entre tentativas é curto, não o total).
@@ -576,7 +581,9 @@
     var self = this;
     clearInterval(this.timerVigia);
     // Canal ao vivo sempre reconecta sozinho quando a imagem para (mesmo com o motor simples). Filmes só no motor avançado.
-    if (!avancado() && this.modo !== 'live') { return; }
+    // Filme/série: o vigia também roda no motor simples quando config.js tem VOD_VIGIA: true (reconecta se a imagem parar
+    // e volta do mesmo ponto). Sem essa opção, continua como antes: só o motor avançado vigia filmes.
+    if (!avancado() && this.modo !== 'live' && !cfg().VOD_VIGIA) { return; }
     this.ultimoTempo = -1;
     this.ultimoMovimento = agora();
     this.timerVigia = setInterval(function () { self.vigiar(); }, 1000);

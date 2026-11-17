@@ -781,14 +781,16 @@
     elEps._y = 0;
     elEps.style.transform = '';
     itensEps = [];
-    var t = temporadas[tempIdx];
-    if (!t) { return; }
-    t.episodios.forEach(function (ep, i) {
-      var li = criarEpisodio(ep, i);
-      elEps.appendChild(li);
-      itensEps.push(li);
+    // Lista ÚNICA e contínua com os episódios de todas as temporadas (igual à Netflix):
+    // ao passar do último episódio de uma temporada para o primeiro da próxima, a lista só desliza.
+    temporadas.forEach(function (t) {
+      t.episodios.forEach(function (ep, i) {
+        var li = criarEpisodio(ep, i);
+        elEps.appendChild(li);
+        itensEps.push(li);
+      });
     });
-    completarEpisodios(t);
+    if (temporadas[tempIdx]) { completarEpisodios(temporadas[tempIdx]); }
   }
 
   // Coloca a imagem do TMDB no quadrado do episódio que não tem imagem (ou cuja imagem não carregou).
@@ -806,15 +808,17 @@
   // também o nome do episódio (e o nome que vai para o player). Em português só completa nomes genéricos ("Episódio 3").
   function completarEpisodios(t) {
     if (item.tipo !== 'series' || !VLTV.tmdb.ativo()) { return; }
+    if (t._tmdbLis === itensEps) { return; }     // esta temporada já foi completada nesta lista
+    t._tmdbLis = itensEps;
     var ingles = VLTV.idioma.ehIngles();
     var lis = itensEps;
     VLTV.tmdb.temporada(item.id, item.nome, t.numero).then(function (mapa) {
-      if (!mapa || temporadas[tempIdx] !== t || lis !== itensEps) { return; }
+      if (!mapa || lis !== itensEps) { return; }
       var baseNome = nomeDoPlayer();
       t.episodios.forEach(function (ep, i) {
         var numero = ep.episode_num || (i + 1);
         var m = mapa[numero];
-        var li = lis[i];
+        var li = lis[t.inicio + i];
         if (!m || !li) { return; }
         if (m.imagem) { li._tmdbImg = m.imagem; imagemEpisodio(li, m.imagem); }
         var elSin = li.querySelector('.ep-sin');
@@ -831,11 +835,33 @@
   }
 
   // Troca de temporada (a coluna da esquerda acompanha). posicao: número do episódio na lista, ou 'ultimo'.
-  function mudarTemporada(i, posicao) {
+  // A lista de episódios é única: escolher a temporada só leva o foco/rolagem para o primeiro episódio dela.
+  var alinharEps = false;
+  function mudarTemporada(i) {
+    if (!temporadas[i]) { return; }
     tempIdx = i;
     marcarTemporadaAtual();
-    renderEpisodios();
-    epIdx = posicao === 'ultimo' ? Math.max(0, itensEps.length - 1) : (posicao || 0);
+    epIdx = temporadas[i].inicio;
+    alinharEps = true;
+    completarEpisodios(temporadas[i]);
+  }
+
+  // Mantém a coluna das temporadas acompanhando o episódio focado (a coluna desliza junto, sem recarregar a lista).
+  function sincronizarTemporada() {
+    var p = plano[epIdx];
+    if (!p || p.temp === tempIdx) { return; }
+    tempIdx = p.temp;
+    marcarTemporadaAtual();
+    completarEpisodios(temporadas[tempIdx]);
+  }
+
+  // Leva o topo da lista de episódios até o item (usado ao escolher uma temporada).
+  function alinharTopo(janela, ul, li) {
+    if (!li || !janela.clientHeight) { return; }
+    var max = Math.max(0, ul.offsetHeight - janela.clientHeight);
+    var y = Math.max(0, Math.min(max, li.offsetTop - 6));
+    ul._y = y;
+    ul.style.transform = 'translateY(' + (-y) + 'px)';
   }
 
   // ── Sugestões: lista vertical, como os episódios ──────────────────
@@ -1491,8 +1517,17 @@
     if (modo === 'principal') { rolarPrincipal(); }
     if (!elFocoAtual) { return; }
     if (modo === 'eps') {
-      if (zonaEps === 'eps') { rolarLista(elEpsJanela, elEps, elFocoAtual); }
-      else if (zonaEps === 'temps') { rolarLista(elTempsJanela, elTemps, elFocoAtual); }
+      if (zonaEps === 'eps') {
+        sincronizarTemporada();
+        if (alinharEps) { alinharTopo(elEpsJanela, elEps, elFocoAtual); }
+        else { rolarLista(elEpsJanela, elEps, elFocoAtual); }
+        rolarLista(elTempsJanela, elTemps, itensTemps[tempIdx]);
+      }
+      else if (zonaEps === 'temps') {
+        rolarLista(elTempsJanela, elTemps, elFocoAtual);
+        if (alinharEps) { alinharTopo(elEpsJanela, elEps, itensEps[epIdx]); }
+      }
+      alinharEps = false;
     } else if (modo === 'sug') {
       rolarLista(elSugJanela, elSug, elFocoAtual);
     } else if (modo === 'cred') {
@@ -1576,9 +1611,7 @@
   }
 
   function tocarEpisodio() {
-    var t = temporadas[tempIdx];
-    if (!t) { return; }
-    var i = t.inicio + epIdx;
+    var i = epIdx;
     var p = plano[i] ? VLTV.dados.progresso(plano[i].chave) : null;
     var inicio = (p && !p.fim && p.pos > RESUME_MIN_FILME_S) ? p.pos : 0;
     comSenha(function () { marcarContinuar(); acoes.reproduzir(plano, i, inicio); });
@@ -1619,7 +1652,7 @@
   function teclaTemporadas(k) {
     if (k === TECLA.CIMA || k === TECLA.BAIXO) {
       var novo = tempIdx + (k === TECLA.CIMA ? -1 : 1);
-      if (novo >= 0 && novo < temporadas.length) { mudarTemporada(novo, 0); }
+      if (novo >= 0 && novo < temporadas.length) { mudarTemporada(novo); }
     }
     else if (k === TECLA.DIR || k === TECLA.ENTER) {
       if (falha) { carregarInfo(); }
@@ -1638,13 +1671,11 @@
     var n = itensEps.length;
     if (k === TECLA.CIMA) {
       if (epIdx > 0) { epIdx--; }
-      else if (tempIdx > 0) { mudarTemporada(tempIdx - 1, 'ultimo'); }
       else { zonaEps = 'aval'; }
     }
     else if (k === TECLA.BAIXO) {
-      // Último episódio da temporada: cai no primeiro da próxima, e a temporada da esquerda desce junto.
+      // Lista contínua: passa direto para o próximo episódio (mesmo de outra temporada) e a coluna da esquerda acompanha.
       if (epIdx < n - 1) { epIdx++; }
-      else if (tempIdx < temporadas.length - 1) { mudarTemporada(tempIdx + 1, 0); }
     }
     else if (k === TECLA.ESQ) { if (itensTemps.length > 0) { zonaEps = 'temps'; } }
     else if (k === TECLA.CH_MAIS || k === TECLA.PG_BAIXO) { epIdx = Math.min(n - 1, epIdx + PASSO_PAGINA_EPS); }
@@ -1755,7 +1786,7 @@
     tempIdx = alvo ? plano[alvo.indice].temp : 0;
     renderTemporadas();
     renderEpisodios();
-    epIdx = alvo ? plano[alvo.indice].pos : 0;
+    epIdx = alvo ? alvo.indice : 0;
     if (modo === 'eps') { zonaEps = 'eps'; }
     marcarFoco();
   }
@@ -1862,7 +1893,7 @@
       tempIdx = it.temp;
       marcarTemporadaAtual();
       renderEpisodios();
-      epIdx = it.pos;
+      epIdx = ultimoIndice;
       zonaEps = 'eps';
       trocarModo('eps');
     } else {
@@ -1928,7 +1959,7 @@
     var a = alvoDoCursor(e.target);
     if (!a) { return; }
     if (a.temp !== undefined) {
-      if (a.temp !== tempIdx) { mudarTemporada(a.temp, 0); }
+      if (a.temp !== tempIdx) { mudarTemporada(a.temp); }
       zonaEps = itensEps.length > 0 ? 'eps' : 'temps';
       marcarFoco();
       return;

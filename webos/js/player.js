@@ -23,6 +23,7 @@
   var CREDITOS_PADRAO_S = 50;       // sem dado da VPS: aparece faltando 50s
   var ANTECEDENCIA_S = 3;           // com dado da VPS: aparece 3s antes dos créditos (praticamente junto com eles)
   var ESPERA_APRENDER_MS = 6000;    // só aprende com o toque de quem esperou o botão
+  var CREDITOS_MAX_PERCENTUAL = 0.15; // ao sair pelo "voltar", só marca créditos se faltava no máximo 15% do episódio
 
   var TECLA = {
     ENTER: 13, ESC: 27, VOLTAR: 461,
@@ -708,6 +709,26 @@
     VLTV.creditos.enviar(dnsAtual(), serieChave, restante);
   }
 
+  // Sair pelo "voltar" já dentro dos créditos também ensina o ponto, para o botão aparecer ao voltar no episódio.
+  // Proteção contra o erro antigo (sair com 30 min de um episódio de 50 min e o botão aparecer ali):
+  // só vale se faltavam até 10 min E no máximo 15% do episódio. Quem já tem marcação não é alterado.
+  function aprenderAoSair() {
+    if (!serieChave || creditosEnviados || proximoLancado) { return; }
+    if (creditosRestante !== null) { return; }
+    if (!temProximo()) { return; }
+    var d = motor.duracao();
+    var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
+    if (!isFinite(d) || d <= 0 || !isFinite(t) || t <= 0) { return; }
+    var restante = Math.floor(d - t);
+    if (!VLTV.creditos.valido(restante)) { return; }
+    if (restante > d * CREDITOS_MAX_PERCENTUAL) { return; }
+
+    creditosEnviados = true;
+    creditosRestante = restante;
+    VLTV.creditos.gravarLocal(serieChave, restante);
+    VLTV.creditos.enviar(dnsAtual(), serieChave, restante);
+  }
+
   // ── Próximo episódio ──────────────────────────────────────────────
   function limiarBotao() {
     return creditosRestante === null ? CREDITOS_PADRAO_S : creditosRestante + ANTECEDENCIA_S;
@@ -763,6 +784,11 @@
     elAvisoTemporada.classList.toggle('escondida', !aviso);
     cartaoFoco = 1;
     desenharCartao();
+    // Começa o enchimento vazio, sem animar de volta (o cartão pode reaparecer depois de sumir).
+    elProximoFill.style.transition = 'none';
+    elProximoFill.style.transform = 'scaleX(0)';
+    void elProximoFill.offsetWidth;
+    elProximoFill.style.transition = '';
     cartao.classList.remove('escondida');
     ajustarCartao();
     botaoDesdeMs = new Date().getTime();
@@ -792,8 +818,11 @@
       }
       var seg = Math.max(0, restante);
       elContagem.textContent = textoContagem(seg);
-      var pct = Math.max(0, Math.min(100, (1 - seg / limiar) * 100));
-      elProximoFill.style.width = pct + '%';
+      // Enchimento suave: usa o tempo exato (sem arredondar) e já aponta para onde o botão estará daqui a 1s,
+      // então a animação linear de 1s do CSS emenda uma na outra, sem degraus.
+      var exato = Math.max(0, d - t);
+      var frac = Math.max(0, Math.min(1, 1 - Math.max(0, exato - 1) / limiar));
+      elProximoFill.style.transform = 'scaleX(' + frac.toFixed(4) + ')';
       if (restante <= 0) { abrirProximo(false); }
     } else if (contagemAtiva) {
       esconderCartao();
@@ -907,7 +936,8 @@
   function sair() {
     var ultimo = idx;
     if (ativo) {
-      salvarPosicao();   // sair pelo "voltar" só guarda onde parou; não marca os créditos
+      aprenderAoSair();  // só marca se já estava nos créditos (faltava até 10 min e no máximo 15% do episódio)
+      salvarPosicao();
     }
     parar();
     if (aoSair) { aoSair(ultimo); }

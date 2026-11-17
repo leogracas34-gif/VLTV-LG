@@ -5,10 +5,11 @@
 (function () {
   'use strict';
 
-  // Faixa aceita no app: 10s a 3min. O backend aceita até 10min, mas marcações de 5 a 8 minutos eram sobras de quem
-  // saía pelo "voltar" e faziam o botão aparecer cedo demais: acima de 3min o app ignora e usa o tempo padrão.
+  // Faixa aceita no app: 10s a 10min (igual ao backend). Créditos longos (ex.: 5 min no fim de um episódio de 1h13)
+  // precisam caber aqui. O que evita o botão aparecer cedo demais é a regra do player: sair pelo "voltar" só marca
+  // quando faltava até 10min E no máximo 15% do episódio (ver aprenderAoSair no player.js).
   var MIN_S = 10;
-  var MAX_S = 180;
+  var MAX_S = 600;
   var TEMPO_LIMITE_MS = 6000;
 
   function chaveLocal(serie) { return 'vltv_creditos_seg2_' + serie; }   // 2: descarta as marcações antigas guardadas na TV

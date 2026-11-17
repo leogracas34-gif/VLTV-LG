@@ -22,6 +22,7 @@
   // Botão "Próximo episódio" (mesmos valores do PlayerActivity do Android)
   var CREDITOS_PADRAO_S = 50;       // sem dado da VPS: aparece faltando 50s
   var ANTECEDENCIA_S = 3;           // com dado da VPS: aparece 3s antes dos créditos (praticamente junto com eles)
+  var ENCHIMENTO_S = 35;            // quanto tempo o botão leva para encher (antes eram 50s: ficava lento)
   var ESPERA_APRENDER_MS = 6000;    // só aprende com o toque de quem esperou o botão
   var CREDITOS_MAX_PERCENTUAL = 0.15; // ao sair pelo "voltar", só marca créditos se faltava no máximo 15% do episódio
 
@@ -85,6 +86,7 @@
   var contagemAtiva = false;
   var proximoLancado = false;
   var botaoDesdeMs = 0;
+  var cartaoT0 = 0;              // tempo do vídeo (s) em que o cartão apareceu: o enchimento conta a partir daqui
   var creditosRestante = null;   // segundos que faltavam quando os créditos começaram (null = ninguém ensinou)
   var creditosEnviados = false;
   var serieChave = 0;
@@ -815,15 +817,20 @@
       if (!contagemAtiva) {
         contagemAtiva = true;
         mostrarCartao();
+        cartaoT0 = t;
       }
-      var seg = Math.max(0, restante);
-      elContagem.textContent = textoContagem(seg);
-      // Enchimento suave: usa o tempo exato (sem arredondar) e já aponta para onde o botão estará daqui a 1s,
-      // então a animação linear de 1s do CSS emenda uma na outra, sem degraus.
-      var exato = Math.max(0, d - t);
-      var frac = Math.max(0, Math.min(1, 1 - Math.max(0, exato - 1) / limiar));
+      if (t < cartaoT0) { cartaoT0 = t; }   // voltou o vídeo dentro da janela: recomeça a contar daqui
+      var passou = t - cartaoT0;            // segundos de vídeo desde que o botão apareceu
+      var seg = Math.max(0, Math.ceil(ENCHIMENTO_S - passou));
+      // Marcação já salva (VPS ou TV): o botão aparece nos créditos, enche em ENCHIMENTO_S e pula sozinho ao encher.
+      // Sem marcação: o botão aparece faltando 50s e o episódio acaba sozinho no fim, como antes.
+      var marcado = creditosRestante !== null;
+      elContagem.textContent = textoContagem(marcado ? seg : Math.max(0, restante));
+      // Enchimento suave: aponta para onde o botão estará daqui a 1s, então a animação linear de 1s do CSS emenda
+      // uma na outra, sem degraus.
+      var frac = Math.max(0, Math.min(1, (passou + 1) / ENCHIMENTO_S));
       elProximoFill.style.transform = 'scaleX(' + frac.toFixed(4) + ')';
-      if (restante <= 0) { abrirProximo(false); }
+      if (restante <= 0 || (marcado && passou >= ENCHIMENTO_S)) { abrirProximo(false); }
     } else if (contagemAtiva) {
       esconderCartao();
     }

@@ -386,6 +386,7 @@
     if (!cat) { return; }
     var id = ++idReq;
     var abertura = idAbertura;
+    if (VLTV.segurarFundo) { VLTV.segurarFundo(6000); }   // o usuário pediu esta lista: o segundo plano espera ela chegar e a grade aparecer
     tituloGrade.textContent = VLTV.idioma.categoria(cat.category_name || cfg.titulo);
 
     if (cat.especial === 'fav') {
@@ -412,6 +413,7 @@
         clearTimeout(espera);
         if (id !== idReq || abertura !== idAbertura) { return; }
         aplicarItens(r.dados, focar);
+        if (VLTV.segurarFundo) { VLTV.segurarFundo(3000); }   // as capas ainda estão chegando e sendo desenhadas
         // O painel foi conferido por trás: se mudou algo, atualiza (só se o usuário não estiver na grade).
         r.atualizacao.then(function (novo) {
           if (!novo || id !== idReq || abertura !== idAbertura || foco !== 'cat' || catAplicada !== idx) { return; }
@@ -818,6 +820,7 @@
     var abertura = ++idAbertura;
     clearTimeout(timerAquecer);
     filaCapas = [];
+    if (VLTV.segurarFundo) { VLTV.segurarFundo(8000); }   // entrou em Filmes/Séries: o segundo plano sai da frente enquanto a tela abre
 
     tituloCats.textContent = cfg.titulo;
     tituloGrade.textContent = '';

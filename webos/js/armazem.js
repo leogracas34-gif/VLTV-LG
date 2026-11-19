@@ -159,5 +159,8 @@
     });
   }
 
-  VLTV.armazem = { ler: ler, existe: existe, gravar: gravar, limpar: limpar };
+  // Põe a lista na memória na hora (sem gravar no disco). Usado quando a gravação no disco vai esperar o controle parar.
+  function lembrarAgora(chave, valor) { lembrar(chave, { valor: valor, t: new Date().getTime() }); }
+
+  VLTV.armazem = { ler: ler, existe: existe, gravar: gravar, limpar: limpar, lembrar: lembrarAgora };
 })();

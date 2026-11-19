@@ -1374,6 +1374,7 @@
   function abrir(callbackSair, inicial) {
     aoSair = callbackSair;
     pendenteCanal = inicial || null;
+    if (VLTV.segurarFundo) { VLTV.segurarFundo(8000); }   // entrou em TV ao vivo: o segundo plano sai da frente enquanto a tela abre
     limparNumero();
     anterior = null;
     var listaAtual = validarCacheLista();

@@ -38,7 +38,15 @@
       return VLTV.http.fetchComTimeout(url, TIMEOUT_MS).then(function (r) {
         if (!r.ok) { throw new Error('HTTP ' + r.status); }
         if (!quieto || !VLTV.quandoLivre) {
-          return r.json().then(function (d) { marcar('json ' + acao); return d; });
+          // Pedido do usuário: a lista é lida em fatias de ~18 ms (antes era um r.json() só, que prendia o controle por 1 a 2 s
+          // em listas grandes). Não espera o controle parar: o usuário está esperando a resposta.
+          if (!VLTV.jsonEmFatias) { return r.json().then(function (d) { marcar('json ' + acao); return d; }); }
+          return r.text().then(function (texto) {
+            return VLTV.jsonEmFatias(texto, null, false, true).then(function (d) {
+              marcar('json ' + acao + ' ' + Math.round(texto.length / 1024) + 'KB');
+              return d;
+            });
+          });
         }
         return r.text().then(function (texto) {
           // Lista grande (milhares de títulos): lida em fatias pequenas, sem travar o controle.

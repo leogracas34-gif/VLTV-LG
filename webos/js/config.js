@@ -122,9 +122,9 @@ VLTV.config = {
   // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:
   // coloque false numa chave, gere o app e compare. Com false, nada disso roda sozinho (o app busca só quando você abre).
   PREPARO_PESQUISA: true,    // monta o índice de Filmes e Séries logo depois que a Home abre (a pesquisa já abre pronta)
-  // true = como antes: nas primeiras aberturas o controle pode ficar preso por alguns segundos enquanto a TV carrega e guarda tudo;
-  // depois disso Filmes e Séries abrem quase na hora, do que ficou guardado. false = trabalho espalhado, esperando o controle parar (mais lento).
-  PREPARO_RAPIDO: true,
+  // true = como antes: o preparo roda sem esperar o controle parar (o controle ficava preso por 15 a 30 s depois de abrir o app).
+  // false = trabalho espalhado: só anda com o controle parado (OCIOSO_MS / OCIOSO_LEVE_MS) e sai da frente quando você pede algo.
+  PREPARO_RAPIDO: false,
   PREPARO_CATALOGO: true,    // deixa as primeiras categorias de Filmes e Séries já baixadas
   PREPARO_CANAIS: true,      // deixa categorias e canais de TV ao vivo prontos
   // Quantas categorias de TV ao vivo são baixadas sozinhas em segundo plano (as outras carregam quando você abre). 0 = todas (como era antes).
@@ -134,7 +134,7 @@ VLTV.config = {
   // Folga (ms) sem tecla para os passos leves (listas de categorias) andarem mesmo com o controle em uso.
   OCIOSO_LEVE_MS: 2500,
   // Logo que o app abre, nada roda em segundo plano por este tempo (ms): a TV está ocupada abrindo o app e o controle fica livre.
-  GRACA_INICIAL_MS: 1500,
+  GRACA_INICIAL_MS: 4000,
   // Durante filme, série ou canal em tela cheia o carregamento em segundo plano continua, só bem mais devagar (1 passo a cada ~4 s).
   // Se notar travadinha na imagem nessa hora, troque por false: aí ele espera o vídeo terminar.
   SEGUNDO_PLANO_DURANTE_VIDEO: false,

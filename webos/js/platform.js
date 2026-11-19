@@ -141,10 +141,20 @@
   // Nesse começo nenhum trabalho em segundo plano anda: o controle responde de imediato.
   var inicioAppMs = new Date().getTime();
 
+  // Freio manual: quando o USUÁRIO acabou de pedir algo (abrir Filmes, Séries, Canais, uma categoria), todo o trabalho em
+  // segundo plano espera por 'ms' milissegundos, mesmo com o controle parado. Sem isso, entre o OK e a lista aparecer a TV
+  // ficava "parada" (sem tecla), o segundo plano achava que podia andar e disputava a TV com a tela que o usuário pediu.
+  var seguraFundoAteMs = 0;
+  VLTV.segurarFundo = function (ms) {
+    var ate = new Date().getTime() + (ms || 0);
+    if (ate > seguraFundoAteMs) { seguraFundoAteMs = ate; }
+  };
+
   VLTV.segundoPlanoLivre = function (leve) {
     var n = new Date().getTime();
     var graca = (VLTV.config && typeof VLTV.config.GRACA_INICIAL_MS === 'number') ? VLTV.config.GRACA_INICIAL_MS : 8000;
     if (n - inicioAppMs < graca) { return false; }
+    if (n < seguraFundoAteMs) { return false; }   // o usuário acabou de pedir algo: o segundo plano espera
     // Modo rápido (como antes): carrega e guarda tudo logo, sem esperar o controle parar nem recuar quando a TV trava.
     if (VLTV.config && VLTV.config.PREPARO_RAPIDO === true) { return true; }
     if (n < recuarAteMs) { return false; }
@@ -169,9 +179,13 @@
   // Acha a lista de itens (a própria resposta, se for lista, ou o campo "campo", ex.: "itens"), corta nos limites de cada item
   // e lê um lote por vez (~20 ms), parando enquanto o controle estiver em uso. Se algo fugir do esperado, lê tudo de uma vez.
   // Resolve com o mesmo objeto que JSON.parse(texto) daria.
-  VLTV.jsonEmFatias = function (texto, campo, leve) {
+  // urgente = true: é o que o USUÁRIO pediu (não é segundo plano). Lê em fatias do mesmo jeito, mas sem esperar o controle parar.
+  VLTV.jsonEmFatias = function (texto, campo, leve, urgente) {
     return new Promise(function (ok, falha) {
-      function tudoDeUmaVez() { VLTV.quandoLivre(!!leve, function () { try { ok(JSON.parse(texto)); } catch (e) { falha(e); } }, 60000); }
+      function tudoDeUmaVez() {
+        if (urgente) { try { ok(JSON.parse(texto)); } catch (e) { falha(e); } return; }
+        VLTV.quandoLivre(!!leve, function () { try { ok(JSON.parse(texto)); } catch (e) { falha(e); } }, 60000);
+      }
       if (!texto || texto.length < 200 * 1024) { tudoDeUmaVez(); return; }
       var ini = -1, raiz = false;
       if (campo) {
@@ -208,7 +222,7 @@
         } catch (e) { tudoDeUmaVez(); }
       }
       function passo() {
-        if (VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(!!leve)) { setTimeout(passo, 300); return; }
+        if (!urgente && VLTV.segundoPlanoLivre && !VLTV.segundoPlanoLivre(!!leve)) { setTimeout(passo, 300); return; }
         var t0 = new Date().getTime();
         try {
           var n = texto.length;

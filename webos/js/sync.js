@@ -47,23 +47,31 @@
     }
   }
 
-  function buscarUmaVez(k, buscar) {
-    if (emVoo[k]) { return emVoo[k]; }
+  // quieto = true: busca de segundo plano (só lê a lista com o controle parado, então pode demorar).
+  // O pedido do USUÁRIO nunca se junta a uma busca de segundo plano em andamento: se juntasse, ficaria esperando o
+  // controle parar (e é o usuário que está apertando os botões). Ele faz a própria busca e responde na hora.
+  function buscarUmaVez(k, buscar, quieto) {
+    var atual = emVoo[k];
+    if (atual && (quieto || !atual.quieto)) { return atual.p; }
     var p = buscar().then(function (dados) {
-      delete emVoo[k];
+      if (emVoo[k] && emVoo[k].p === p) { delete emVoo[k]; }
       return dados;
     }, function (erro) {
-      delete emVoo[k];
+      if (emVoo[k] && emVoo[k].p === p) { delete emVoo[k]; }
       throw erro;
     });
-    emVoo[k] = p;
+    emVoo[k] = { p: p, quieto: !!quieto };
     return p;
   }
 
+  // Guardar na TV transforma a lista inteira em texto (JSON.stringify), que prende a TV por um instante em listas grandes.
+  // Por isso: a lista fica na memória na hora (abrir de novo é instantâneo) e a gravação no disco espera o controle parar.
   function guardar(k, dados) {
     // Lista vazia quase sempre é erro do painel: não vale a pena guardar.
     if (Array.isArray(dados) && dados.length === 0) { return; }
-    VLTV.armazem.gravar(k, dados);
+    if (VLTV.armazem.lembrar) { VLTV.armazem.lembrar(k, dados); }
+    var gravar = function () { VLTV.armazem.gravar(k, dados); };
+    if (VLTV.quandoLivre) { VLTV.quandoLivre(true, gravar, 30000); } else { gravar(); }
   }
 
   // Resolve com { dados, doCache, atualizacao }.
@@ -85,13 +93,13 @@
         var fresco = (new Date().getTime() - reg.t) < validade();
         var atualizacao = fresco
           ? Promise.resolve(null)
-          : buscarUmaVez(k, function () { return VLTV.api.quieto(buscar); }).then(function (novo) {
+          : buscarUmaVez(k, function () { return VLTV.api.quieto(buscar); }, true).then(function (novo) {
               guardar(k, novo);
               return (Array.isArray(novo) && novo.length > 0 && !igual(reg.valor, novo)) ? novo : null;
             }).catch(function () { return null; });
         return { dados: reg.valor, doCache: true, atualizacao: atualizacao };
       }
-      return buscarUmaVez(k, buscar).then(function (dados) {
+      return buscarUmaVez(k, buscar, false).then(function (dados) {
         guardar(k, dados);
         return { dados: dados, doCache: false, atualizacao: Promise.resolve(null) };
       });
@@ -120,7 +128,7 @@
     VLTV.armazem.existe(proximo.k).then(function (jaTem) {
       if (jaTem) { return; }                          // já está guardado (confere sem abrir a lista, que travava a TV)
       var buscarFundo = proximo.quieto ? function () { return VLTV.api.quieto(proximo.buscar); } : proximo.buscar;
-      return buscarUmaVez(proximo.k, buscarFundo).then(function (dados) { guardar(proximo.k, dados); });
+      return buscarUmaVez(proximo.k, buscarFundo, proximo.quieto).then(function (dados) { guardar(proximo.k, dados); });
     }).catch(function () { /* sem problema: abre normal quando o usuário pedir */ })
       .then(function () { setTimeout(rodar, pausado && proximo.quieto ? RITMO_VIDEO_MS : 150); });
   }

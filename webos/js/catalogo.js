@@ -7,8 +7,8 @@
   'use strict';
 
   var COLUNAS = 6;   // 6 por linha, capas grandes que preenchem a largura do painel (6 x 220 = 1320 de 1338 úteis)
-  var TAMANHO_LOTE = 48;
-  var CAPAS_SIMULTANEAS = 6;       // capas baixando ao mesmo tempo (mais que isso engarrafa a rede da TV)
+  var TAMANHO_LOTE = 18;           // 3 linhas: o que cabe na tela. O resto é desenhado ao navegar/rolar (marcarItem e completarGrade)
+  var CAPAS_SIMULTANEAS = 4;       // capas baixando ao mesmo tempo (mais que isso engarrafa a rede da TV)
   var ESPERA_CAPA_MS = 8000;       // capa que não chega em 8 s libera a vaga para a próxima
   var ESPERA_AQUECER_MS = 700;     // parado numa categoria por esse tempo: já prepara ela e as vizinhas
   var ESQUELETOS = 16;
@@ -249,6 +249,7 @@
       liberar();
     };
     img.onerror = function () { falhouServidor(); liberar(); };
+    try { img.decoding = 'async'; } catch (e) { /* TV antiga: ignora */ }
     img.src = guardada || pedido.url;
   }
 
@@ -317,18 +318,32 @@
       grade.appendChild(c);
     }
     renderizados = fim;
-    bombearCapas();
+    bombearCapasDepois();
+  }
+
+  // Deixa o navegador pintar a grade primeiro; só então as capas começam a baixar/decodificar.
+  // Duas voltas de animação = a grade já apareceu. Sem isso, o início das imagens disputava a TV com a própria montagem da tela.
+  var capasAguardando = false;
+  function bombearCapasDepois() {
+    if (capasAguardando) { return; }
+    capasAguardando = true;
+    var ir = function () { capasAguardando = false; bombearCapas(); };
+    if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(function () { setTimeout(ir, 0); });
+    } else {
+      setTimeout(ir, 50);
+    }
   }
 
   function marcarItem() {
-    while (renderizados < itens.length && renderizados <= itemIdx + COLUNAS * 3) { renderMais(); }
+    while (renderizados < itens.length && renderizados < itemIdx + COLUNAS * 3) { renderMais(); }
     if (celulaSel) { celulaSel.classList.remove('sel'); }
     celulaSel = celulas[itemIdx] || null;
     if (celulaSel) {
       celulaSel.classList.add('sel');
       VLTV.rolar(celulaSel);
     }
-    bombearCapas();
+    bombearCapasDepois();
     traduzirVisiveis();
   }
 
@@ -359,6 +374,7 @@
   }
 
   function aplicarItens(lista, focar) {
+    var t0 = new Date().getTime();
     lista = VLTV.parental.filtrarItens(lista, tipo);
     itens = lista;
     itemIdx = 0;
@@ -371,9 +387,12 @@
       mensagem(grade, msgVazio);
       return;
     }
+    var t1 = new Date().getTime();
     renderMais();
+    var t2 = new Date().getTime();
     marcarItem();
-    if (VLTV.marcar) { VLTV.marcar('grade ' + lista.length); }
+    var t3 = new Date().getTime();
+    if (VLTV.marcar) { VLTV.marcar('grade ' + lista.length + ' [filtro ' + (t1 - t0) + ' celulas ' + (t2 - t1) + ' marcar ' + (t3 - t2) + ']', t3 - t0); }
     if (focar) { trocarFoco('grade'); }
   }
 

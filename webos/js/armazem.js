@@ -63,8 +63,11 @@
             if (VLTV.marcar) { VLTV.marcar('idb-ler ' + String(chave).slice(-22)); }
             // fmt 1 = guardado como texto: ler texto é rápido; ler milhares de objetos do IndexedDB travava a TV por 1 a 2 s.
             if (r.fmt === 1) {
+              var tp = new Date().getTime();
+              var kb = Math.round(String(v).length / 1024);
               try { v = JSON.parse(v); } catch (e2) { resolve(null); return; }
-              if (VLTV.marcar) { VLTV.marcar('idb-texto ' + String(chave).slice(-22)); }
+              var dp = new Date().getTime() - tp;
+              if (VLTV.marcar) { VLTV.marcar('idb-texto ' + String(chave).slice(-22) + ' ' + kb + 'KB parse ' + dp + 'ms', dp); }
             }
             var reg = { valor: v, t: r.t };
             if (!semLembrar) { lembrar(chave, reg); }

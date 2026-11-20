@@ -33,7 +33,7 @@
   }
 
   // Os módulos chamam VLTV.marcar('nome') quando terminam algo pesado; a travada mostra o que terminou junto dela.
-  VLTV.marcar = function (nome) { guardarMarca(nome, 0); };
+  VLTV.marcar = function (nome, dur) { guardarMarca(nome, dur || 0); };
 
   function causa(fim, atraso) {
     var de = fim - atraso - 400;

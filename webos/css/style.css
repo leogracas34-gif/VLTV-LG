@@ -2329,3 +2329,9 @@ input::placeholder { color: #5f5f6b; }
   border-radius: 50%;
   background: var(--destaque-claro);   /* bolinha vermelha = tecla vermelha do controle */
 }
+
+/* ── "Quem está assistindo?" (escolha do perfil, igual ao do celular) ── */
+#aviso-perfil { z-index: 95; }
+#aviso-perfil .botao-conf { width: 520px; }
+#aviso-perfil .confirma-botoes { flex-direction: column; align-items: center; max-height: 620px; overflow-y: auto; }
+#aviso-perfil .botao-conf + .botao-conf { margin-left: 0; margin-top: 22px; }

@@ -104,6 +104,7 @@
       VLTV.emSegundoPlano(function () { VLTV.indice.aquecer(); });   // pesquisa de Filmes e Séries
     }
     if (nome === 'home') { VLTV.parental.travar(); }
+    if (nome === 'home' && VLTV.nuvem) { VLTV.nuvem.aoEntrarNaHome(); }   // sincroniza progresso e favoritos com o celular
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') { VLTV.licenca.aplicarVisual(); }   // voltou para a Home: pega na hora o que mudou no painel (destaque, cores, campanha)
     if (nome === 'home') {
@@ -210,6 +211,7 @@
   function tocar(itens, indice, voltarPara, inicioSeg) {
     mostrarTela('player');
     VLTV.player.abrir(itens, indice, function (ultimo) {
+      if (VLTV.nuvem) { VLTV.nuvem.descarregar(); }   // manda já para a nuvem onde parou
       mostrarTela(voltarPara);
       if (voltarPara === 'detalhes') { VLTV.detalhes.voltou(ultimo); }
     }, inicioSeg || 0);
@@ -725,8 +727,18 @@
     player: function (k) { return VLTV.player.tecla(k); }
   };
 
+  // Veio coisa nova do celular: se o catálogo está aberto, atualiza Favoritos e "Continuar assistindo".
+  if (VLTV.nuvem) {
+    VLTV.nuvem.aoMudar(function () {
+      if (telaAtual === 'catalogo' && VLTV.catalogo && VLTV.catalogo.atualizarFavoritos) { VLTV.catalogo.atualizarFavoritos(); }
+    });
+  }
+
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
+
+    // "Quem está assistindo?" fica por cima de tudo e com as teclas enquanto está aberta.
+    if (VLTV.perfil && VLTV.perfil.aberto()) { VLTV.perfil.tecla(k); e.preventDefault(); return; }
 
     // Avisos que ficam por cima de tudo: temporizador para dormir e lembrete de programa.
     if (VLTV.sono.avisoAberto()) { VLTV.sono.tecla(k); e.preventDefault(); return; }

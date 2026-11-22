@@ -11,8 +11,9 @@
   var titulo = $('cfg-titulo');
   var conteudo = $('cfg-conteudo');
 
-  var ITENS = [
+  var ITENS_BASE = [
     { id: 'info', nome: 'Informação geral' },
+    { id: 'perfil', nome: 'Perfil' },
     { id: 'idioma', nome: 'Idioma' },
     { id: 'tema', nome: 'Tema do aplicativo' },
     { id: 'sono', nome: 'Temporizador para dormir' },
@@ -21,6 +22,7 @@
     { id: 'recarregar', nome: 'Atualizar o aplicativo' },
     { id: 'sobre', nome: 'Sobre o aplicativo' }
   ];
+  var ITENS = ITENS_BASE.slice();
 
   var idx = 0;
   var lis = [];
@@ -173,6 +175,8 @@
         esvaziar(conteudo);
         texto('Bloqueia canais, filmes e séries adultos (+18) com uma senha de 4 dígitos. A senha padrão é 0000: crie a sua e escolha uma pergunta secreta para recuperar. Pressione OK para abrir (pede a senha).');
       }
+    } else if (item.id === 'perfil') {
+      desenharPerfil();
     } else if (item.id === 'cache') {
       desenharCache();
     } else if (item.id === 'recarregar') {
@@ -289,6 +293,14 @@
     else if (id === 'sono') { desenharSono(); }
     else if (id === 'sobre') { desenharSobre(); }
     else { desenharParental(); }
+  }
+
+  // ── Perfil (o mesmo do celular) ──
+  function desenharPerfil() {
+    esvaziar(conteudo);
+    var p = VLTV.dados.perfilAtual();
+    linha('Perfil nesta TV', p ? p.nome : 'Nenhum escolhido', p ? 'ok' : '');
+    texto('Os perfis são os do aplicativo do celular. Com o mesmo login e o mesmo perfil, o "Continuar assistindo" e os favoritos ficam iguais no celular e na TV. Pressione OK para escolher o perfil.');
   }
 
   // ── Limpar cache ──
@@ -504,6 +516,9 @@
       else if (id === 'tema') { foco = 'dir'; desenharTema(); }
       else if (id === 'sono') { foco = 'dir'; desenharSono(); }
       else if (id === 'sobre') { foco = 'dir'; desenharSobre(); }
+      else if (id === 'perfil') {
+        if (k === TECLA.ENTER) { VLTV.perfil.abrirTroca(function () { if (ITENS[idx].id === 'perfil') { desenharPerfil(); } }); }
+      }
       else if (k === TECLA.DIR) { return true; }
       else if (id === 'cache') { limparCache(); }
       else if (id === 'recarregar') { recarregar(); }
@@ -512,6 +527,8 @@
   }
 
   function abrir(callbacks) {
+    // "Perfil" só aparece em conta do VLTV Play (é onde existe sincronização com o celular).
+    ITENS = ITENS_BASE.filter(function (it) { return it.id !== 'perfil' || (VLTV.nuvem && VLTV.nuvem.ativo()); });
     acoes = callbacks;
     idx = 0;
     foco = 'menu';

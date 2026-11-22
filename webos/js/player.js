@@ -646,7 +646,7 @@
     var d = motor.duracao();
     var t = puloAlvo !== null ? puloAlvo : (motor.tempo());
     if (!isFinite(d) || d <= 0 || t < 3) { return; }
-    VLTV.dados.salvarProgresso(item.chave, t, d);
+    VLTV.dados.salvarProgresso(item.chave, t, d, item);
   }
 
   // Pula para o ponto de retomada assim que a TV souber a duração do vídeo.
@@ -844,7 +844,7 @@
     salvarPosicao();
     var item = itens[idx];
     if (item && item.chave && isFinite(motor.duracao()) && motor.duracao() > 0 && !porToque) {
-      VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao());   // assistido até o fim
+      VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao(), item);   // assistido até o fim
     }
     carregarItem(idx + 1, 0);
   }
@@ -980,7 +980,7 @@
       if (!ativo) { return; }
       var item = itens[idx];
       if (item && item.chave && isFinite(motor.duracao()) && motor.duracao() > 0) {
-        VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao());   // marca como assistido
+        VLTV.dados.salvarProgresso(item.chave, motor.duracao(), motor.duracao(), item);   // marca como assistido
       }
       if (temProximo() && !proximoLancado) { abrirProximo(false); }
       else if (idx + 1 < itens.length && !proximoLancado) { proximoLancado = true; carregarItem(idx + 1, 0); }

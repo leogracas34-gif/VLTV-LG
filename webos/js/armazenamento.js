@@ -19,7 +19,7 @@
 
   function perfilAtual() {
     var s = VLTV.sessao.ler();
-    if (!s || s.modo !== 'usuario') { return null; }
+    if (!s || (s.modo !== 'usuario' && s.modo !== 'parceiro')) { return null; }
     var u = usuario();
     if (perfilMemo.u === u) { return perfilMemo.v; }
     var v = null;
@@ -53,6 +53,28 @@
     try { window.localStorage.setItem('vltv_perfil_' + u, JSON.stringify(p)); } catch (e) { /* ignora */ }
     perfilMemo = { u: null, v: null };
     migrarLegado(u, p.id);
+  }
+
+  // O perfil escolhido aqui não existe mais no celular: esquece a escolha (o histórico dele fica guardado, só não é mostrado).
+  function limparPerfil() {
+    var u = usuario();
+    try { window.localStorage.removeItem('vltv_perfil_' + u); } catch (e) { /* ignora */ }
+    perfilMemo = { u: null, v: null };
+  }
+
+  // Perfil renomeado (o id sai do nome): o histórico, favoritos e "continuar assistindo" desta TV passam para o id novo.
+  function migrarPerfil(velho, novo) {
+    var u = usuario();
+    try {
+      ['prog', 'fav', 'cont', 'aval'].forEach(function (n) {
+        var de = 'vltv_' + n + '_' + u + '__' + velho;
+        var para = 'vltv_' + n + '_' + u + '__' + novo;
+        var valor = window.localStorage.getItem(de);
+        if (valor !== null && window.localStorage.getItem(para) === null) { window.localStorage.setItem(para, valor); }
+        window.localStorage.removeItem(de);
+      });
+      window.localStorage.removeItem('vltv_nuvem_' + u + '_' + novo);   // 1ª sincronização do id novo: sobe o que já existe aqui
+    } catch (e) { /* ignora */ }
   }
 
   function chave(nome) { return 'vltv_' + nome + '_' + dono(); }
@@ -400,6 +422,8 @@
   VLTV.dados = {
     perfilAtual: perfilAtual,
     definirPerfil: definirPerfil,
+    limparPerfil: limparPerfil,
+    migrarPerfil: migrarPerfil,
     sementeProgresso: sementeProgresso,
     sementeFavoritos: sementeFavoritos,
     aplicarProgresso: aplicarProgresso,

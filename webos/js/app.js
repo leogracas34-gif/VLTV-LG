@@ -64,6 +64,7 @@
   var tileSeries = $('tile-series');
   var tileSair = $('btn-sair');
   var btnListas = $('btn-listas');
+  var btnPerfil = $('btn-perfil');
   var btnConfig = $('btn-config');
   var elBanner = $('banner');
   var elDestaque = $('destaque');
@@ -76,6 +77,17 @@
   var entrando = false;
   var adicionando = false;   // o login foi aberto por "Adicionar nova lista" (a lista em uso continua valendo)
   var trocando = false;      // trocando de lista
+
+  // Botão de perfil da Home (bolinha com a inicial + nome). Só aparece em conta do VLTV Play com perfil escolhido.
+  function atualizarBotaoPerfil() {
+    var p = VLTV.dados.perfilAtual();
+    btnPerfil.classList.toggle('escondida', !p);
+    if (!p) { return; }
+    var caixa = $('perfil-mini-caixa');
+    while (caixa.firstChild) { caixa.removeChild(caixa.firstChild); }
+    if (VLTV.perfil && VLTV.perfil.avatar) { caixa.appendChild(VLTV.perfil.avatar(p, true)); }
+    $('perfil-mini-nome').textContent = p.nome;
+  }
 
   // ── Telas ─────────────────────────────────────────────────────────
   function mostrarTela(nome) {
@@ -104,6 +116,7 @@
       VLTV.emSegundoPlano(function () { VLTV.indice.aquecer(); });   // pesquisa de Filmes e Séries
     }
     if (nome === 'home') { VLTV.parental.travar(); }
+    if (nome === 'home') { atualizarBotaoPerfil(); }
     if (nome === 'home' && VLTV.nuvem) { VLTV.nuvem.aoEntrarNaHome(); }   // sincroniza progresso e favoritos com o celular
     if (nome === 'home') { VLTV.banner.iniciar(); } else { VLTV.banner.parar(); }
     if (nome === 'home') { VLTV.licenca.aplicarVisual(); }   // voltou para a Home: pega na hora o que mudou no painel (destaque, cores, campanha)
@@ -690,12 +703,16 @@
       else if (k === TECLA_BAIXO) { (tileSeries.disabled ? ultimoTile : tileSeries).focus(); }
     } else if (ativo === btnConfig && k === TECLA_BAIXO) {
       if (temBanner) { elBanner.focus(); } else if (temDestaque) { elDestaque.focus(); } else { ultimoTile.focus(); }
-    } else if ((ativo === tileSair || ativo === btnListas) && k === TECLA_CIMA) {
+    } else if ((ativo === tileSair || ativo === btnListas || ativo === btnPerfil) && k === TECLA_CIMA) {
       ultimoTile.focus();
     } else if (ativo === btnListas && k === TECLA_DIR) {
+      (btnPerfil.classList.contains('escondida') ? tileSair : btnPerfil).focus();
+    } else if (ativo === btnPerfil && k === TECLA_DIR) {
       tileSair.focus();
-    } else if (ativo === tileSair && k === TECLA_ESQ) {
+    } else if (ativo === btnPerfil && k === TECLA_ESQ) {
       btnListas.focus();
+    } else if (ativo === tileSair && k === TECLA_ESQ) {
+      (btnPerfil.classList.contains('escondida') ? btnListas : btnPerfil).focus();
     }
   }
 
@@ -730,6 +747,7 @@
   // Veio coisa nova do celular: se o catálogo está aberto, atualiza Favoritos e "Continuar assistindo".
   if (VLTV.nuvem) {
     VLTV.nuvem.aoMudar(function () {
+      if (telaAtual === 'home') { atualizarBotaoPerfil(); }
       if (telaAtual === 'catalogo' && VLTV.catalogo && VLTV.catalogo.atualizarFavoritos) { VLTV.catalogo.atualizarFavoritos(); }
     });
   }
@@ -738,7 +756,7 @@
     var k = e.keyCode;
 
     // "Quem está assistindo?" fica por cima de tudo e com as teclas enquanto está aberta.
-    if (VLTV.perfil && VLTV.perfil.aberto()) { VLTV.perfil.tecla(k); e.preventDefault(); return; }
+    if (VLTV.perfil && VLTV.perfil.aberto()) { if (VLTV.perfil.tecla(k)) { e.preventDefault(); } return; }
 
     // Avisos que ficam por cima de tudo: temporizador para dormir e lembrete de programa.
     if (VLTV.sono.avisoAberto()) { VLTV.sono.tecla(k); e.preventDefault(); return; }
@@ -853,6 +871,9 @@
     fecharApp();   // só aqui o app fecha (Samsung: tizen exit() via tizen-shim; LG: window.close)
   });
   btnListas.addEventListener('click', function () { abrirListas(); });
+  btnPerfil.addEventListener('click', function () {
+    VLTV.perfil.abrirTroca(function () { atualizarBotaoPerfil(); if (telaAtual === 'home') { btnPerfil.focus(); } });
+  });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {
     t.addEventListener('focus', function () { ultimoTile = t; });

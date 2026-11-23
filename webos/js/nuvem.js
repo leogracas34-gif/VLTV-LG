@@ -6,7 +6,9 @@
 //  - O id do perfil na nuvem sai do NOME do perfil: "Léo" vira "leo" (perfilId).
 //  - Posição e duração em SEGUNDOS. Chaves: 'f' + id (filme), 'e' + id (episódio); favoritos 'f', 's' (série) e 'c' (canal).
 //  - Vale sempre o registro com "t" (hora do aparelho) mais novo.
-//  - Só funciona em conta do VLTV Play (modo 'usuario'). Falhas são silenciosas: sem internet o app funciona como antes.
+//  - Só funciona em conta do VLTV Play (aba Usuário) e em login com CÓDIGO DE PARCEIRO. Xtream com servidor qualquer e M3U não sincronizam.
+//    Parceiro: o gateway confere usuário e senha no painel do parceiro e guarda a conta separada (campo "parceiro" no corpo).
+//  - Falhas são silenciosas: sem internet o app funciona como antes.
 (function () {
   'use strict';
 
@@ -23,6 +25,10 @@
   var aoMudarCb = null;
   var pausadoAte = 0;               // a VPS recusou o login: não insiste por um tempo (cada recusa conta como "login errado" do IP)
   var PAUSA_RECUSA_MS = 30 * 60 * 1000;
+  var CONFERE_SEM_PERFIL_MS = 20000;    // enquanto nenhum perfil foi escolhido: confere a lista de perfis a cada 20 s
+  var CONFERE_COM_PERFIL_MS = 120000;   // com perfil escolhido: a cada 2 min (pega perfil apagado ou renomeado no celular)
+  var conferindo = false;
+  var timerConfere = null;
 
   // ── Utilidades ────────────────────────────────────────────────────
   function perfilId(nome) {
@@ -35,8 +41,9 @@
   function cred() {
     if (new Date().getTime() < pausadoAte) { return null; }
     var s = VLTV.sessao.ler();
-    if (!s || s.modo !== 'usuario' || !s.user || !s.pass) { return null; }
-    return s;
+    if (!s || !s.user || !s.pass) { return null; }
+    if (s.modo === 'usuario' || (s.modo === 'parceiro' && s.codigo)) { return s; }
+    return null;
   }
 
   function ativo() { return !!cred(); }
@@ -47,6 +54,7 @@
     var c = cred();
     if (!c) { return Promise.reject(new Error('sem login')); }
     var corpo = { user: c.user, pass: c.pass };
+    if (c.modo === 'parceiro') { corpo.parceiro = c.codigo; }
     for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) { corpo[k] = extra[k]; } }
     return VLTV.http.fetchComTimeout(VLTV.dns.gateway() + rota, TIMEOUT_MS, {
       method: 'POST',
@@ -176,29 +184,220 @@
   }
 
   // ── Perfis ────────────────────────────────────────────────────────
-  // Perfis que o celular (Android) subiu para a nuvem, sem os apagados.
+  // A lista de perfis do celular fica guardada na TV (por login): a janela "Quem está assistindo?" abre na hora,
+  // e a lista nova da nuvem chega por trás e corrige o que mudou.
+  function contaUsuario() {
+    var s = VLTV.sessao.ler();
+    return (s && (s.modo === 'usuario' || (s.modo === 'parceiro' && s.codigo)) && s.user) ? s.user : '';
+  }
+
+  function listaGuardada() {
+    var u = contaUsuario();
+    if (!u) { return []; }
+    try {
+      var l = JSON.parse(localStorage.getItem('vltv_perfis_lista_' + u) || '[]');
+      return Array.isArray(l) ? l : [];
+    } catch (e) { return []; }
+  }
+
+  function guardarLista(lista) {
+    var u = contaUsuario();
+    if (!u) { return; }
+    try { localStorage.setItem('vltv_perfis_lista_' + u, JSON.stringify(lista)); } catch (e) { /* ignora */ }
+  }
+
+  function emVideo() {
+    var t = document.getElementById('tela-player');
+    return !!t && !t.classList.contains('escondida');
+  }
+
+  // Tira os apagados, os sem nome e os repetidos.
+  function limparLista(perfis) {
+    var vistos = {};
+    return (perfis || []).filter(function (p) {
+      if (!p || p.removido || !p.id || !p.nome || vistos[p.id]) { return false; }
+      vistos[p.id] = true;
+      return true;
+    });
+  }
+
+  // Perfis que o celular (Android) ou esta TV subiram para a nuvem.
   function listarPerfis() {
     return post('/conta/perfis', {}).then(function (r) {
-      return (r.perfis || []).filter(function (p) { return p && !p.removido && p.id && p.nome; });
+      var lista = limparLista(r.perfis);
+      guardarLista(lista);
+      return lista;
+    });
+  }
+
+  // ── Criar / renomear / apagar (a mesma rota do celular: manda "perfis", vale o "atualizado" mais novo) ──
+  var AVATAR_NORMAL = 'av_iron_man';   // mesmos nomes de avatar do app Android
+  var AVATAR_KIDS = 'av_infantil';
+
+  function agora() { return new Date().getTime(); }
+
+  // Perfis de fábrica (quando a nuvem ainda não tem nenhum). "virtual" = ainda não foi para a nuvem.
+  function padroes() {
+    return [
+      { id: 'meu-perfil', nome: 'Meu perfil', imagem: AVATAR_NORMAL, kids: false, virtual: true },
+      { id: 'infantil', nome: 'Infantil', imagem: AVATAR_KIDS, kids: true, virtual: true }
+    ];
+  }
+
+  function itemDe(p, t) {
+    return { id: p.id, nome: p.nome, imagem: p.imagem || '', kids: p.kids === true, atualizado: t };
+  }
+
+  // Se a nuvem ainda está vazia, os perfis de fábrica sobem junto (com hora um pouco mais antiga: o que o usuário fez vale mais).
+  function comPadroes(lista, itens, t) {
+    if (lista.length > 0) { return itens; }
+    return padroes().map(function (p) { return itemDe(p, t - 1); }).concat(itens);
+  }
+
+  function salvarPerfis(itens) {
+    return post('/conta/perfis', { perfis: itens }).then(function (r) {
+      var lista = limparLista(r.perfis);
+      guardarLista(lista);
+      return lista;
+    });
+  }
+
+  function nomeValido(nome) { return String(nome || '').trim().slice(0, 40); }
+
+  function criarPerfil(nome, kids) {
+    nome = nomeValido(nome);
+    if (!nome) { return Promise.reject(new Error('nome')); }
+    var id = perfilId(nome);
+    return listarPerfis().then(function (lista) {
+      if (lista.some(function (p) { return p.id === id; })) { throw new Error('existe'); }
+      var t = agora();
+      var novo = { id: id, nome: nome, imagem: kids ? AVATAR_KIDS : AVATAR_NORMAL, kids: !!kids };
+      return salvarPerfis(comPadroes(lista, [itemDe(novo, t)], t));
+    });
+  }
+
+  // O id sai do nome (igual ao celular): renomear cria o id novo e apaga o antigo. O histórico desta TV vai junto.
+  function renomearPerfil(p, novoNome) {
+    novoNome = nomeValido(novoNome);
+    if (!novoNome) { return Promise.reject(new Error('nome')); }
+    var novoId = perfilId(novoNome);
+    return listarPerfis().then(function (lista) {
+      var t = agora();
+      var itens;
+      if (novoId === p.id) {
+        itens = [itemDe({ id: p.id, nome: novoNome, imagem: p.imagem, kids: p.kids }, t)];
+      } else {
+        if (lista.some(function (x) { return x.id === novoId; })) { throw new Error('existe'); }
+        itens = [
+          itemDe({ id: novoId, nome: novoNome, imagem: p.imagem, kids: p.kids }, t),
+          { id: p.id, nome: '', removido: true, atualizado: t }
+        ];
+      }
+      return salvarPerfis(comPadroes(lista, itens, t)).then(function (nova) {
+        var atual = perfil();
+        if (novoId !== p.id) { VLTV.dados.migrarPerfil(p.id, novoId); }
+        if (atual && atual.id === p.id) {
+          VLTV.dados.definirPerfil({ id: novoId, nome: novoNome, imagem: p.imagem || '', kids: p.kids === true });
+          ultimaSync = 0;
+          sincronizar(true);
+        }
+        if (aoMudarCb) { try { aoMudarCb(); } catch (e) { /* ignora */ } }
+        return nova;
+      });
+    });
+  }
+
+  function apagarPerfil(p) {
+    return listarPerfis().then(function (lista) {
+      var t = agora();
+      return salvarPerfis(comPadroes(lista, [{ id: p.id, nome: '', removido: true, atualizado: t }], t)).then(function (nova) {
+        var atual = perfil();
+        if (atual && atual.id === p.id) { VLTV.dados.limparPerfil(); }
+        if (aoMudarCb) { try { aoMudarCb(); } catch (e) { /* ignora */ } }
+        return nova;
+      });
     });
   }
 
   function escolherPerfil(p) {
+    if (p.virtual) {   // perfil de fábrica: sobe para a nuvem agora (o celular passa a ver também)
+      var t = agora();
+      salvarPerfis(padroes().map(function (x) { return itemDe(x, t); })).catch(function () { /* tenta de novo na próxima conferência */ });
+    }
     VLTV.dados.definirPerfil({ id: p.id, nome: p.nome, imagem: p.imagem || '', kids: p.kids === true });
     ultimaSync = 0;
     sincronizar(true);
     if (aoMudarCb) { try { aoMudarCb(); } catch (e) { /* ignora */ } }
   }
 
-  // Ao entrar na Home: se já tem perfil, sincroniza; se não, escolhe (1 perfil entra sozinho, vários perguntam).
+  // Ninguém escolhido ainda: 1 perfil entra sozinho, vários perguntam (a janela some depois da 1ª escolha).
+  function escolherOuPerguntar(lista) {
+    // Nuvem vazia (ninguém criou perfil ainda): mostra "Meu perfil" e "Infantil" para escolher, editar ou criar outros.
+    if (lista.length === 0) { lista = padroes(); }
+    // 1 perfil comum entra sozinho (infantil sozinho pergunta, para dar chance de criar o seu).
+    if (lista.length === 1 && !lista[0].kids) {
+      if (VLTV.perfil && VLTV.perfil.aberto()) { VLTV.perfil.fechar(); }
+      escolherPerfil(lista[0]);
+      return;
+    }
+    if (!VLTV.perfil) { return; }
+    if (VLTV.perfil.aberto()) { VLTV.perfil.atualizar(lista); }
+    else if (!emVideo()) { VLTV.perfil.abrir(lista, false); }
+  }
+
+  // Chegou a lista nova da nuvem.
+  function aplicarLista(lista) {
+    var atual = perfil();
+    if (atual) {
+      var achado = null;
+      lista.forEach(function (p) { if (p.id === atual.id) { achado = p; } });
+      if (achado) {
+        // Nome, foto ou "infantil" mudou no celular: atualiza aqui sem perguntar nada.
+        if (achado.nome !== atual.nome || (achado.imagem || '') !== (atual.imagem || '') || (achado.kids === true) !== (atual.kids === true)) {
+          VLTV.dados.definirPerfil({ id: achado.id, nome: achado.nome, imagem: achado.imagem || '', kids: achado.kids === true });
+        }
+        return;
+      }
+      // Lista vazia pode ser falha da nuvem: não solta o perfil por causa disso.
+      if (lista.length === 0) { return; }
+      // O perfil escolhido aqui foi apagado (ou renomeado) no celular: escolhe de novo.
+      VLTV.dados.limparPerfil();
+    }
+    escolherOuPerguntar(lista);
+  }
+
+  function conferirPerfis() {
+    if (conferindo || !cred()) { return Promise.resolve(); }
+    conferindo = true;
+    return listarPerfis().then(function (lista) {
+      conferindo = false;
+      aplicarLista(lista);
+    }, function () {
+      conferindo = false;   // sem internet ou servidor fora: a próxima conferência tenta de novo
+    });
+  }
+
+  // Confere de tempos em tempos. Antes só conferia ao abrir a Home: se a internet da TV ainda não tinha voltado, ou o celular
+  // ainda não tinha enviado os perfis, nada aparecia até sair e voltar à Home.
+  function agendarConferencia() {
+    if (timerConfere) { return; }
+    timerConfere = setTimeout(function () {
+      timerConfere = null;
+      conferirPerfis().then(agendarConferencia);
+    }, perfil() ? CONFERE_COM_PERFIL_MS : CONFERE_SEM_PERFIL_MS);
+  }
+
+  // Ao entrar na Home: se já tem perfil, sincroniza; se não, mostra já a lista guardada (se houver) e confere a nuvem.
   function aoEntrarNaHome() {
-    if (!ativo()) { return; }
-    if (perfil()) { sincronizar(false); return; }
-    listarPerfis().then(function (lista) {
-      if (perfil() || lista.length === 0) { return; }   // ninguém criou perfil no celular ainda: nada para sincronizar
-      if (lista.length === 1) { escolherPerfil(lista[0]); return; }
-      if (VLTV.perfil) { VLTV.perfil.abrir(lista, false); }
-    }).catch(function () { /* sem internet: tenta na próxima vez que entrar na Home */ });
+    if (!ativo()) { agendarConferencia(); return; }
+    if (perfil()) {
+      sincronizar(false);
+    } else {
+      var guardada = listaGuardada();
+      if (guardada.length > 1 && VLTV.perfil && !VLTV.perfil.aberto() && !emVideo()) { VLTV.perfil.abrir(guardada, false); }
+    }
+    conferirPerfis();
+    agendarConferencia();
   }
 
   VLTV.nuvem = {
@@ -209,6 +408,11 @@
     descarregar: descarregar,
     sincronizar: sincronizar,
     listarPerfis: listarPerfis,
+    listaGuardada: listaGuardada,
+    padroes: padroes,
+    criarPerfil: criarPerfil,
+    renomearPerfil: renomearPerfil,
+    apagarPerfil: apagarPerfil,
     escolherPerfil: escolherPerfil,
     aoEntrarNaHome: aoEntrarNaHome,
     aoMudar: function (f) { aoMudarCb = f; }

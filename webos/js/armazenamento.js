@@ -52,7 +52,8 @@
     var u = usuario();
     try { window.localStorage.setItem('vltv_perfil_' + u, JSON.stringify(p)); } catch (e) { /* ignora */ }
     perfilMemo = { u: null, v: null };
-    migrarLegado(u, p.id);
+    // O histórico antigo da TV (de antes dos perfis) não vai para o perfil infantil: fica para o primeiro perfil comum.
+    if (!p.kids) { migrarLegado(u, p.id); }
   }
 
   // O perfil escolhido aqui não existe mais no celular: esquece a escolha (o histórico dele fica guardado, só não é mostrado).

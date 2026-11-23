@@ -246,6 +246,8 @@
   // ── Interface pública ─────────────────────────────────────────────
   // Chamada ao entrar na Home e quando o painel manda a configuração. Pode ser chamada quantas vezes precisar.
   function atualizar() {
+    // Destaque da semana é escolhido pelo painel para todos: no perfil infantil não aparece.
+    if (VLTV.parental && VLTV.parental.ehInfantil()) { esconder(); diag('perfil infantil: destaque escondido'); return; }
     var c = configEfetiva();
     var chave = chaveSessao();
     if (!c.ativo) { esconder(); diag('não ligado (' + c.desligadoPor + '; config vinda de: ' + c.fonte + ')'); return; }

@@ -118,7 +118,10 @@
   // Sem VPS: primeiros títulos com capa das primeiras categorias de filmes e de séries.
   function porPainel() {
     function daCategoria(listaCats, buscar, tipo, etiqueta) {
-      var cats = arr(listaCats).filter(function (c) { return !adulta(c.category_name); }).slice(0, CATEGORIAS_FALLBACK);
+      var base = VLTV.parental.ehInfantil()
+        ? VLTV.parental.filtrarCategorias(tipo, arr(listaCats))      // perfil infantil: só categorias infantis
+        : arr(listaCats).filter(function (c) { return !adulta(c.category_name); });
+      var cats = base.slice(0, CATEGORIAS_FALLBACK);
       return Promise.all(cats.map(function (c) {
         return buscar(c.category_id).then(arr).catch(function () { return []; });
       })).then(function (listas) {
@@ -371,7 +374,7 @@
     if (VLTV.config.BANNER_ATIVO === false) { return; }
 
     var s = VLTV.sessao.ler();
-    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u) : '';
+    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u + (VLTV.parental.ehInfantil() ? '|infantil' : '')) : '';
     if (!forcar && chave === chaveCarregada && slides.length > 0) { return; }
     chaveCarregada = chave;
 
@@ -388,7 +391,8 @@
     if (guardado.length > 0) { mostrar(guardado); }
 
     // 2) A rede busca a lista de hoje. Se já há banner na tela, a lista nova só entra na próxima troca de slide.
-    var inicio = VLTV.m3u.ativo() ? porPainel() : porVps().then(function (l) { return l.length >= 3 ? l : porPainel(); });
+    // Top 10 da VPS é do catálogo inteiro: o perfil infantil usa só o que vem das categorias infantis.
+    var inicio = (VLTV.m3u.ativo() || VLTV.parental.ehInfantil()) ? porPainel() : porVps().then(function (l) { return l.length >= 3 ? l : porPainel(); });
     inicio.catch(function () { return []; }).then(function (lista) {
       if (meu !== idCarga || lista.length === 0) { return; }
       herdar(lista, guardado);

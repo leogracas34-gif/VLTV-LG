@@ -29,6 +29,23 @@
   var REGEX_TITULO = /(^|[^a-z])(xxx|porn[oô]?|hentai|nsfw)([^a-z]|$)|\+\s?18|18\s?\+|[\[\(]\s?adult[oa]?\s?[\]\)]/i;
   var REGEX_IDADE = /(^|\D)18(\D|$)|nc-?17|^x$|r-?18|a-?18|\+\s?18/i;
 
+  // ── Perfil infantil ───────────────────────────────────────────────
+  // Mesma regra do app do celular: só categorias com nome de infantil/desenho/Disney/animação/cartoon/kids.
+  // No perfil infantil nada de adulto aparece e não existe cadeado (não há o que destrancar).
+  var REGEX_KIDS = /kids|infantil|infantis|crian[cç]|desenho|disney|anima[cç][aã]o|cartoon|toon|nick|gloob|baby|junior|pixar|turma da m[oô]nica|mickey/i;
+
+  // Nome de CANAL infantil (canais de desenho 24 horas costumam ficar em categorias comuns).
+  var REGEX_CANAL_KIDS = /kids|infantil|infantis|crian[cç]|desenho|disney|cartoon|toon|nick|gloob|baby|junior|\bjr\b|boomerang|pixar|zoo ?moo|r[aá] tim bum|canal panda|piwi|duck ?tv|mundo bita|\bbita\b|peppa|patrulha|bluey|bob esponja|spongebob|ben ?10|tom (e|&|and) jerry|looney|pica[- ]?pau|mickey|minnie|pateta|pato donald|turma da m[oô]nica|miraculous|pocoyo|masha|cocomelon|galinha pintadinha|backyardigans|scooby|smurf|pokemon|pok[eé]mon|power rangers|barbie|hot wheels|lego|dora\b|chaves|chapolin|ursinho|heidi|sitio do picapau|sítio do picapau|anima[cç][aã]o|anima[cç][oõ]es/i;
+
+  function ehNomeInfantil(nome) { return REGEX_CANAL_KIDS.test(String(nome || '')); }
+
+  function ehInfantil() {
+    try {
+      var p = VLTV.dados && VLTV.dados.perfilAtual ? VLTV.dados.perfilAtual() : null;
+      return !!(p && p.kids === true);
+    } catch (e) { return false; }
+  }
+
   function ehCategoriaAdulta(nome) { return REGEX_CATEGORIA.test(String(nome || '')); }
   function ehNomeAdulto(nome) { return REGEX_TITULO.test(String(nome || '')); }
 
@@ -130,6 +147,12 @@
   // ── Filtros usados pelas telas ────────────────────────────────────
   // Marca as categorias adultas (adulta: true) e, no modo "Ocultar", tira elas da lista enquanto bloqueado.
   function filtrarCategorias(tipo, lista) {
+    if (ehInfantil()) {
+      return (Array.isArray(lista) ? lista : []).filter(function (c) {
+        var n = c ? String(c.category_name || '') : '';
+        return REGEX_KIDS.test(n) && !ehCategoriaAdulta(n);
+      }).concat(tipo === 'canais' ? [{ category_id: '__kids24__', category_name: 'Desenhos 24 horas' }] : []);
+    }
     var saida = [];
     (Array.isArray(lista) ? lista : []).forEach(function (c) {
       if (c && ehCategoriaAdulta(c.category_name)) {
@@ -162,6 +185,9 @@
 
   // Tira os itens adultos da lista enquanto o conteúdo estiver bloqueado.
   function filtrarItens(lista, tipo) {
+    if (ehInfantil() && Array.isArray(lista)) {
+      return lista.filter(function (x) { return !itemAdulto(x, tipo); });
+    }
     if (!bloqueando() || !Array.isArray(lista)) { return lista; }
     return lista.filter(function (x) { return !itemAdulto(x, tipo); });
   }
@@ -489,6 +515,8 @@
     bloqueando: bloqueando,
     liberar: liberar,
     travar: travar,
+    ehInfantil: ehInfantil,
+    ehNomeInfantil: ehNomeInfantil,
     ehCategoriaAdulta: ehCategoriaAdulta,
     ehNomeAdulto: ehNomeAdulto,
     filtrarCategorias: filtrarCategorias,

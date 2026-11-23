@@ -528,7 +528,10 @@
 
   function abrir(callbacks) {
     // "Perfil" só aparece em conta do VLTV Play (é onde existe sincronização com o celular).
-    ITENS = ITENS_BASE.filter(function (it) { return it.id !== 'perfil' || (VLTV.nuvem && VLTV.nuvem.ativo()); });
+    ITENS = ITENS_BASE.filter(function (it) {
+      if (it.id === 'tema' && VLTV.parental.ehInfantil()) { return false; }   // perfil infantil tem visual próprio: sem escolha de tema
+      return it.id !== 'perfil' || (VLTV.nuvem && VLTV.nuvem.ativo());
+    });
     acoes = callbacks;
     idx = 0;
     foco = 'menu';

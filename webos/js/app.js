@@ -78,8 +78,17 @@
   var adicionando = false;   // o login foi aberto por "Adicionar nova lista" (a lista em uso continua valendo)
   var trocando = false;      // trocando de lista
 
+  // Perfil infantil: liga o fundo colorido (css/infantil.css). Desliga em qualquer outro perfil.
+  function aplicarVisualInfantil() {
+    var kids = false;
+    try { kids = !!(VLTV.parental && VLTV.parental.ehInfantil()); } catch (e) { kids = false; }
+    if (kids) { document.documentElement.setAttribute('data-infantil', '1'); }
+    else { document.documentElement.removeAttribute('data-infantil'); }
+  }
+
   // Botão de perfil da Home (bolinha com a inicial + nome). Só aparece em conta do VLTV Play com perfil escolhido.
   function atualizarBotaoPerfil() {
+    aplicarVisualInfantil();
     var p = VLTV.dados.perfilAtual();
     btnPerfil.classList.toggle('escondida', !p);
     if (!p) { return; }
@@ -95,6 +104,7 @@
       telas[n].classList.toggle('escondida', n !== nome);
     });
     telaAtual = nome;
+    aplicarVisualInfantil();
     vigiarDemoraCarregando(nome === 'carregando');
     var faixa = $('faixa-campanha');
     if (faixa) { faixa.style.visibility = nome === 'home' ? 'visible' : 'hidden'; }
@@ -701,18 +711,18 @@
       if (k === TECLA_ESQ) { if (temBanner) { elBanner.focus(); } }
       else if (k === TECLA_CIMA) { btnConfig.focus(); }
       else if (k === TECLA_BAIXO) { (tileSeries.disabled ? ultimoTile : tileSeries).focus(); }
-    } else if (ativo === btnConfig && k === TECLA_BAIXO) {
+    } else if ((ativo === btnConfig || ativo === btnPerfil) && k === TECLA_BAIXO) {
       if (temBanner) { elBanner.focus(); } else if (temDestaque) { elDestaque.focus(); } else { ultimoTile.focus(); }
-    } else if ((ativo === tileSair || ativo === btnListas || ativo === btnPerfil) && k === TECLA_CIMA) {
+    } else if ((ativo === tileSair || ativo === btnListas) && k === TECLA_CIMA) {
       ultimoTile.focus();
     } else if (ativo === btnListas && k === TECLA_DIR) {
-      (btnPerfil.classList.contains('escondida') ? tileSair : btnPerfil).focus();
-    } else if (ativo === btnPerfil && k === TECLA_DIR) {
       tileSair.focus();
-    } else if (ativo === btnPerfil && k === TECLA_ESQ) {
-      btnListas.focus();
     } else if (ativo === tileSair && k === TECLA_ESQ) {
-      (btnPerfil.classList.contains('escondida') ? btnListas : btnPerfil).focus();
+      btnListas.focus();
+    } else if (ativo === btnConfig && k === TECLA_ESQ && !btnPerfil.classList.contains('escondida')) {
+      btnPerfil.focus();
+    } else if (ativo === btnPerfil && k === TECLA_DIR) {
+      btnConfig.focus();
     }
   }
 
@@ -747,7 +757,13 @@
   // Veio coisa nova do celular: se o catálogo está aberto, atualiza Favoritos e "Continuar assistindo".
   if (VLTV.nuvem) {
     VLTV.nuvem.aoMudar(function () {
-      if (telaAtual === 'home') { atualizarBotaoPerfil(); }
+      aplicarVisualInfantil();
+      if (telaAtual === 'home') {
+        atualizarBotaoPerfil();
+        // Trocou entre perfil comum e infantil: banner e destaque refletem o perfil novo.
+        VLTV.banner.carregar(false);
+        VLTV.destaque.atualizar();
+      }
       if (telaAtual === 'catalogo' && VLTV.catalogo && VLTV.catalogo.atualizarFavoritos) { VLTV.catalogo.atualizarFavoritos(); }
     });
   }

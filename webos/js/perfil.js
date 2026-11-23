@@ -57,8 +57,13 @@
     '#aviso-perfil .pf-campo.apagar{color:#ff8a92;}' +
     '#aviso-perfil .pf-msg{height:40px;margin-top:10px;font-size:27px;color:#ff8a92;}' +
     /* mini avatar do botão da Home */
-    '.perfil-mini{width:38px;height:38px;font-size:22px;margin-right:12px;vertical-align:middle;display:inline-flex;}' +
-    '.btn-perfil{display:inline-flex;align-items:center;}';
+    '.perfil-mini{width:58px;height:58px;font-size:30px;margin-right:16px;vertical-align:middle;display:inline-flex;}' +
+    /* botão de perfil no canto de cima da Home (ao lado da engrenagem), estilo Netflix */
+    '.topo-direita .btn-perfil{display:inline-flex;align-items:center;height:76px;margin-right:20px;padding:0 34px 0 8px;box-sizing:border-box;border-radius:38px;' +
+    'background:var(--painel);border:3px solid var(--borda);color:#e8e8ee;font-size:28px;font-weight:700;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;outline:none;}' +
+    '.topo-direita .btn-perfil:focus,.topo-direita .btn-perfil:hover{color:#fff;background:var(--destaque);border-color:#fff;box-shadow:0 0 0 8px rgba(var(--destaque-rgb),.5);}' +
+    '.btn-perfil #perfil-mini-nome{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '.btn-perfil .perfil-mini{border:0;}';
 
   // Avatares próprios do VLTV (cores e formas, sem personagens): evita problema de direitos autorais nas lojas.
   // O perfil guarda "vltv:<id>" no campo imagem. Sem escolha, o estilo sai do id do perfil.
@@ -212,9 +217,37 @@
     marcar();
   }
 
+  // Entrada no perfil infantil: tela colorida com o avatar e "INFANTIL" (igual à animação do app do celular).
+  // A Home já carrega por trás; o toque do controle fica preso até a animação terminar.
+  function animarInfantil() {
+    var capa = document.createElement('div');
+    capa.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'background:linear-gradient(90deg,#2E7D32,#F57C00,#E91E8C,#3F51B5);opacity:0;transition:opacity .28s ease;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;';
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = 'img/av_infantil.jpg';
+    img.style.cssText = 'width:300px;height:300px;border-radius:18%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.35);transform:scale(.55);transition:transform .48s cubic-bezier(.34,1.56,.64,1);';
+    var txt = document.createElement('div');
+    txt.textContent = 'INFANTIL';
+    txt.style.cssText = 'margin-top:44px;font-size:60px;font-weight:800;letter-spacing:6px;color:#fff;opacity:0;transition:opacity .25s ease;text-shadow:0 4px 16px rgba(0,0,0,.3);';
+    capa.appendChild(img);
+    capa.appendChild(txt);
+    document.body.appendChild(capa);
+    var travar = function (ev) { ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener('keydown', travar, true);
+    setTimeout(function () { capa.style.opacity = '1'; img.style.transform = 'scale(1)'; }, 30);
+    setTimeout(function () { txt.style.opacity = '1'; }, 560);
+    setTimeout(function () { capa.style.opacity = '0'; }, 1500);
+    setTimeout(function () {
+      document.removeEventListener('keydown', travar, true);
+      if (capa.parentNode) { capa.parentNode.removeChild(capa); }
+    }, 1850);
+  }
+
   function escolher(i) {
     var p = perfis[i];
     if (!p) { return; }
+    if (p.kids === true) { animarInfantil(); }
     VLTV.nuvem.escolherPerfil(p);
     fechar();
   }

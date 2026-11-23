@@ -1,0 +1,27 @@
+/* VLTV Play | Visual do perfil infantil: fundo colorido (bolinhas e cores vivas) e botões alegres.
+   Liga sozinho quando o perfil escolhido é infantil (html[data-infantil], colocado pelo app.js).
+   Fica depois de temas.css e usa !important para valer sobre qualquer tema escolhido. */
+html[data-infantil],
+html[data-infantil] body {
+  background:
+    radial-gradient(circle at 12% 16%, rgba(255, 214, 10, 0.55) 0, rgba(255, 214, 10, 0) 22%),
+    radial-gradient(circle at 90% 12%, rgba(255, 64, 160, 0.55) 0, rgba(255, 64, 160, 0) 26%),
+    radial-gradient(circle at 84% 90%, rgba(0, 200, 255, 0.55) 0, rgba(0, 200, 255, 0) 28%),
+    radial-gradient(circle at 8% 92%, rgba(76, 217, 100, 0.50) 0, rgba(76, 217, 100, 0) 24%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.16) 3px, rgba(255, 255, 255, 0) 4px) 0 0 / 90px 90px,
+    radial-gradient(circle, rgba(255, 255, 255, 0.10) 5px, rgba(255, 255, 255, 0) 6px) 45px 45px / 90px 90px,
+    linear-gradient(135deg, #5b2bd6 0%, #8a2be2 42%, #c2379b 100%) !important;
+}
+html[data-infantil] {
+  --painel: #2b1a52; --painel-2: #3b2470; --borda: #6a45b0; --suave: #e3d6ff;
+  --destaque: #ff4fa3 !important; --destaque-claro: #ff8fc7 !important; --destaque-escuro: #d81b7a;
+  --destaque-rgb: 255, 79, 163; --destaque-claro-rgb: 255, 143, 199;
+}
+html[data-infantil] .bn-botao { color: #fff; background: var(--destaque); }
+/* Os três botões grandes numa cor só (turquesa), para não ficar carnaval */
+html[data-infantil] #tile-live,
+html[data-infantil] #tile-filmes,
+html[data-infantil] #tile-series { background: linear-gradient(135deg, #22d3c5 0%, #0a8fb5 100%) !important; border-color: rgba(255, 255, 255, 0.55) !important; }
+html[data-infantil] #tile-live:focus, html[data-infantil] #tile-live:not([disabled]):hover,
+html[data-infantil] #tile-filmes:focus, html[data-infantil] #tile-filmes:not([disabled]):hover,
+html[data-infantil] #tile-series:focus, html[data-infantil] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #4de8da 0%, #14a8d0 100%) !important; }

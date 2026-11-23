@@ -202,7 +202,18 @@
       return chamar('get_live_categories').then(comoLista);
     },
 
+    // Perfil infantil: canais de desenho que ficam fora de categorias "infantis" (ex.: "24 horas" misturado com
+    // outros canais). Varre todos os canais da conta e fica só com os de nome infantil. Sem adulto.
+    canaisInfantis: function () {
+      if (daLista()) { return pronto([]); }
+      return chamar('get_live_streams').then(comoLista).then(function (lista) {
+        var P = VLTV.parental;
+        return lista.filter(function (x) { return x && P.ehNomeInfantil(x.name) && !P.itemAdulto(x, 'canais'); });
+      });
+    },
+
     canaisAoVivo: function (categoriaId) {
+      if (categoriaId === '__kids24__') { return VLTV.api.canaisInfantis(); }
       if (daLista()) { return pronto(VLTV.m3u.itens('ao_vivo', categoriaId)); }
       return chamar('get_live_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },

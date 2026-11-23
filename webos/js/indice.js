@@ -37,7 +37,8 @@
 
   function dono() {
     var s = VLTV.sessao.ler();
-    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '')) : '';
+    // Perfil infantil tem o seu próprio índice (só categorias infantis), separado do dos outros perfis.
+    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '') + (VLTV.parental.ehInfantil() ? '|infantil' : '')) : '';
   }
 
   // Cada conta tem o seu índice; trocou de conta, começa do zero.
@@ -74,7 +75,10 @@
     var e = estado(tipo);
     if (e.cats) { return Promise.resolve(e.cats); }
     return VLTV.sync.obter(tipo + '|cats', FONTES[tipo].categorias).then(function (r) {
-      var cats = (Array.isArray(r.dados) ? r.dados : []).filter(function (c) { return !adulta(c.category_name); });
+      var brutas = Array.isArray(r.dados) ? r.dados : [];
+      var cats = VLTV.parental.ehInfantil()
+        ? VLTV.parental.filtrarCategorias(tipo, brutas)
+        : brutas.filter(function (c) { return !adulta(c.category_name); });
       // Lista de categorias vazia quase sempre é falha do painel: não guarda, para tentar de novo.
       if (cats.length === 0) { throw new Error('sem categorias'); }
       e.cats = cats;
@@ -142,7 +146,8 @@
 
   function usaVps() {
     var s = VLTV.sessao.ler();
-    return !!s && s.modo !== 'm3u' && !VLTV.m3u.ativo();
+    // O índice da VPS tem o catálogo inteiro: o perfil infantil não usa, monta só pelas categorias infantis.
+    return !!s && s.modo !== 'm3u' && !VLTV.m3u.ativo() && !VLTV.parental.ehInfantil();
   }
 
   // ── Índice guardado na TV, em PEDAÇOS ─────────────────────────────
@@ -361,6 +366,7 @@
       lista.forEach(function (raw) {
         var id = raw[campo];
         if (id === undefined || id === null || e.ids[id]) { return; }
+        if (VLTV.parental.ehInfantil() && VLTV.parental.itemAdulto(raw, tipo)) { return; }
         e.ids[id] = true;
         e.unico.push(raw);
         e.nomes.push(norm(raw.name));

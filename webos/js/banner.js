@@ -374,7 +374,7 @@
     if (VLTV.config.BANNER_ATIVO === false) { return; }
 
     var s = VLTV.sessao.ler();
-    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u + (VLTV.parental.ehInfantil() ? '|infantil' : '')) : '';
+    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u + (VLTV.parental.ehInfantil() ? '|infantil2' : '')) : '';
     if (!forcar && chave === chaveCarregada && slides.length > 0) { return; }
     chaveCarregada = chave;
 

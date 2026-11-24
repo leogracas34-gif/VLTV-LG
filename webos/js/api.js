@@ -208,7 +208,7 @@
       if (daLista()) { return pronto([]); }
       return chamar('get_live_streams').then(comoLista).then(function (lista) {
         var P = VLTV.parental;
-        return lista.filter(function (x) { return x && P.ehNomeInfantil(x.name) && !P.itemAdulto(x, 'canais'); });
+        return lista.filter(function (x) { return x && VLTV.kids.ok(x, 'canais') && P.ehNomeInfantil(x.name); });
       });
     },
 
@@ -259,6 +259,7 @@
 
     filmesPorCategoria: function (categoriaId) {
       if (daLista()) { return pronto(VLTV.m3u.itens('filmes', categoriaId)); }
+      if (categoriaId === '__kids_familia__') { return chamar('get_vod_streams').then(comoLista); }   // perfil infantil: o filtro de conteúdo fica com VLTV.kids
       return chamar('get_vod_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 
@@ -278,6 +279,7 @@
 
     seriesPorCategoria: function (categoriaId) {
       if (daLista()) { return pronto(VLTV.m3u.itens('series', categoriaId)); }
+      if (categoriaId === '__kids_familia__') { return chamar('get_series').then(comoLista); }
       return chamar('get_series', '&category_id=' + enc(categoriaId)).then(comoLista);
     },
 

@@ -98,13 +98,15 @@
     return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u) : '';
   }
 
+  function lingua() { try { return VLTV.idioma.tmdb().lingua || 'pt-BR'; } catch (e) { return 'pt-BR'; } }
+
   // ── Guardado na TV ────────────────────────────────────────────────
   function lerCache(chave, c) {
     try {
       var b = localStorage.getItem(CHAVE_CACHE);
       if (!b) { return null; }
       var x = JSON.parse(b);
-      if (!x || x.chave !== chave || x.tipo !== c.tipo || x.nomeCfg !== c.nome || (x.imagemCfg || '') !== c.imagem || (x.tmdbCfg || '') !== c.tmdb || (x.sinopseCfg || '') !== c.sinopse || !x.raw) { return null; }
+      if (!x || x.chave !== chave || x.tipo !== c.tipo || x.nomeCfg !== c.nome || (x.imagemCfg || '') !== c.imagem || (x.tmdbCfg || '') !== c.tmdb || (x.sinopseCfg || '') !== c.sinopse || x.lingua !== lingua() || !x.raw) { return null; }
       return x;
     } catch (e) { return null; }
   }
@@ -235,6 +237,7 @@
         if (meu !== idCarga) { return; }
         item = novo;
         lista = r.lista || null;
+        novo.lingua = lingua();
         gravarCache(novo);
         desenhar();
         aplicarLayout(true);

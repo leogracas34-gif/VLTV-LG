@@ -38,7 +38,7 @@
   function dono() {
     var s = VLTV.sessao.ler();
     // Perfil infantil tem o seu próprio índice (só categorias infantis), separado do dos outros perfis.
-    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '') + (VLTV.parental.ehInfantil() ? '|infantil' : '')) : '';
+    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '') + (VLTV.parental.ehInfantil() ? '|infantil2' : '')) : '';
   }
 
   // Cada conta tem o seu índice; trocou de conta, começa do zero.
@@ -362,11 +362,12 @@
     var e = estado(tipo);
     var campo = FONTES[tipo].campoId;
     var incompleto = false;
+    var kids = VLTV.parental.ehInfantil();
     function juntar(lista, cat) {
       lista.forEach(function (raw) {
         var id = raw[campo];
         if (id === undefined || id === null || e.ids[id]) { return; }
-        if (VLTV.parental.ehInfantil() && VLTV.parental.itemAdulto(raw, tipo)) { return; }
+        if (kids && !VLTV.kids.ok(raw, tipo)) { return; }
         e.ids[id] = true;
         e.unico.push(raw);
         e.nomes.push(norm(raw.name));

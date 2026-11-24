@@ -39,11 +39,20 @@
 
   function ehNomeInfantil(nome) { return REGEX_CANAL_KIDS.test(String(nome || '')); }
 
+  // Resultado guardado por 3 s (ler o perfil custa várias leituras do localStorage e isto é chamado a cada filtro).
+  var infCache = { v: false, t: 0 };
+  function recalcular() { infCache.t = 0; }
   function ehInfantil() {
+    var agora = new Date().getTime();
+    if (agora - infCache.t < 3000 && infCache.t !== 0) { return infCache.v; }
+    var v = false;
     try {
       var p = VLTV.dados && VLTV.dados.perfilAtual ? VLTV.dados.perfilAtual() : null;
-      return !!(p && p.kids === true);
-    } catch (e) { return false; }
+      v = !!(p && p.kids === true);
+    } catch (e) { v = false; }
+    infCache = { v: v, t: agora };
+    if (v && VLTV.kids && VLTV.kids.aquecer) { VLTV.kids.aquecer(); }
+    return v;
   }
 
   function ehCategoriaAdulta(nome) { return REGEX_CATEGORIA.test(String(nome || '')); }
@@ -147,12 +156,7 @@
   // ── Filtros usados pelas telas ────────────────────────────────────
   // Marca as categorias adultas (adulta: true) e, no modo "Ocultar", tira elas da lista enquanto bloqueado.
   function filtrarCategorias(tipo, lista) {
-    if (ehInfantil()) {
-      return (Array.isArray(lista) ? lista : []).filter(function (c) {
-        var n = c ? String(c.category_name || '') : '';
-        return REGEX_KIDS.test(n) && !ehCategoriaAdulta(n);
-      }).concat(tipo === 'canais' ? [{ category_id: '__kids24__', category_name: 'Desenhos 24 horas' }] : []);
-    }
+    if (ehInfantil()) { return VLTV.kids.categorias(tipo, lista); }
     var saida = [];
     (Array.isArray(lista) ? lista : []).forEach(function (c) {
       if (c && ehCategoriaAdulta(c.category_name)) {
@@ -186,7 +190,7 @@
   // Tira os itens adultos da lista enquanto o conteúdo estiver bloqueado.
   function filtrarItens(lista, tipo) {
     if (ehInfantil() && Array.isArray(lista)) {
-      return lista.filter(function (x) { return !itemAdulto(x, tipo); });
+      return lista.filter(function (x) { return VLTV.kids.ok(x, tipo); });
     }
     if (!bloqueando() || !Array.isArray(lista)) { return lista; }
     return lista.filter(function (x) { return !itemAdulto(x, tipo); });
@@ -522,6 +526,7 @@
     filtrarCategorias: filtrarCategorias,
     filtrarItens: filtrarItens,
     itemAdulto: itemAdulto,
+    recalcularPerfil: recalcular,
     checarReproducao: checarReproducao,
     pedirSenha: pedirSenha,
     criarSenha: criarSenha,

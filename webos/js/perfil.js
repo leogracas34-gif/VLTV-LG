@@ -25,26 +25,28 @@
   // ── Visual (injetado aqui para não mexer em outros arquivos) ──────
   var CSS = '' +
     '#aviso-perfil{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-    'background:radial-gradient(ellipse at 50% 35%,#1b1b22 0%,#0a0a0c 70%);font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;}' +
+    'background:radial-gradient(ellipse at 50% 30%,#1d1d26 0%,#0b0b0e 72%);font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0,"calt" 0;text-rendering:optimizeSpeed;}' +
+    '#aviso-perfil *{font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0,"calt" 0;}' +
     '#aviso-perfil.escondida{display:none;}' +
-    '#aviso-perfil h2{font-size:64px;font-weight:700;color:#f5f5f7;margin:0 0 60px;letter-spacing:0.5px;}' +
+    '#aviso-perfil h2{font-size:60px;font-weight:700;color:#f5f5f7;margin:0 0 64px;letter-spacing:1px;}' +
     '#aviso-perfil .perfil-lista{display:flex;flex-wrap:wrap;justify-content:center;max-width:1750px;}' +
     '#aviso-perfil .perfil-card{display:flex;flex-direction:column;align-items:center;width:230px;margin:0 14px 24px;padding:20px 0 16px;' +
     'background:transparent;border:0;border-radius:22px;color:#9c9ca8;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;outline:none;' +
-    'transition:transform .15s ease,background .15s ease,color .15s ease;}' +
+    '}' +
     '#aviso-perfil .perfil-avatar,.perfil-mini{position:relative;border-radius:50%;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
     'font-weight:700;color:#fff;box-sizing:border-box;flex:none;background-origin:border-box;text-shadow:0 3px 10px rgba(0,0,0,.28);}' +
-    '#aviso-perfil .perfil-avatar{width:160px;height:160px;font-size:80px;border:6px solid transparent;}' +
+    '#aviso-perfil .perfil-avatar{width:168px;height:168px;font-size:80px;border:6px solid rgba(255,255,255,0.08);}' +
     '.perfil-avatar img,.perfil-mini img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}' +
     '#aviso-perfil .perfil-nome{margin-top:20px;font-size:34px;font-weight:700;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
     '#aviso-perfil .perfil-tag{margin-top:4px;height:28px;font-size:23px;color:#9c9ca8;}' +
-    '#aviso-perfil .perfil-card.foco{transform:scale(1.14);background:rgba(255,255,255,0.07);color:#fff;}' +
-    '#aviso-perfil .perfil-card.foco .perfil-avatar{border-color:#ff4b55;box-shadow:0 0 36px rgba(229,9,20,0.55);}' +
-    '#aviso-perfil .perfil-mais{width:160px;height:160px;border-radius:50%;border:6px dashed #4a4a55;display:flex;align-items:center;justify-content:center;font-size:90px;color:#9c9ca8;box-sizing:border-box;}' +
-    '#aviso-perfil .perfil-card.foco .perfil-mais{border-style:solid;border-color:#ff4b55;color:#fff;}' +
+    '#aviso-perfil .perfil-card.foco{color:#fff;}' +
+    '#aviso-perfil .perfil-card.foco .perfil-avatar{border-color:#fff;}' +
+    '#aviso-perfil .perfil-card.foco .perfil-nome{color:#fff;}' +
+    '#aviso-perfil .perfil-mais{width:168px;height:168px;border-radius:50%;border:6px dashed #4a4a55;display:flex;align-items:center;justify-content:center;font-size:90px;color:#9c9ca8;box-sizing:border-box;}' +
+    '#aviso-perfil .perfil-card.foco .perfil-mais{border-style:solid;border-color:#fff;color:#fff;}' +
     '#aviso-perfil .perfil-lapis{position:absolute;right:2px;bottom:2px;width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.72);border:3px solid #fff;font-size:30px;display:flex;align-items:center;justify-content:center;}' +
     '#aviso-perfil .perfil-gerenciar{margin-top:30px;padding:12px 40px;font-size:28px;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;color:#9c9ca8;background:transparent;border:2px solid #4a4a55;border-radius:14px;outline:none;}' +
-    '#aviso-perfil .perfil-gerenciar.foco{color:#fff;border-color:#fff;background:rgba(255,255,255,.1);}' +
+    '#aviso-perfil .perfil-gerenciar.foco{color:#fff;border-color:#fff;background:rgba(255,255,255,.14);}' +
     '#aviso-perfil .aviso-sub{position:absolute;bottom:50px;left:0;right:0;text-align:center;font-size:27px;color:#9c9ca8;margin:0;}' +
     /* formulário */
     '#aviso-perfil .perfil-form{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 35%,#1b1b22 0%,#0a0a0c 70%);}' +
@@ -55,6 +57,9 @@
     '#aviso-perfil .pf-campo.salvar{background:#e50914;border-color:#e50914;}' +
     '#aviso-perfil .pf-campo.salvar.foco{border-color:#fff;background:#ff4b55;}' +
     '#aviso-perfil .pf-campo.apagar{color:#ff8a92;}' +
+    '#aviso-perfil .pf-seta{display:inline-block;width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;vertical-align:middle;}' +
+    '#aviso-perfil .pf-seta.e{border-right:16px solid currentColor;margin-right:22px;}' +
+    '#aviso-perfil .pf-seta.d{border-left:16px solid currentColor;margin-left:22px;}' +
     '#aviso-perfil .pf-msg{height:40px;margin-top:10px;font-size:27px;color:#ff8a92;}' +
     /* mini avatar do botão da Home */
     '.perfil-mini{width:58px;height:58px;font-size:30px;margin-right:16px;vertical-align:middle;display:inline-flex;}' +
@@ -165,7 +170,7 @@
     cartoes.forEach(function (b, i) { b.classList.toggle('foco', foco === 'grade' && i === idx); });
     elGerenciar.classList.toggle('foco', foco === 'gerenciar');
     var alvo = foco === 'gerenciar' ? elGerenciar : cartoes[idx];
-    if (alvo) { alvo.focus(); }
+    if (alvo) { try { alvo.focus({ preventScroll: true }); } catch (e) { alvo.focus(); } }
   }
 
   function textoDica() {
@@ -342,7 +347,13 @@
       var nome = campo.value.trim() || (novo ? '?' : p.nome);
       avBox.appendChild(avatar({ id: novo ? nome : p.id, nome: nome, kids: estado.kids, imagem: novo ? '' : p.imagem }, false));
     }
-    function textoTipo() { if (btnTipo) { btnTipo.textContent = 'Tipo: ' + (estado.kids ? 'Infantil (só conteúdo infantil)' : 'Normal') + '   ◂ ▸'; } }
+    function textoTipo() {
+      if (!btnTipo) { return; }
+      while (btnTipo.firstChild) { btnTipo.removeChild(btnTipo.firstChild); }
+      btnTipo.appendChild(el('span', 'pf-seta e'));
+      btnTipo.appendChild(document.createTextNode('Tipo: ' + (estado.kids ? 'Infantil (só conteúdo infantil)' : 'Normal')));
+      btnTipo.appendChild(el('span', 'pf-seta d'));
+    }
 
     raiz.appendChild(tit);
     raiz.appendChild(avBox);
@@ -482,6 +493,13 @@
     if (digitando) {
       if (k === TECLA.ENTER) { terminarCampo(); return true; }
       if (k === TECLA.VOLTAR || k === TECLA.ESC) { travar(f.campo); return true; }
+      // CIMA/BAIXO chegando aqui significa que o teclado da TV já fechou (Voltar fecha sem avisar a página): sai do campo e anda.
+      if (k === TECLA.CIMA || k === TECLA.BAIXO) {
+        travar(f.campo);
+        if (k === TECLA.CIMA) { if (f.i > 0) { f.i--; } } else if (f.i < f.campos.length - 1) { f.i++; }
+        marcarForm();
+        return true;
+      }
       return false;
     }
     if (k === TECLA.CIMA) { if (f.i > 0) { f.i--; marcarForm(); } return true; }

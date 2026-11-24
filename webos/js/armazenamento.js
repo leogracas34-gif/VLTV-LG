@@ -52,6 +52,7 @@
     var u = usuario();
     try { window.localStorage.setItem('vltv_perfil_' + u, JSON.stringify(p)); } catch (e) { /* ignora */ }
     perfilMemo = { u: null, v: null };
+    try { VLTV.parental.recalcularPerfil(); } catch (e) { /* ignora */ }
     // O histórico antigo da TV (de antes dos perfis) não vai para o perfil infantil: fica para o primeiro perfil comum.
     if (!p.kids) { migrarLegado(u, p.id); }
   }
@@ -61,6 +62,7 @@
     var u = usuario();
     try { window.localStorage.removeItem('vltv_perfil_' + u); } catch (e) { /* ignora */ }
     perfilMemo = { u: null, v: null };
+    try { VLTV.parental.recalcularPerfil(); } catch (e) { /* ignora */ }
   }
 
   // Perfil renomeado (o id sai do nome): o histórico, favoritos e "continuar assistindo" desta TV passam para o id novo.

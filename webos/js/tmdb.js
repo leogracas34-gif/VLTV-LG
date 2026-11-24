@@ -88,23 +88,23 @@
     return s;
   }
 
-  function escolher(resultados, busca) {
+  function escolher(resultados, busca, minimo) {
     var melhor = null;
     var melhorPontos = -1000;
     for (var i = 0; i < resultados.length && i < 10; i++) {
       var p = pontuar(resultados[i], busca);
       if (p > melhorPontos) { melhorPontos = p; melhor = resultados[i]; }
     }
-    return melhorPontos >= 90 ? melhor : null;
+    return melhorPontos >= (minimo || 90) ? melhor : null;
   }
 
   // Resolve com o resultado do TMDB (objeto com id, backdrop_path...) ou null.
-  function procurarMelhor(tipoTmdb, busca) {
+  function procurarMelhor(tipoTmdb, busca, minimo) {
     var base = API + '/search/' + tipoTmdb + '?api_key=' + chave() +
       '&query=' + encodeURIComponent(busca.query) + '&language=pt-BR&region=BR';   // o painel é em português: a busca continua assim, em qualquer idioma do app
 
     function pegar(url) {
-      return pegarJson(url).then(function (j) { return escolher(j && j.results ? j.results : [], busca); });
+      return pegarJson(url).then(function (j) { return escolher(j && j.results ? j.results : [], busca, minimo); });
     }
     if (!busca.ano) { return pegar(base); }
     var comAno = base + (tipoTmdb === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano;
@@ -150,7 +150,7 @@
   // Inglês: título e sinopse em inglês (o painel manda em português).
   // Português: só serve de reserva para a sinopse quando o painel não mandou nenhuma.
   // O que o TMDB devolve fica guardado na TV: sinopse encontrada nunca é pesquisada de novo.
-  var PREFIXO_TXT = 'vltv_txt2_';
+  var PREFIXO_TXT = 'vltv_txt3_';
   var PREFIXO_TEMP = 'vltv_temp3_';
   var VALIDADE_TXT_MS = 30 * 24 * 3600 * 1000;
   var filaTxt = [];
@@ -197,11 +197,23 @@
       filaTxt.push(function () {
         ativasTxt++;
         var tipoTmdb = tipo === 'series' ? 'tv' : 'movie';
-        procurarMelhor(tipoTmdb, VLTV.titulo.paraBusca(nome)).then(function (achado) {
+        var busca = VLTV.titulo.paraBusca(nome);
+        // Nome igual mas ano diferente no painel (ex.: "Tangled 2022"): na 2ª tentativa aceita, para não ficar sem sinopse.
+        procurarMelhor(tipoTmdb, busca).then(function (achado) {
+          return achado || procurarMelhor(tipoTmdb, busca, 55);
+        }).then(function (achado) {
           if (!achado) { return null; }
-          return pegarJson(API + '/' + tipoTmdb + '/' + achado.id + '?api_key=' + chave() + '&language=' + idiomaTmdb().lingua).then(function (j) {
+          var base = API + '/' + tipoTmdb + '/' + achado.id + '?api_key=' + chave() + '&language=';
+          return pegarJson(base + idiomaTmdb().lingua).then(function (j) {
             var t = j && (j.title || j.name);
-            return t ? { titulo: t, sinopse: (j.overview || ''), tid: achado.id } : null;
+            if (!t) { return null; }
+            var r = { titulo: t, sinopse: (j.overview || ''), tid: achado.id };
+            if (r.sinopse) { return r; }
+            // Sem sinopse no idioma do app: tenta em inglês (melhor que ficar sem nada).
+            return pegarJson(base + 'en-US').then(function (e) {
+              r.sinopse = (e && (e.overview || e.tagline)) || '';
+              return r;
+            }, function () { return r; });
           });
         }).then(function (r) { gravarTextos(tipo, id, r); return r; })
           .catch(function () { return undefined; })          // falha de rede: não grava, tenta de novo outra hora

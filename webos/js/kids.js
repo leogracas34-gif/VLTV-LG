@@ -10,7 +10,8 @@
 (function () {
   'use strict';
 
-  var CHAVE_SET = 'vltv_kids_set1';
+  var CHAVE_SET = 'vltv_kids_set2';
+  var CHAVE_CLS = 'vltv_kids_cls1';
   var VALIDADE_MS = 14 * 24 * 3600 * 1000;
   var API = 'https://api.themoviedb.org/3';
 
@@ -25,27 +26,35 @@
   var ADULTO_ANIM = /south park|rick (and|e) morty|family guy|familia da pesada|american dad|bojack|big mouth|\barcher\b|futurama|king of the hill|bob s burgers|harley quinn|invincible|castlevania|\barcane\b|love death|hazbin|helluva|final space|solar opposites|paradise pd|disenchantment|tuca (and|e) bertie|f is for family|beavis|ren (and|e) stimpy|sausage party|fritz the cat|aqua teen|metalocalypse|robot chicken|drawn together|blood of zeus|vox machina|cyberpunk|devilman|berserk|attack on titan|ataque dos titas|death note|tokyo ghoul|jujutsu|chainsaw|demon slayer|hellsing|elfen|gantz|high school of the dead|ecchi|hentai|nsfw/i;
 
   // Franquias e títulos infantis/família conhecidos (cobre o que o TMDB pode não trazer, e funciona sem internet).
-  var TITULOS = new RegExp('\\b(?:' + [
-    'patrulha canina|paw patrol|peppa|bluey|pocoyo|masha|cocomelon|galinha pintadinha|mundo bita|show da luna|pj masks|peixonauta',
+  // Franquias de nome próprio (basta o nome conter).
+  var TITULOS = new RegExp('(?:^| )(?:' + [
+    'patrulha canina|paw patrol|peppa|bluey|pocoyo|cocomelon|galinha pintadinha|mundo bita|show da luna|pj masks|peixonauta',
     'homem aranha|spider man|aranhaverso|spider verse|vingadores mais poderosos',
     'barbie|monster high|polly pocket|my little pony|hello kitty|moranguinho|ursinhos carinhosos|care bears',
-    'harry potter|animais fantasticos|cronicas de narnia|jumanji|percy jackson|shazam',
-    'aladdin|wicked|frozen|moana|vaiana|encanto|toy story|carros|cars|shrek|madagascar|kung fu panda|como treinar|ice age|era do gelo',
-    'minions|meu malvado favorito|procurando nemo|procurando dory|os incriveis|ratatouille|divertida mente|inside out|coco|luca|red crescer',
-    'zootopia|zootropolis|rei leao|lion king|bela e a fera|cinderela|branca de neve|pequena sereia|mulan|pocahontas|tarzan|hercules',
-    'rapunzel|enrolados|lilo|stitch|dumbo|bambi|mogli|livro da selva|peter pan|alice no pais|101 dalmatas|aristogatas|dama e o vagabundo',
-    'bernardo e bianca|robin hood|corcunda de notre dame|hotel transilvania|trolls|sonic|super mario|angry birds|lego|ferdinando|gato de botas',
-    'bob esponja|spongebob|scooby|tom e jerry|tom and jerry|looney|pica pau|mickey|minnie|pateta|pato donald|tio patinhas|ducktales',
-    'smurfs|os smurfs|turma da monica|sitio do pica|chaves|chapolin|ursinho pooh|winnie|heidi|miraculous|ladybug|ben 10',
-    'padrinhos magicos|jimmy neutron|meninas superpoderosas|hora de aventura|adventure time|steven universe|jovens titas|teen titans go',
-    'backyardigans|dora|go diego|clifford|caillou|thomas e seus amigos|fireman sam|pequeno principe|power rangers|transformers',
-    'tartarugas ninja|hot wheels|thundercats|he man|pokemon|digimon|yu gi oh|beyblade|cavaleiros do zodiaco|sailor moon',
+    'harry potter|animais fantasticos|cronicas de narnia|jumanji|percy jackson',
+    'toy story|kung fu panda|como treinar|ice age|era do gelo|meu malvado favorito|despicable me|procurando nemo|procurando dory',
+    'os incriveis|ratatouille|divertida mente|inside out|rei leao|lion king|bela e a fera|branca de neve|pequena sereia',
+    'livro da selva|peter pan|101 dalmatas|aristogatas|dama e o vagabundo|bernardo e bianca|corcunda de notre dame|hotel transilvania',
+    'super mario|angry birds|bob esponja|spongebob|scooby|tom e jerry|tom and jerry|looney tunes|pica pau|mickey|minnie|pateta|pato donald|tio patinhas|ducktales',
+    'smurfs|turma da monica|sitio do pica|ursinho pooh|winnie|miraculous|ladybug|ben 10|padrinhos magicos|jimmy neutron',
+    'meninas superpoderosas|hora de aventura|adventure time|steven universe|jovens titas|teen titans go|backyardigans|thomas e seus amigos',
+    'power rangers|tartarugas ninja|hot wheels|thundercats|pokemon|digimon|yu gi oh|beyblade|cavaleiros do zodiaco|sailor moon',
     'dragon ball|naruto|one piece|my hero academia|boruto|bakugan|inuyasha|doraemon|shin chan|princesa sofia|doutora brinquedos',
-    'vampirina|jake e os piratas|escola de monstros|descendentes|high school musical|hannah montana|violetta|patati|xuxa|carrossel|chiquititas',
-    'pinoquio|mary poppins|noviça rebelde|matilda|charlie e a fabrica de chocolate|willy wonka|esqueceram de mim|paddington|stuart little',
-    'garfield|snoopy|peanuts|despicable me|bee movie|megamente|monstros sa|universidade monstros|vida de inseto|wall e|turning red|raya',
-    'irmao urso|space jam|looney tunes|asterix|tintim|fantasia 2000|operacao resgate|liga da justica mirim|os fantasticos'
-  ].join('|') + ')\\b', 'i');
+    'vampirina|jake e os piratas|escola de monstros|high school musical|hannah montana|patati patata|carrossel|chiquititas',
+    'mary poppins|noviça rebelde|charlie e a fabrica de chocolate|willy wonka|esqueceram de mim|paddington|stuart little',
+    'monstros sa|universidade monstros|vida de inseto|turning red|space jam|fantasia 2000|liga da justica mirim|kung fu panda|os smurfs',
+    'lego ninjago|lego star wars|lego batman|lego movie|lego city|lego friends|lego marvel'
+  ].join('|') + ')(?: |$)', 'i');
+
+  // Títulos de uma palavra só (ou curtos): só valem se o nome for exatamente este (com número ou subtítulo depois),
+  // para "Carros Usados", "O Jogo das Chaves" e "Cinderela Pop" não entrarem.
+  var TITULOS_EXATOS = new RegExp('^(?:o |a |os |as |um |uma )?(?:' + [
+    'aladdin|wicked|frozen|moana|vaiana|encanto|carros|cars|shrek|madagascar|minions|coco|luca|red crescer|zootopia|zootropolis',
+    'cinderela|mulan|pocahontas|tarzan|hercules|rapunzel|enrolados|tangled|valente|brave|lilo e stitch|stitch|dumbo|bambi|mogli',
+    'trolls|sonic|ferdinando|gato de botas|smurfs|chaves|chapolin|heidi|dora|clifford|caillou|transformers|matilda|garfield|snoopy',
+    'raya|wall e|megamente|asterix|tintim|masha|barbie|shazam|descendentes|violetta|xuxa|pinoquio|robin hood|alice no pais das maravilhas',
+    'a pequena sereia|o rei leao|a bela e a fera|o corcunda de notre dame|dinossauro|operacao resgate'
+  ].join('|') + ')(?: [0-9]+| [ivx]+)?(?: (?:o|a|os|as|um|uma|e|do|da|dos|das|no|na|em|para|de) .*)?$', 'i');
 
   var conjunto = null;      // { 'titulo normalizado': 1 } vindo do TMDB
   var carregando = false;
@@ -95,15 +104,23 @@
     var novo = {};
     var pedidos = [];
     var feitos = 0;
-    for (var p = 1; p <= 6; p++) {
+    var p;
+    for (p = 1; p <= 8; p++) {
       pedidos.push(API + '/discover/movie?api_key=' + k + '&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_count.gte=40' +
         '&with_genres=' + encodeURIComponent('16|10751') + '&certification_country=US&certification.lte=PG-13&page=' + p);
       pedidos.push(API + '/discover/tv?api_key=' + k + '&language=pt-BR&sort_by=popularity.desc&include_adult=false&vote_count.gte=20' +
         '&with_genres=' + encodeURIComponent('10762|10751|16') + '&page=' + p);
     }
+    // O que está no Disney+ (Brasil) em animação, família e infantil: Disney tem muita série/filme infantil com nome que o painel escreve diferente.
+    for (p = 1; p <= 8; p++) {
+      pedidos.push(API + '/discover/tv?api_key=' + k + '&language=pt-BR&sort_by=popularity.desc&with_watch_providers=337&watch_region=BR' +
+        '&with_genres=' + encodeURIComponent('10762|10751|16') + '&page=' + p);
+      pedidos.push(API + '/discover/movie?api_key=' + k + '&language=pt-BR&sort_by=popularity.desc&include_adult=false&with_watch_providers=337&watch_region=BR' +
+        '&with_genres=' + encodeURIComponent('10751|16') + '&certification_country=US&certification.lte=PG&page=' + p);
+    }
     function fim() {
       carregando = false;
-      if (feitos < 4) { return; }   // quase tudo falhou: tenta de novo na próxima vez
+      if (feitos < 8) { return; }   // quase tudo falhou: tenta de novo na próxima vez
       conjunto = novo;
       memo = {};
       try { window.localStorage.setItem(CHAVE_SET, JSON.stringify({ t: new Date().getTime(), l: Object.keys(novo).join('|') })); } catch (e) { /* ignora */ }
@@ -124,6 +141,100 @@
     setTimeout(proximo, 2500);
   }
 
+  // ── Conferência título a título no TMDB (para categorias "mistas", como Disney+) ─────────────
+  // O TMDB diz o gênero de cada título: Família / Infantil / Animação (sem ser de adulto) = pode. Resultado guardado na TV.
+  var cls = null;           // { 'nome curto': 1 (infantil) | 0 (não) }
+  var salvarTimer = null;
+  var fila = [];
+  var ativas = 0;
+  var emFila = {};
+  var esperando = null;
+  var GENEROS_NAO = { 80: 1, 27: 1, 53: 1, 9648: 1, 10768: 1, 10766: 1, 37: 1, 10752: 1 };   // crime, terror, suspense, mistério, política, novela, faroeste, guerra
+
+  function carregarCls() {
+    if (cls) { return cls; }
+    try { cls = JSON.parse(window.localStorage.getItem(CHAVE_CLS) || 'null') || {}; } catch (e) { cls = {}; }
+    return cls;
+  }
+
+  function salvarCls() {
+    clearTimeout(salvarTimer);
+    salvarTimer = setTimeout(function () {
+      try { window.localStorage.setItem(CHAVE_CLS, JSON.stringify(cls)); } catch (e) { /* sem espaço */ }
+    }, 1500);
+  }
+
+  function infantilPorGeneros(ids, r) {
+    var g = {};
+    (ids || []).forEach(function (i) { g[i] = 1; });
+    var n = norm(r.title || r.name || r.original_title || r.original_name);
+    if (ADULTO_ANIM.test(n)) { return 0; }
+    var ruim = false;
+    Object.keys(GENEROS_NAO).forEach(function (k) { if (g[k]) { ruim = true; } });
+    if (ruim) { return 0; }
+    if (g[10762] || g[10751]) { return 1; }
+    if (g[16] && !g[18]) { return 1; }   // animação sem drama pesado
+    return 0;
+  }
+
+  function classificarUm(tipo, nome, fim) {
+    var busca = VLTV.titulo.paraBusca(nome);
+    var tt = tipo === 'series' ? 'tv' : 'movie';
+    var url = API + '/search/' + tt + '?api_key=' + chaveTmdb() + '&language=pt-BR&include_adult=false&query=' + encodeURIComponent(busca.query) +
+      (busca.ano ? (tt === 'tv' ? '&first_air_date_year=' : '&year=') + busca.ano : '');
+    VLTV.http.fetchComTimeout(url, 8000).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j) { fim(null); return; }               // falha de rede: tenta de novo outra hora
+      var lista = j.results || [];
+      var q = norm(busca.query);
+      var achado = null;
+      for (var i = 0; i < lista.length && i < 5 && !achado; i++) {
+        var x = lista[i];
+        if ([x.title, x.name, x.original_title, x.original_name].map(norm).indexOf(q) !== -1) { achado = x; }
+      }
+      if (!achado && lista.length > 0 && !busca.ano) { achado = lista[0]; }
+      fim(achado ? infantilPorGeneros(achado.genre_ids, achado) : 0);
+    }, function () { fim(null); });
+  }
+
+  function bombear() {
+    while (ativas < 6 && fila.length > 0) {
+      (function (it) {
+        ativas++;
+        classificarUm(it.tipo, it.nome, function (v) {
+          ativas--;
+          delete emFila[it.chave];
+          if (v !== null) { cls[it.chave] = v; salvarCls(); memo = {}; }
+          if (ativas === 0 && fila.length === 0 && esperando) { esperando(); }
+          bombear();
+        });
+      })(fila.shift());
+    }
+  }
+
+  // Lista de uma categoria "mista": confere no TMDB os títulos ainda desconhecidos e espera até `ms` pelo resultado.
+  // O que não terminar a tempo continua em segundo plano (vale na próxima vez que abrir).
+  function preparar(lista, tipo, ms) {
+    if (!Array.isArray(lista) || !chaveTmdb() || !VLTV.http) { return Promise.resolve(lista); }
+    carregarCls();
+    lista.forEach(function (raw) {
+      if (!raw || VLTV.parental.itemAdulto(raw, tipo)) { return; }
+      var n = nomeCurto(raw.name);
+      if (n.length < 2 || cls[n] !== undefined || emFila[n] || conhecido(raw.name) || ADULTO_ANIM.test(n)) { return; }
+      emFila[n] = 1;
+      fila.push({ chave: n, tipo: tipo, nome: raw.name });
+    });
+    if (fila.length === 0 && ativas === 0) { return Promise.resolve(lista); }
+    return new Promise(function (resolve) {
+      var feito = false;
+      function sai() { if (feito) { return; } feito = true; esperando = null; resolve(lista); }
+      esperando = sai;
+      setTimeout(sai, ms || 8000);
+      bombear();
+    });
+  }
+
+  function confiavel(tipo, id) { return !!confiaveis[tipo + '|' + id]; }
+
   // ── Categorias ────────────────────────────────────────────────────
   function categorias(tipo, lista) {
     var saida = [];
@@ -136,14 +247,16 @@
       if (CAT_KIDS.test(n)) { confiaveis[id] = true; saida.push(c); return; }
       if (CAT_MISTA.test(n)) { saida.push(c); }
     });
-    if (tipo === 'canais') { saida.push({ category_id: '__kids24__', category_name: 'Desenhos 24 horas' }); }
-    else { saida.push({ category_id: '__kids_familia__', category_name: 'Para a família' }); }
+    if (tipo === 'canais') { saida.push({ category_id: '__kids24__', category_name: 'DESENHOS 24 HORAS' }); }
+    else { saida.push({ category_id: '__kids_familia__', category_name: 'PARA A FAMÍLIA' }); }
     return saida;
   }
 
   // ── Item ──────────────────────────────────────────────────────────
   function conhecido(nome) {
-    if (TITULOS.test(norm(nome))) { return true; }
+    var bruto = norm(nome);
+    if (TITULOS_EXATOS.test(bruto)) { return true; }
+    if (TITULOS.test(bruto)) { return true; }
     if (conjunto) {
       var n = nomeCurto(nome);
       if (n.length >= 4 && conjunto[n]) { return true; }
@@ -163,7 +276,8 @@
       return VLTV.parental.ehNomeInfantil(nome);
     }
     if (confiaveis[idc]) { return true; }
-    return conhecido(nome);
+    if (conhecido(nome)) { return true; }
+    return carregarCls()[nomeCurto(nome)] === 1;
   }
 
   function ok(raw, tipo) {
@@ -177,5 +291,5 @@
     return v;
   }
 
-  VLTV.kids = { categorias: categorias, ok: ok, aquecer: aquecer, ehConhecido: conhecido };
+  VLTV.kids = { categorias: categorias, ok: ok, aquecer: aquecer, ehConhecido: conhecido, preparar: preparar, confiavel: confiavel };
 })();

@@ -75,6 +75,14 @@
   function comoLista(dados) { return Array.isArray(dados) ? dados : []; }
 
   // Quando a conta é uma lista M3U, os dados já estão na memória do app.
+  // Perfil infantil, categoria que não é só de criança (Disney+, Animes...): confere os títulos no TMDB antes de mostrar.
+  function kidsConferir(lista, tipo, categoriaId) {
+    try {
+      if (VLTV.parental.ehInfantil() && VLTV.kids && !VLTV.kids.confiavel(tipo, categoriaId)) { return VLTV.kids.preparar(lista, tipo, 9000); }
+    } catch (e) { /* segue com a lista como veio */ }
+    return lista;
+  }
+
   function daLista() { return VLTV.m3u.ativo(); }
   function pronto(valor) { return Promise.resolve(valor); }
 
@@ -260,7 +268,7 @@
     filmesPorCategoria: function (categoriaId) {
       if (daLista()) { return pronto(VLTV.m3u.itens('filmes', categoriaId)); }
       if (categoriaId === '__kids_familia__') { return chamar('get_vod_streams').then(comoLista); }   // perfil infantil: o filtro de conteúdo fica com VLTV.kids
-      return chamar('get_vod_streams', '&category_id=' + enc(categoriaId)).then(comoLista);
+      return chamar('get_vod_streams', '&category_id=' + enc(categoriaId)).then(comoLista).then(function (l) { return kidsConferir(l, 'filmes', categoriaId); });
     },
 
     // Detalhes de um filme (sinopse, fundo, gênero, elenco...). Devolve o objeto "info" do painel.
@@ -280,7 +288,7 @@
     seriesPorCategoria: function (categoriaId) {
       if (daLista()) { return pronto(VLTV.m3u.itens('series', categoriaId)); }
       if (categoriaId === '__kids_familia__') { return chamar('get_series').then(comoLista); }
-      return chamar('get_series', '&category_id=' + enc(categoriaId)).then(comoLista);
+      return chamar('get_series', '&category_id=' + enc(categoriaId)).then(comoLista).then(function (l) { return kidsConferir(l, 'series', categoriaId); });
     },
 
     // Devolve { info, temporadas: [{ numero, episodios: [...] }] } com as temporadas em ordem.

@@ -3,10 +3,7 @@
    Fica depois de temas.css e usa !important para valer sobre qualquer tema escolhido. */
 html[data-infantil],
 html[data-infantil] body {
-  background:
-    radial-gradient(ellipse at 10% 8%, rgba(255, 224, 102, 0.40) 0, rgba(255, 224, 102, 0) 38%),
-    radial-gradient(ellipse at 92% 94%, rgba(88, 224, 150, 0.38) 0, rgba(88, 224, 150, 0) 40%),
-    linear-gradient(135deg, #1b3fa0 0%, #2468d8 48%, #17b3c8 100%) !important;
+  background: #2468d8 url('../img/fundo_infantil.jpg') center bottom / cover no-repeat !important;
 }
 html[data-infantil] {
   --painel: #14295f; --painel-2: #1d3a7e; --borda: #4b79d6; --suave: #d6e6ff;

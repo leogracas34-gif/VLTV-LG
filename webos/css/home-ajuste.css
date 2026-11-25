@@ -1,0 +1,4 @@
+/* VLTV Play | Home: cabeçalho (nome do app, hora, perfil, engrenagem) mais alto e mais afastado dos banners. */
+#tela-home .topo { margin-top: -24px; }
+#tela-home .banner,
+#tela-home .destaque { margin-top: 60px; }

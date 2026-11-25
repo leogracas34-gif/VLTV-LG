@@ -38,7 +38,7 @@
   function dono() {
     var s = VLTV.sessao.ler();
     // Perfil infantil tem o seu próprio índice (só categorias infantis), separado do dos outros perfis.
-    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '') + (VLTV.parental.ehInfantil() ? '|infantil2' : '')) : '';
+    return s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + (s.m3u || '') + (VLTV.parental.ehInfantil() ? '|infantil3' : '')) : '';
   }
 
   // Cada conta tem o seu índice; trocou de conta, começa do zero.

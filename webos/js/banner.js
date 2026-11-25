@@ -118,8 +118,12 @@
   // Sem VPS: primeiros títulos com capa das primeiras categorias de filmes e de séries.
   function porPainel() {
     function daCategoria(listaCats, buscar, tipo, etiqueta) {
-      var base = VLTV.parental.ehInfantil()
-        ? VLTV.parental.filtrarCategorias(tipo, arr(listaCats))      // perfil infantil: só categorias infantis
+      var kids = VLTV.parental.ehInfantil();
+      // Perfil infantil: só categorias feitas para criança (Infantil, Desenhos, Kids...), nunca as "mistas" nem as de junção.
+      var base = kids
+        ? VLTV.parental.filtrarCategorias(tipo, arr(listaCats)).filter(function (c) {
+            return String(c.category_id).indexOf('__') !== 0 && VLTV.kids.confiavel(tipo, c.category_id);
+          })
         : arr(listaCats).filter(function (c) { return !adulta(c.category_name); });
       var cats = base.slice(0, CATEGORIAS_FALLBACK);
       return Promise.all(cats.map(function (c) {
@@ -127,7 +131,7 @@
       })).then(function (listas) {
         var itens = [];
         listas.forEach(function (l) {
-          l.filter(function (x) { return !adulta(x.name); }).slice(0, 3).forEach(function (x) {
+          l.filter(function (x) { return !adulta(x.name) && (!kids || VLTV.kids.ok(x, tipo)); }).slice(0, 3).forEach(function (x) {
             var s = slideDe(tipo, x, etiqueta);
             if (s) { itens.push(s); }
           });
@@ -374,7 +378,7 @@
     if (VLTV.config.BANNER_ATIVO === false) { return; }
 
     var s = VLTV.sessao.ler();
-    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u + (VLTV.parental.ehInfantil() ? '|infantil2' : '')) : '';
+    var chave = s ? (s.modo + '|' + s.dns + '|' + s.user + '|' + s.m3u + (VLTV.parental.ehInfantil() ? '|infantil3' : '')) : '';
     if (!forcar && chave === chaveCarregada && slides.length > 0) { return; }
     chaveCarregada = chave;
 

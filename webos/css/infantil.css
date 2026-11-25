@@ -1,9 +1,9 @@
-/* VLTV Play | Visual do perfil infantil: fundo azul-turquesa alegre, neutro (serve para menino e menina), sem bolinhas.
+/* VLTV Play | Visual do perfil infantil: fundo em degradê colorido (sem desenhos por cima dos textos), neutro para menino e menina.
    Liga sozinho quando o perfil escolhido é infantil (html[data-infantil], colocado pelo app.js).
    Fica depois de temas.css e usa !important para valer sobre qualquer tema escolhido. */
 html[data-infantil],
 html[data-infantil] body {
-  background: #2468d8 url('../img/fundo_infantil.jpg') center bottom / cover no-repeat !important;
+  background: #3a5bd0 url('../img/fundo_infantil.jpg') center bottom / cover no-repeat !important;
 }
 html[data-infantil] {
   --painel: #14295f; --painel-2: #1d3a7e; --borda: #4b79d6; --suave: #d6e6ff;
@@ -11,10 +11,25 @@ html[data-infantil] {
   --destaque-rgb: 255, 159, 28; --destaque-claro-rgb: 255, 193, 94;
 }
 html[data-infantil] .bn-botao { color: #1a1a1a; background: var(--destaque); }
-/* Os três botões grandes numa cor só (laranja-sol), para não ficar carnaval */
+/* Os três botões grandes numa cor só (azul-anil), com borda branca: aparecem bem sobre o fundo colorido */
 html[data-infantil] #tile-live,
 html[data-infantil] #tile-filmes,
-html[data-infantil] #tile-series { background: linear-gradient(135deg, #ffb52e 0%, #f37b12 100%) !important; border-color: rgba(255, 255, 255, 0.6) !important; }
+html[data-infantil] #tile-series { background: linear-gradient(135deg, #1c2270 0%, #35207f 100%) !important; border-color: rgba(255, 255, 255, 0.55) !important; color: #fff; }
 html[data-infantil] #tile-live:focus, html[data-infantil] #tile-live:not([disabled]):hover,
 html[data-infantil] #tile-filmes:focus, html[data-infantil] #tile-filmes:not([disabled]):hover,
-html[data-infantil] #tile-series:focus, html[data-infantil] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #ffc65c 0%, #ff8f2e 100%) !important; }
+html[data-infantil] #tile-series:focus, html[data-infantil] #tile-series:not([disabled]):hover { background: linear-gradient(135deg, #3442c4 0%, #6a3fd0 100%) !important; border-color: #fff !important; }
+/* Texto do topo legível sobre o fundo claro */
+html[data-infantil] .logo-pequeno, html[data-infantil] .topo-direita { text-shadow: 0 2px 8px rgba(20, 20, 80, 0.55); }
+/* Textos da Home sobre o fundo claro: nome do app, data/hora, perfil, Listas e Sair ficam em "pílulas" escuras translúcidas */
+html[data-infantil] .logo-pequeno {
+  color: #fff; background: rgba(24, 28, 100, 0.55); padding: 8px 22px; border-radius: 999px; text-shadow: none;
+}
+html[data-infantil] .logo-pequeno span { color: #ffd54a; }
+html[data-infantil] .topo-direita { text-shadow: 0 1px 6px rgba(15, 15, 70, 0.8); }
+html[data-infantil] .topo-direita, html[data-infantil] .topo-direita * { color: #fff; }
+html[data-infantil] .btn-perfil, html[data-infantil] .btn-engrenagem { background: rgba(24, 28, 100, 0.72) !important; border-color: rgba(255, 255, 255, 0.7) !important; }
+html[data-infantil] .btn-discreto {
+  color: #fff !important; background: rgba(24, 28, 100, 0.65) !important; border: 2px solid rgba(255, 255, 255, 0.7) !important;
+  font-weight: 700;
+}
+html[data-infantil] .btn-discreto:focus, html[data-infantil] .btn-discreto:hover { background: #ff9f1c !important; color: #1a1a1a !important; border-color: #fff !important; }

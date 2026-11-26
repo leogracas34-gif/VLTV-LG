@@ -109,14 +109,26 @@
 
     <section id="tela-home" class="tela tela-topo escondida">
       <header class="topo">
-        <div class="logo-pequeno" aria-label="VLTV Play"><img src="img/logo.svg" alt="VLTV Play"></div>
+        <!-- Marca do app (como o "N" da Netflix): só o V, sem caixa e sem borda, na cor principal do app (var --destaque).
+             Muda junto com o tema e no infantil. O V é feito de duas faixas (uma mais clara, uma mais escura) que se cruzam embaixo. -->
+        <div class="logo-pequeno" role="img" aria-label="VLTV Play">
+          <svg class="logo-marca" viewBox="0 0 64 64" width="76" height="76" aria-hidden="true" focusable="false">
+            <defs>
+              <linearGradient id="logo-e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--destaque)"/><stop offset="1" style="stop-color:var(--destaque-escuro)"/></linearGradient>
+              <linearGradient id="logo-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--destaque-claro)"/><stop offset="1" style="stop-color:var(--destaque)"/></linearGradient>
+            </defs>
+            <path d="M4 5h16.5l12.8 38.5L28.5 59z" fill="url(#logo-e)"/>
+            <path d="M44.5 5H60L37.5 59H27.5l5.8-15.5z" fill="url(#logo-d)"/>
+            <path d="M33.3 43.5L28.5 59h9z" style="fill:var(--destaque-escuro)" opacity=".85"/>
+          </svg>
+        </div>
         <div class="topo-direita">
           <div class="conta">
             <div id="home-hora" class="hora"></div>
             <div id="home-vencimento" class="conta-suave">-</div>
             <div id="home-aviso" class="home-aviso escondida"></div>
           </div>
-          <button id="btn-perfil" type="button" class="btn-perfil escondida" aria-label="Trocar de perfil"><span id="perfil-mini-caixa"></span><span id="perfil-mini-nome"></span><span class="pf-caret"></span></button>
+          <button id="btn-perfil" type="button" class="btn-perfil escondida" aria-label="Trocar de perfil" aria-haspopup="true"><span id="perfil-mini-caixa"></span><svg class="perfil-seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5h14L12 17z"/></svg></button>
           <button id="btn-config" type="button" class="btn-engrenagem" aria-label="Configurações">
             <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="6" stroke-dasharray="3.53 3.53"/><circle cx="24" cy="24" r="12" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="24" cy="24" r="4" fill="currentColor"/></svg>
           </button>
@@ -542,6 +554,7 @@
   <script src="js/sync.js"></script>
   <script src="js/armazenamento.js"></script>
   <script src="js/nuvem.js"></script>
+  <script src="js/avatares.js"></script>
   <script src="js/perfil.js"></script>
   <script src="js/creditos.js"></script>
   <script src="js/parental.js"></script>

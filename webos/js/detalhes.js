@@ -1010,23 +1010,7 @@
     var itemMeu = item;
     function fim(lista) {
       if (meu !== idSem || itemMeu !== item) { return; }
-      lista = lista || [];
-      // Perfil infantil: classifica os candidatos (TMDB) antes de mostrar; só o que é de criança entra.
-      if (VLTV.parental.ehInfantil() && lista.length > 0 && VLTV.kids && VLTV.kids.preparar) {
-        VLTV.kids.preparar(lista, itemMeu.tipo, 6000).then(function () {
-          if (meu !== idSem || itemMeu !== item) { return; }
-          semelhantesTmdb = VLTV.parental.filtrarItens(lista, itemMeu.tipo);
-          sugCarregando = false;
-          atualizarSugestoes();
-        }, function () {
-          if (meu !== idSem || itemMeu !== item) { return; }
-          semelhantesTmdb = [];
-          sugCarregando = false;
-          atualizarSugestoes();
-        });
-        return;
-      }
-      semelhantesTmdb = lista;
+      semelhantesTmdb = lista || [];
       sugCarregando = false;
       atualizarSugestoes();
     }
@@ -1127,7 +1111,6 @@
       var idr = String(idDe(raw));
       if (idr === String(item.id) || usados[idr]) { continue; }
       if (VLTV.dados.avaliacao(item.tipo, idDe(raw)) === 'n') { continue; }
-      if (VLTV.parental.filtrarItens([raw], item.tipo).length === 0) { continue; }
       if (!refInfantil && REGEX_INFANTIL.test(semAcento(raw.genre))) { continue; }
       var pts = pontosSemelhanca(raw, ref);
       if (pts < PONTOS_MIN_PAINEL) { continue; }
@@ -1156,8 +1139,7 @@
     if (lista.length < MIN_SUG_TMDB) {
       lista = lista.concat(semelhantesDoPainel(usados, limite - lista.length));
     }
-    // Infantil (só o que é de criança) e conteúdo +18 bloqueado: mesma regra das outras telas.
-    return VLTV.parental.filtrarItens(lista, item.tipo);
+    return lista;
   }
 
   // Refaz a lista sem atrapalhar quem já está navegando nela.

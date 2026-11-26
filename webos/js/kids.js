@@ -243,7 +243,7 @@
       var n = String(c.category_name || '');
       var id = tipo + '|' + c.category_id;
       nomesCat[id] = n;
-      if (CAT_NEGA.test(n)) { return; }
+      if (CAT_NEGA.test(n) || VLTV.parental.ehCategoriaAdulta(n)) { return; }   // categoria adulta nunca entra, mesmo que o nome pareça infantil
       if (CAT_KIDS.test(n)) { confiaveis[id] = true; saida.push(c); return; }
       if (CAT_MISTA.test(n)) { saida.push(c); }
     });
@@ -269,7 +269,8 @@
     if (ADULTO_ANIM.test(norm(nome))) { return false; }
     var idc = tipo + '|' + raw.category_id;
     var catNome = nomesCat[idc] || '';
-    if (catNome && CAT_NEGA.test(catNome)) { return false; }
+    // Título dentro de categoria adulta (Erótico, Sexy, +18...) nunca passa, nem nas listas que juntam várias categorias ("Para a família").
+    if (catNome && (CAT_NEGA.test(catNome) || VLTV.parental.ehCategoriaAdulta(catNome))) { return false; }
     if (tipo === 'canais') {
       if (/esporte|sport|espn|futebol|ppv|premiere|combate|hbo|\bmax\b|telecine|\bufc\b/i.test(nome)) { return false; }
       if (confiaveis[idc]) { return true; }

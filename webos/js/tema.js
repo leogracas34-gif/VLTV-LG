@@ -10,9 +10,9 @@ window.VLTV = window.VLTV || {};
 
   var CHAVE = 'vltv_tema';
 
-  // Tema que vale para quem nunca escolheu um tema (instalação nova). Para as festas: 'natal'. Depois do Ano Novo: 'padrao'.
+  // Tema que vale para quem nunca escolheu um tema (instalação nova). O tema de Natal foi removido.
   // Se o tema escrito aqui não existir mais na LISTA abaixo, cai sozinho no 'padrao'.
-  var TEMA_INICIAL = 'natal';
+  var TEMA_INICIAL = 'padrao';
 
   // previa: [cor do brilho 1, cor do brilho 2, topo, base, painel] (só para a miniatura em Configurações).
   // Os valores de verdade estão em css/temas.css; mantenha as duas listas parecidas.
@@ -23,8 +23,7 @@ window.VLTV = window.VLTV || {};
     { codigo: 'esmeralda',  nome: 'Esmeralda',   previa: ['16,185,129',  '20,184,166', '#07140f', '#050b09', '#0f1814'] },
     { codigo: 'por-do-sol', nome: 'Pôr do sol',  previa: ['249,115,22',  '236,72,153', '#1a0f0c', '#0d0707', '#1c1412'] },
     { codigo: 'grafite',    nome: 'Grafite',     previa: ['255,255,255', '148,163,184', '#16161a', '#0c0c0e', '#1a1a1e'] },
-    { codigo: 'preto',      nome: 'Preto total', previa: ['0,0,0',       '0,0,0',      '#000000', '#000000', '#0a0a0a'] },
-    { codigo: 'natal',      nome: 'Natal',       previa: ['220,38,38',   '22,163,74',  '#1a0a0c', '#0a0f0b', '#1c1214'] }
+    { codigo: 'preto',      nome: 'Preto total', previa: ['0,0,0',       '0,0,0',      '#000000', '#000000', '#0a0a0a'] }
   ];
 
   function achar(codigo) {

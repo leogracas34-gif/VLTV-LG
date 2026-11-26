@@ -1,6 +1,9 @@
-// VLTV Play - webOS | Tela "Quem está assistindo?" (tela cheia): escolher, criar, editar e apagar perfis.
-// Os perfis são os mesmos do celular (a nuvem do VLTV guarda a lista). Perfil infantil tem avatar colorido.
-// Vale para a escolha logo depois do login e também para trocar de perfil pelo botão da Home.
+// VLTV Play - webOS | Perfis: tela "Quem está assistindo?" (tela cheia), menu suspenso da Home (estilo Netflix),
+// criar, editar e apagar perfis.
+// Os perfis são os mesmos do celular (a nuvem do VLTV guarda a lista). Perfil infantil tem avatar colorido fixo.
+// Avatares dos outros perfis: os bichinhos originais do VLTV (js/avatares.js), sem nenhum personagem de filme ou desenho:
+// não dá problema de direitos autorais na LG, na Samsung nem na Google Play.
+// Sair do perfil infantil pede a senha dos pais (controle parental).
 (function () {
   'use strict';
 
@@ -21,6 +24,7 @@
   var aoFechar = null;
   var listaPendente = null;   // lista nova da nuvem que chegou com o formulário aberto
   var form = null;            // formulário aberto (criar/editar)
+  var menu = null;            // menu suspenso da Home aberto: { fundo, caixa, itens, idx, perfis, depois }
 
   // ── Visual (injetado aqui para não mexer em outros arquivos) ──────
   var CSS = '' +
@@ -33,7 +37,8 @@
     '#aviso-perfil .perfil-card{display:flex;flex-direction:column;align-items:center;width:230px;margin:0 14px 24px;padding:20px 0 16px;' +
     'background:transparent;border:0;border-radius:22px;color:#9c9ca8;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;outline:none;' +
     '}' +
-    '#aviso-perfil .perfil-avatar,.perfil-mini{position:relative;border-radius:50%;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+    /* avatar: quadrado de cantos redondos (como na Netflix) */
+    '.perfil-avatar,.perfil-mini{position:relative;border-radius:18%;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
     'font-weight:700;color:#fff;box-sizing:border-box;flex:none;background-origin:border-box;text-shadow:0 3px 10px rgba(0,0,0,.28);}' +
     '#aviso-perfil .perfil-avatar{width:168px;height:168px;font-size:80px;border:6px solid rgba(255,255,255,0.08);}' +
     '.perfil-avatar img,.perfil-mini img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}' +
@@ -42,7 +47,7 @@
     '#aviso-perfil .perfil-card.foco{color:#fff;}' +
     '#aviso-perfil .perfil-card.foco .perfil-avatar{border-color:#fff;}' +
     '#aviso-perfil .perfil-card.foco .perfil-nome{color:#fff;}' +
-    '#aviso-perfil .perfil-mais{width:168px;height:168px;border-radius:50%;border:6px dashed #4a4a55;display:flex;align-items:center;justify-content:center;font-size:90px;color:#9c9ca8;box-sizing:border-box;}' +
+    '#aviso-perfil .perfil-mais{width:168px;height:168px;border-radius:18%;border:6px dashed #4a4a55;display:flex;align-items:center;justify-content:center;font-size:90px;color:#9c9ca8;box-sizing:border-box;}' +
     '#aviso-perfil .perfil-card.foco .perfil-mais{border-style:solid;border-color:#fff;color:#fff;}' +
     '#aviso-perfil .perfil-lapis{position:absolute;right:2px;bottom:2px;width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.72);border:3px solid #fff;font-size:30px;display:flex;align-items:center;justify-content:center;}' +
     '#aviso-perfil .perfil-gerenciar{margin-top:30px;padding:12px 40px;font-size:28px;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;color:#9c9ca8;background:transparent;border:2px solid #4a4a55;border-radius:14px;outline:none;}' +
@@ -50,88 +55,74 @@
     '#aviso-perfil .aviso-sub{position:absolute;bottom:50px;left:0;right:0;text-align:center;font-size:27px;color:#9c9ca8;margin:0;}' +
     /* formulário */
     '#aviso-perfil .perfil-form{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 35%,#1b1b22 0%,#0a0a0c 70%);}' +
-    '#aviso-perfil .perfil-form h3{font-size:56px;color:#f5f5f7;margin:0 0 36px;}' +
-    '#aviso-perfil .perfil-form .perfil-avatar{width:150px;height:150px;font-size:76px;margin-bottom:30px;}' +
-    '#aviso-perfil .pf-campo{width:760px;height:84px;margin:10px 0;font-size:36px;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;font-weight:700;color:#fff;background:#1f1f23;border:3px solid #2e2e34;border-radius:14px;outline:none;box-sizing:border-box;padding:0 28px;text-align:center;}' +
+    '#aviso-perfil .perfil-form h3{font-size:52px;color:#f5f5f7;margin:0 0 22px;}' +
+    '#aviso-perfil .perfil-form .perfil-avatar{width:140px;height:140px;font-size:70px;margin-bottom:18px;}' +
+    '#aviso-perfil .pf-campo{width:760px;height:78px;margin:8px 0;font-size:34px;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;font-weight:700;color:#fff;background:#1f1f23;border:3px solid #2e2e34;border-radius:14px;outline:none;box-sizing:border-box;padding:0 28px;text-align:center;}' +
     '#aviso-perfil .pf-campo.foco{border-color:#fff;background:#2a2a30;}' +
     '#aviso-perfil .pf-campo.salvar{background:#e50914;border-color:#e50914;}' +
     '#aviso-perfil .pf-campo.salvar.foco{border-color:#fff;background:#ff4b55;}' +
     '#aviso-perfil .pf-campo.apagar{color:#ff8a92;}' +
+    /* faixa com os avatares para escolher */
+    '#aviso-perfil .pf-campo.pf-faixa{width:1260px;height:112px;padding:0;display:flex;align-items:center;justify-content:center;}' +
+    '#aviso-perfil .pf-av{position:relative;width:78px;height:78px;margin:0 7px;border-radius:18%;overflow:hidden;border:4px solid transparent;box-sizing:border-box;opacity:.55;flex:none;}' +
+    '#aviso-perfil .pf-av img{position:absolute;top:0;left:0;width:100%;height:100%;}' +
+    '#aviso-perfil .pf-av.sel{opacity:1;border-color:#fff;-webkit-transform:scale(1.18);transform:scale(1.18);}' +
     '#aviso-perfil .pf-seta{display:inline-block;width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;vertical-align:middle;}' +
     '#aviso-perfil .pf-seta.e{border-right:16px solid currentColor;margin-right:22px;}' +
     '#aviso-perfil .pf-seta.d{border-left:16px solid currentColor;margin-left:22px;}' +
-    '#aviso-perfil .pf-msg{height:40px;margin-top:10px;font-size:27px;color:#ff8a92;}' +
-    /* mini avatar do botão da Home */
-    '.perfil-mini{width:58px;height:58px;font-size:30px;margin-right:16px;vertical-align:middle;display:inline-flex;}' +
-    /* botão de perfil no canto de cima da Home (ao lado da engrenagem), estilo Netflix */
-    '.topo-direita .btn-perfil{display:inline-flex;align-items:center;height:76px;margin-right:20px;padding:0 34px 0 8px;box-sizing:border-box;border-radius:38px;' +
-    'background:var(--painel);border:3px solid var(--borda);color:#e8e8ee;font-size:28px;font-weight:700;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;outline:none;}' +
-    '.topo-direita .btn-perfil:focus,.topo-direita .btn-perfil:hover{color:#fff;background:var(--destaque);border-color:#fff;box-shadow:0 0 0 8px rgba(var(--destaque-rgb),.5);}' +
-    '.btn-perfil #perfil-mini-nome{display:none;}' +
-    '.topo-direita .btn-perfil{padding:0 20px 0 8px;}' +
-    '.btn-perfil .perfil-mini{margin-right:12px;}' +
-    '.btn-perfil .pf-caret{display:inline-block;width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:13px solid currentColor;opacity:.55;transition:opacity .15s,transform .15s;}' +
-    '.btn-perfil:focus .pf-caret,.btn-perfil:hover .pf-caret,.btn-perfil.aberto .pf-caret{opacity:1;}' +
-    '.btn-perfil.aberto .pf-caret{transform:rotate(180deg);}' +
-    /* menu que abre embaixo do botão */
-    '#pf-menu{position:fixed;z-index:9000;min-width:340px;padding:14px 0;background:rgba(14,14,20,.96);border:2px solid rgba(255,255,255,.22);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.65);font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;}' +
-    '#pf-menu.escondida{display:none;}' +
-    '#pf-menu .pf-item{display:flex;align-items:center;padding:10px 26px;font-size:28px;font-weight:700;color:#d6d6de;border:0;background:transparent;width:100%;text-align:left;outline:none;box-sizing:border-box;}' +
-    '#pf-menu .pf-item .perfil-mini{margin-right:20px;width:54px;height:54px;font-size:28px;}' +
-    '#pf-menu .pf-item.atual{color:#fff;}' +
-    '#pf-menu .pf-item.foco{background:rgba(255,255,255,.16);color:#fff;}' +
-    '#pf-menu .pf-sep{height:2px;margin:10px 0;background:rgba(255,255,255,.14);}' +
-    '#pf-menu .pf-nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;}' +
-    '.btn-perfil .perfil-mini{border:0;}';
+    '#aviso-perfil .pf-msg{height:36px;margin-top:6px;font-size:26px;color:#ff8a92;}' +
+    /* botão de perfil no canto de cima da Home (ao lado da engrenagem): só o avatar. A seta aparece com o foco, como na Netflix. */
+    '.topo-direita .btn-perfil{position:relative;display:inline-flex;align-items:center;justify-content:center;height:76px;margin-right:14px;padding:0 4px 0 6px;box-sizing:border-box;' +
+    'background:transparent;border:0;color:#fff;outline:none;}' +
+    '.btn-perfil .perfil-mini{width:68px;height:68px;margin:0;border:4px solid transparent;}' +
+    '.btn-perfil .perfil-seta{width:28px;height:28px;margin-left:6px;opacity:0;fill:currentColor;-webkit-transition:opacity .15s ease,-webkit-transform .15s ease;transition:opacity .15s ease,transform .15s ease;}' +
+    '.topo-direita .btn-perfil:focus .perfil-mini,.topo-direita .btn-perfil:hover .perfil-mini{border-color:#fff;box-shadow:0 0 0 8px rgba(var(--destaque-rgb),.5);}' +
+    '.topo-direita .btn-perfil:focus .perfil-seta,.topo-direita .btn-perfil:hover .perfil-seta,.topo-direita .btn-perfil.aberto .perfil-seta{opacity:1;}' +
+    '.topo-direita .btn-perfil.aberto .perfil-seta{-webkit-transform:rotate(180deg);transform:rotate(180deg);}' +
+    /* menu suspenso com os perfis */
+    '#menu-perfil-fundo{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;}' +
+    '#menu-perfil{position:fixed;top:128px;right:60px;width:480px;padding:14px 0;border-radius:20px;background:#101016;border:2px solid #34343e;' +
+    'box-shadow:0 24px 64px rgba(0,0,0,.7);font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;font-variant-ligatures:none;}' +
+    '#menu-perfil .mp-item{display:flex;align-items:center;width:456px;height:84px;margin:0 12px;padding:0 20px;border-radius:14px;border:0;background:transparent;' +
+    'color:#d2d2dc;font-size:32px;font-weight:700;text-align:left;outline:none;font-family:inherit;}' +
+    '#menu-perfil .mp-item.foco{background:#fff;color:#0a0a0c;}' +
+    '#menu-perfil .mp-item .perfil-mini{width:58px;height:58px;margin-right:22px;}' +
+    '#menu-perfil .mp-nome{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '#menu-perfil .mp-tag{margin-left:12px;font-size:22px;font-weight:500;color:#9c9ca8;}' +
+    '#menu-perfil .mp-item.foco .mp-tag{color:#555560;}' +
+    '#menu-perfil .mp-sep{height:2px;margin:8px 24px;background:#2e2e34;}' +
+    '#menu-perfil .mp-ic{display:flex;align-items:center;justify-content:center;width:58px;height:58px;margin-right:22px;font-size:34px;}' +
+    /* mini avatar */
+    '.perfil-mini{width:58px;height:58px;font-size:30px;vertical-align:middle;display:inline-flex;}';
 
-  // Avatares próprios do VLTV (cores e formas, sem personagens): evita problema de direitos autorais nas lojas.
-  // O perfil guarda "vltv:<id>" no campo imagem. Sem escolha, o estilo sai do id do perfil.
+  // ── Avatares ──────────────────────────────────────────────────────
+  // Avatares próprios do VLTV (bichinhos originais, em js/avatares.js). O perfil guarda "vltv:<id>" no campo imagem.
+  // Perfil sem escolha (ou que veio do celular com o nome de um avatar antigo) mostra um bichinho que sai do id do perfil.
+  // Se o js/avatares.js não carregar, cai nas cores abaixo (só para o app nunca ficar sem avatar).
   var ESTILOS = [
-    { id: 'aurora',   nome: 'Aurora',   fundo: 'radial-gradient(circle at 22% 18%,rgba(255,255,255,.38),rgba(255,255,255,0) 46%),linear-gradient(135deg,#7f5af0,#2cb1ff)' },
-    { id: 'por-do-sol', nome: 'Pôr do sol', fundo: 'radial-gradient(circle at 50% 112%,#ffd166 0,#ffd166 36%,rgba(255,209,102,0) 37%),linear-gradient(170deg,#ff7e5f,#c94b9c)' },
-    { id: 'oceano',   nome: 'Oceano',   fundo: 'radial-gradient(ellipse at 50% 130%,rgba(255,255,255,.28) 0,rgba(255,255,255,.28) 42%,rgba(255,255,255,0) 43%),linear-gradient(160deg,#00c6ff,#0072ff)' },
-    { id: 'floresta', nome: 'Floresta', fundo: 'radial-gradient(circle at 80% 15%,rgba(255,255,255,.3),rgba(255,255,255,0) 35%),linear-gradient(150deg,#56ab2f,#0b6e4f)' },
-    { id: 'galaxia',  nome: 'Galáxia',  fundo: 'radial-gradient(circle at 20% 25%,rgba(255,255,255,.9) 0,rgba(255,255,255,.9) 1.5%,rgba(255,255,255,0) 2%),radial-gradient(circle at 78% 30%,rgba(255,255,255,.8) 0,rgba(255,255,255,.8) 1.2%,rgba(255,255,255,0) 1.8%),radial-gradient(circle at 60% 78%,rgba(255,255,255,.7) 0,rgba(255,255,255,.7) 1.2%,rgba(255,255,255,0) 1.8%),linear-gradient(145deg,#1e1b4b,#6d28d9)' },
-    { id: 'fogo',     nome: 'Fogo',     fundo: 'radial-gradient(circle at 50% 100%,rgba(255,240,150,.55),rgba(255,240,150,0) 55%),linear-gradient(160deg,#ff512f,#dd2476)' },
-    { id: 'doce',     nome: 'Doce',     fundo: 'radial-gradient(circle at 25% 20%,rgba(255,255,255,.4),rgba(255,255,255,0) 42%),linear-gradient(135deg,#f093fb,#f5576c)' },
-    { id: 'menta',    nome: 'Menta',    fundo: 'radial-gradient(circle at 75% 20%,rgba(255,255,255,.35),rgba(255,255,255,0) 40%),linear-gradient(140deg,#11998e,#38ef7d)' },
-    { id: 'ouro',     nome: 'Ouro',     fundo: 'radial-gradient(circle at 30% 20%,rgba(255,255,255,.4),rgba(255,255,255,0) 45%),linear-gradient(145deg,#f6d365,#e08a1e)' },
-    { id: 'meia-noite', nome: 'Meia-noite', fundo: 'radial-gradient(circle at 50% 50%,rgba(255,255,255,0) 52%,rgba(255,255,255,.22) 53%,rgba(255,255,255,.22) 56%,rgba(255,255,255,0) 57%),linear-gradient(150deg,#232526,#2b5876)' },
-    { id: 'rosa',     nome: 'Rosa',     fundo: 'radial-gradient(circle at 24% 22%,rgba(255,255,255,.38),rgba(255,255,255,0) 44%),linear-gradient(140deg,#ff758c,#ff7eb3)' },
-    { id: 'grafite',  nome: 'Grafite',  fundo: 'radial-gradient(circle at 28% 20%,rgba(255,255,255,.22),rgba(255,255,255,0) 45%),linear-gradient(150deg,#485563,#29323c)' }
+    { id: 'aurora',   fundo: 'radial-gradient(circle at 22% 18%,rgba(255,255,255,.38),rgba(255,255,255,0) 46%),linear-gradient(135deg,#7f5af0,#2cb1ff)' },
+    { id: 'por-do-sol', fundo: 'radial-gradient(circle at 50% 112%,#ffd166 0,#ffd166 36%,rgba(255,209,102,0) 37%),linear-gradient(170deg,#ff7e5f,#c94b9c)' },
+    { id: 'oceano',   fundo: 'linear-gradient(160deg,#00c6ff,#0072ff)' },
+    { id: 'floresta', fundo: 'linear-gradient(150deg,#56ab2f,#0b6e4f)' },
+    { id: 'fogo',     fundo: 'linear-gradient(160deg,#ff512f,#dd2476)' },
+    { id: 'ouro',     fundo: 'linear-gradient(145deg,#f6d365,#e08a1e)' }
   ];
 
-  // Avatares ilustrados originais do VLTV (mesma ordem do app do celular: o automático sai do id do perfil).
-  var ANIMAIS = ['raposa', 'gato', 'urso', 'coruja', 'robo', 'alien', 'panda', 'coelho', 'dino', 'polvo', 'astro', 'leao'];
+  function temAvatares() { return !!(VLTV.avatares && VLTV.avatares.lista && VLTV.avatares.lista.length > 0); }
 
-  function hashId(p) {
-    var h = 0, t = String(p.id || p.nome || '');
-    for (var j = 0; j < t.length; j++) { h = (h * 31 + t.charCodeAt(j)) % 9973; }
-    return h;
-  }
-
-  // Qual ilustração o perfil usa: a escolhida ("vltv:<animal>") ou, se não escolheu (ou escolheu um estilo antigo de cor), a que sai do id.
-  function animalDe(p) {
-    var m = /^vltv:(.+)$/.exec(String(p.imagem || ''));
-    if (m && ANIMAIS.indexOf(m[1]) >= 0) { return m[1]; }
-    if (m && estiloPorId(m[1]) >= 0) { return null; }   // escolheu um fundo de cor: mostra cor + inicial
-    return ANIMAIS[hashId(p) % ANIMAIS.length];
-  }
-
-  function estiloPorId(id) {
-    for (var i = 0; i < ESTILOS.length; i++) { if (ESTILOS[i].id === id) { return i; } }
-    return -1;
-  }
-
-  // Estilo do perfil: o escolhido ("vltv:<id>") ou, se não escolheu, um que sai do id do perfil.
-  function estiloDe(p) {
-    var m = /^vltv:(.+)$/.exec(String(p.imagem || ''));
-    var i = m ? estiloPorId(m[1]) : -1;
-    if (i >= 0) { return i; }
+  function estiloFallback(p) {
     var h = 0, t = String(p.id || p.nome || '');
     for (var j = 0; j < t.length; j++) { h = (h * 31 + t.charCodeAt(j)) % 9973; }
     return h % ESTILOS.length;
   }
+
+  var cacheUri = {};
+  function uriAvatar(i) {
+    if (!cacheUri[i]) { cacheUri[i] = VLTV.avatares.uri(i); }
+    return cacheUri[i];
+  }
+
+  function idDoAvatar(i) { return 'vltv:' + VLTV.avatares.lista[i].id; }
 
   function el(tag, classe, texto) {
     var e = document.createElement(tag);
@@ -140,7 +131,7 @@
     return e;
   }
 
-  // Avatar redondo. mini = true: versão pequena do botão da Home.
+  // Avatar. mini = true: versão pequena (botão e menu da Home).
   function avatar(p, mini) {
     var av = el('div', mini ? 'perfil-mini' : 'perfil-avatar');
     if (p.kids) {   // perfil infantil: sempre a mesma arte do app do celular (av_infantil)
@@ -151,16 +142,15 @@
       av.appendChild(k);
       return av;
     }
-    var animal = animalDe(p);
-    if (animal) {
-      var ia = document.createElement('img');
-      ia.alt = '';
-      ia.src = 'img/av/' + animal + '.png';
-      av.appendChild(ia);
-      return av;
+    if (temAvatares()) {
+      var a = document.createElement('img');
+      a.alt = '';
+      a.src = uriAvatar(VLTV.avatares.indiceDoPerfil(p));
+      av.appendChild(a);
+    } else {
+      av.style.backgroundImage = ESTILOS[estiloFallback(p)].fundo;
+      av.appendChild(document.createTextNode(String(p.nome || '?').replace(/^\s+/, '').charAt(0).toUpperCase() || '?'));
     }
-    av.style.backgroundImage = ESTILOS[estiloDe(p)].fundo;
-    av.appendChild(document.createTextNode(String(p.nome || '?').replace(/^\s+/, '').charAt(0).toUpperCase() || '?'));
     if (/^(https?:|data:image)/i.test(String(p.imagem || ''))) {
       var im = document.createElement('img');
       im.alt = '';
@@ -169,6 +159,22 @@
       av.appendChild(im);
     }
     return av;
+  }
+
+  // ── Trava dos pais ────────────────────────────────────────────────
+  // Quem está no perfil infantil só sai dele com a senha do controle parental. Se a senha ainda é a de fábrica (0000),
+  // pede para criar uma nova antes (senão qualquer criança que viu "0000" uma vez sairia do perfil).
+  function emPerfilInfantil() {
+    var p = VLTV.dados && VLTV.dados.perfilAtual ? VLTV.dados.perfilAtual() : null;
+    return !!(p && p.kids === true);
+  }
+
+  function comTrava(pronto, cancelar) {
+    var P = VLTV.parental;
+    if (!emPerfilInfantil() || !P) { pronto(); return; }
+    var seguir = function () { try { P.travar(); } catch (e) { /* ignora */ } pronto(); };
+    if (P.senhaPadrao()) { P.criarSenha(seguir, cancelar); return; }
+    P.pedirSenha(seguir, { titulo: 'Sair do perfil infantil', sub: 'Digite a senha dos pais.', sempre: true, cancelar: cancelar });
   }
 
   function montar() {
@@ -191,15 +197,22 @@
     document.body.appendChild(caixa);
   }
 
-  function aberto() { return !!caixa && !caixa.classList.contains('escondida'); }
+  function telaAberta() { return !!caixa && !caixa.classList.contains('escondida'); }
+  function menuAberto() { return !!menu; }
+  function aberto() { return telaAberta() || menuAberto(); }
 
-  function fechar() {
-    if (!aberto()) { return; }
+  function fecharTela() {
+    if (!telaAberta()) { return; }
     fecharForm(true);
     caixa.classList.add('escondida');
     var f = aoFechar;
     aoFechar = null;
     if (f) { try { f(); } catch (e) { /* ignora */ } }
+  }
+
+  function fechar() {
+    if (menuAberto()) { fecharMenu(); }
+    fecharTela();
   }
 
   function podeFechar() { return trocandoFlag || !!VLTV.dados.perfilAtual(); }
@@ -288,25 +301,12 @@
     }, 1850);
   }
 
-  // Quem está no perfil infantil só sai dele para um perfil normal com a senha do controle parental (se ela existir).
-  function protegerSaida(p, seguir, antes) {
-    var at = VLTV.dados.perfilAtual();
-    if (at && at.kids === true && p.kids !== true && VLTV.parental.temSenha && VLTV.parental.temSenha()) {
-      if (antes) { antes(); }
-      VLTV.parental.pedirSenha(seguir, { sempre: true, titulo: 'Sair do perfil infantil', sub: 'Digite a senha para trocar de perfil.' });
-      return;
-    }
-    seguir();
-  }
-
   function escolher(i) {
     var p = perfis[i];
     if (!p) { return; }
-    protegerSaida(p, function () {
-      if (p.kids === true) { animarInfantil(); }
-      VLTV.nuvem.escolherPerfil(p);
-      fechar();
-    }, fechar);
+    if (p.kids === true) { animarInfantil(); }
+    VLTV.nuvem.escolherPerfil(p);
+    fecharTela();
   }
 
   function ativar(i) {
@@ -319,6 +319,7 @@
   // depois (opcional): roda quando a janela fecha.
   function abrir(lista, trocando, depois) {
     if (!lista || lista.length === 0) { return; }
+    if (menuAberto()) { fecharMenu(true); }
     montar();
     perfis = lista.slice(0);
     trocandoFlag = !!trocando;
@@ -331,37 +332,171 @@
     desenhar(null);
   }
 
+  function assinatura(l) { return l.map(function (p) { return p.id + '|' + p.nome + '|' + (p.kids ? 1 : 0) + '|' + (p.imagem || ''); }).join(';'); }
+
   // A lista chegou da nuvem com a tela já aberta (mostrada com a lista guardada na TV): redesenha sem perder o item marcado.
   function atualizar(lista) {
-    if (!aberto() || !lista || lista.length === 0) { return; }
+    if (!lista || lista.length === 0) { return; }
+    if (menuAberto()) { atualizarMenu(lista); }
+    if (!telaAberta()) { return; }
     if (form) { listaPendente = lista; return; }   // não mexe na tela enquanto o formulário está aberto
-    function assinatura(l) { return l.map(function (p) { return p.id + '|' + p.nome + '|' + (p.kids ? 1 : 0); }).join(';'); }
     if (assinatura(lista) === assinatura(perfis)) { return; }
     var sel = perfis[idx] ? perfis[idx].id : null;
     perfis = lista.slice(0);
     desenhar(sel);
   }
 
-  // Abre pela Home ou por Configurações: mostra já a lista guardada na TV e corrige com a da nuvem por trás.
+  // Abre pela Configurações: mostra já a lista guardada na TV e corrige com a da nuvem por trás.
+  // Quem está no perfil infantil precisa da senha dos pais.
   function abrirTroca(depois) {
-    var guardada = VLTV.nuvem.listaGuardada();
-    if (guardada.length > 0) {
-      abrir(guardada, true, depois);
+    comTrava(function () {
+      var guardada = VLTV.nuvem.listaGuardada();
+      if (guardada.length > 0) {
+        abrir(guardada, true, depois);
+        VLTV.nuvem.listarPerfis().then(atualizar).catch(function () { /* sem internet: fica a lista guardada */ });
+        return;
+      }
+      VLTV.nuvem.listarPerfis().then(function (lista) {
+        abrir(lista.length > 0 ? lista : VLTV.nuvem.padroes(), true, depois);
+      }).catch(function () { /* sem internet e sem lista guardada: não abre */ });
+    }, depois);
+  }
+
+  // ── Menu suspenso da Home (avatar + seta, como na Netflix) ───────────
+  function btnPerfilHome() { return document.getElementById('btn-perfil'); }
+
+  function marcarMenu() {
+    if (!menu) { return; }
+    menu.itens.forEach(function (it, i) { it.el.classList.toggle('foco', i === menu.idx); });
+    var alvo = menu.itens[menu.idx];
+    if (alvo) { try { alvo.el.focus({ preventScroll: true }); } catch (e) { alvo.el.focus(); } }
+  }
+
+  function desenharMenu(selecionado) {
+    while (menu.caixa.firstChild) { menu.caixa.removeChild(menu.caixa.firstChild); }
+    menu.itens = [];
+    var atual = VLTV.dados.perfilAtual();
+    var sel = 0;
+    menu.perfis.forEach(function (p, i) {
+      var b = el('button', 'mp-item');
+      b.type = 'button';
+      b.appendChild(avatar(p, true));
+      b.appendChild(el('span', 'mp-nome', p.nome));
+      if (atual && atual.id === p.id) { b.appendChild(el('span', 'mp-tag', 'Atual')); }
+      menu.caixa.appendChild(b);
+      menu.itens.push({ el: b, perfil: p });
+      if (selecionado ? selecionado === p.id : (atual && atual.id === p.id)) { sel = i; }
+    });
+    menu.caixa.appendChild(el('div', 'mp-sep'));
+    var g = el('button', 'mp-item');
+    g.type = 'button';
+    g.appendChild(el('span', 'mp-ic', '✎'));
+    g.appendChild(el('span', 'mp-nome', 'Gerenciar perfis'));
+    menu.caixa.appendChild(g);
+    menu.itens.push({ el: g, gerenciar: true });
+    menu.itens.forEach(function (it, i) {
+      it.el.addEventListener('click', function () { menu.idx = i; marcarMenu(); ativarMenu(i); });
+      it.el.addEventListener('mousemove', function (e) {
+        if (VLTV.cursor && VLTV.cursor.andou && !VLTV.cursor.andou(e)) { return; }
+        if (menu && menu.idx !== i) { menu.idx = i; marcarMenu(); }
+      });
+    });
+    menu.idx = Math.min(sel, menu.itens.length - 1);
+    marcarMenu();
+  }
+
+  function atualizarMenu(lista) {
+    if (!menu || assinatura(lista) === assinatura(menu.perfis)) { return; }
+    var it = menu.itens[menu.idx];
+    var sel = it && it.perfil ? it.perfil.id : null;
+    menu.perfis = lista.slice(0);
+    desenharMenu(sel);
+  }
+
+  function abrirMenu(depois) {
+    if (aberto()) { return; }
+    comTrava(function () {
+      var lista = VLTV.nuvem.listaGuardada();
+      if (lista.length === 0) { lista = VLTV.nuvem.padroes(); }
+      montarMenu(lista, depois);
       VLTV.nuvem.listarPerfis().then(atualizar).catch(function () { /* sem internet: fica a lista guardada */ });
+    }, depois);
+  }
+
+  function montarMenu(lista, depois) {
+    var fundo = el('div');
+    fundo.id = 'menu-perfil-fundo';
+    var cx = el('div');
+    cx.id = 'menu-perfil';
+    cx.setAttribute('role', 'menu');
+    fundo.appendChild(cx);
+    fundo.addEventListener('click', function (e) { if (e.target === fundo) { fecharMenu(); } });
+    document.body.appendChild(fundo);
+    menu = { fundo: fundo, caixa: cx, itens: [], idx: 0, perfis: lista.slice(0), depois: depois || null };
+    var b = btnPerfilHome();
+    if (b) { b.classList.add('aberto'); }
+    desenharMenu(null);
+  }
+
+  // semCallback = true: abriu outra coisa por cima (não devolve o foco ao botão).
+  function fecharMenu(semCallback) {
+    if (!menu) { return; }
+    var m = menu;
+    menu = null;
+    if (m.fundo.parentNode) { m.fundo.parentNode.removeChild(m.fundo); }
+    var b = btnPerfilHome();
+    if (b) { b.classList.remove('aberto'); }
+    if (!semCallback && m.depois) { try { m.depois(); } catch (e) { /* ignora */ } }
+  }
+
+  function ativarMenu(i) {
+    var it = menu && menu.itens[i];
+    if (!it) { return; }
+    if (it.gerenciar) {
+      var lista = menu.perfis.slice(0);
+      var depois = menu.depois;
+      fecharMenu(true);
+      abrir(lista, true, depois);
+      gerenciando = true;
+      desenhar(null);
+      foco = 'grade';
+      marcar();
       return;
     }
-    VLTV.nuvem.listarPerfis().then(function (lista) {
-      abrir(lista.length > 0 ? lista : VLTV.nuvem.padroes(), true, depois);
-    }).catch(function () { /* sem internet e sem lista guardada: não abre */ });
+    var atual = VLTV.dados.perfilAtual();
+    if (atual && atual.id === it.perfil.id) { fecharMenu(); return; }
+    if (it.perfil.kids === true) { animarInfantil(); }
+    VLTV.nuvem.escolherPerfil(it.perfil);
+    fecharMenu();
+  }
+
+  function teclaMenu(k) {
+    if (k === TECLA.CIMA) { if (menu.idx > 0) { menu.idx--; marcarMenu(); } return true; }
+    if (k === TECLA.BAIXO) { if (menu.idx < menu.itens.length - 1) { menu.idx++; marcarMenu(); } return true; }
+    if (k === TECLA.ENTER) { ativarMenu(menu.idx); return true; }
+    if (k === TECLA.VOLTAR || k === TECLA.ESC) { fecharMenu(); return true; }
+    return true;
   }
 
   // ── Formulário (criar / editar) ───────────────────────────────────
   function liberar(e) { e.removeAttribute('readonly'); e.blur(); e.focus(); }
   function travar(e) { e.setAttribute('readonly', 'readonly'); }
 
+  // Primeiro bichinho que ainda não é de nenhum perfil (assim cada perfil novo nasce com um avatar diferente).
+  function avatarLivre() {
+    var total = VLTV.avatares.lista.length;
+    var usados = {};
+    perfis.forEach(function (p) { if (!p.kids) { usados[VLTV.avatares.indiceDoPerfil(p)] = true; } });
+    for (var i = 0; i < total; i++) { if (!usados[i]) { return i; } }
+    return 0;
+  }
+
   function abrirForm(p) {
     var novo = !p;
-    var estado = { p: p, novo: novo, kids: novo ? false : p.kids === true, ocupado: false, confirmaApagar: false };
+    var comAv = temAvatares();
+    var estado = { p: p, novo: novo, kids: novo ? false : p.kids === true, ocupado: false, confirmaApagar: false, av: 0 };
+    if (comAv) { estado.av = novo ? avatarLivre() : VLTV.avatares.indiceDoPerfil(p); }
+    var imagemOriginal = novo ? '' : String(p.imagem || '');
     var raiz = el('div', 'perfil-form');
     var tit = el('h3', '', novo ? 'Novo perfil' : 'Editar perfil');
     var avBox = el('div');
@@ -380,6 +515,22 @@
       btnTipo.type = 'button';
       campos.push(btnTipo);
     }
+    var faixa = null;
+    var thumbs = [];
+    if (comAv) {
+      faixa = el('div', 'pf-campo pf-faixa');
+      VLTV.avatares.lista.forEach(function (a, i) {
+        var t = el('div', 'pf-av');
+        var im = document.createElement('img');
+        im.alt = '';
+        im.src = uriAvatar(i);
+        t.appendChild(im);
+        t.addEventListener('click', function () { if (form) { estado.av = i; form.i = form.campos.indexOf(faixa); marcarForm(); atualizarAvatar(); } });
+        faixa.appendChild(t);
+        thumbs.push(t);
+      });
+      campos.push(faixa);
+    }
     var btnSalvar = el('button', 'pf-campo salvar', 'Salvar');
     btnSalvar.type = 'button';
     campos.push(btnSalvar);
@@ -394,10 +545,17 @@
     campos.push(btnCancelar);
     var msg = el('div', 'pf-msg');
 
+    function imagemEscolhida() {
+      return (comAv && !estado.kids) ? idDoAvatar(estado.av) : (novo ? '' : imagemOriginal);
+    }
     function previa() {
       while (avBox.firstChild) { avBox.removeChild(avBox.firstChild); }
       var nome = campo.value.trim() || (novo ? '?' : p.nome);
-      avBox.appendChild(avatar({ id: novo ? nome : p.id, nome: nome, kids: estado.kids, imagem: novo ? '' : p.imagem }, false));
+      avBox.appendChild(avatar({ id: novo ? nome : p.id, nome: nome, kids: estado.kids, imagem: imagemEscolhida() }, false));
+    }
+    function atualizarAvatar() {
+      thumbs.forEach(function (t, i) { t.classList.toggle('sel', i === estado.av); });
+      previa();
     }
     function textoTipo() {
       if (!btnTipo) { return; }
@@ -405,6 +563,7 @@
       btnTipo.appendChild(el('span', 'pf-seta e'));
       btnTipo.appendChild(document.createTextNode('Tipo: ' + (estado.kids ? 'Infantil (só conteúdo infantil)' : 'Normal')));
       btnTipo.appendChild(el('span', 'pf-seta d'));
+      if (faixa) { faixa.style.display = estado.kids ? 'none' : 'flex'; }   // infantil tem avatar fixo
     }
 
     raiz.appendChild(tit);
@@ -413,8 +572,10 @@
     raiz.appendChild(msg);
     caixa.appendChild(raiz);
 
-    form = { raiz: raiz, campos: campos, i: 0, estado: estado, campo: campo, btnTipo: btnTipo, btnSalvar: btnSalvar, btnApagar: btnApagar, btnCancelar: btnCancelar, msg: msg, previa: previa, textoTipo: textoTipo };
-    previa();
+    form = { raiz: raiz, campos: campos, i: 0, estado: estado, campo: campo, btnTipo: btnTipo, faixa: faixa, btnSalvar: btnSalvar, btnApagar: btnApagar, btnCancelar: btnCancelar,
+      msg: msg, previa: previa, textoTipo: textoTipo, atualizarAvatar: atualizarAvatar, imagemEscolhida: imagemEscolhida, imagemOriginal: imagemOriginal };
+    if (faixa && estado.kids) { faixa.style.display = 'none'; }
+    atualizarAvatar();
     textoTipo();
     campo.addEventListener('input', previa);
     campo.addEventListener('focus', function () { clearTimeout(form && form.timerTrava); });
@@ -458,7 +619,14 @@
     if (!form || !form.btnTipo) { return; }
     form.estado.kids = !form.estado.kids;
     form.textoTipo();
-    form.previa();
+    form.atualizarAvatar();
+  }
+
+  function mudarAvatar(passo) {
+    if (!form || !form.faixa) { return; }
+    var total = VLTV.avatares.lista.length;
+    form.estado.av = (form.estado.av + passo + total) % total;
+    form.atualizarAvatar();
   }
 
   function mensagemForm(t) { if (form) { form.msg.textContent = t || ''; } }
@@ -485,9 +653,16 @@
     if (!nome) { mensagemForm('Digite um nome para o perfil.'); return; }
     f.estado.ocupado = true;
     mensagemForm('Salvando...');
-    var op = f.estado.novo
-      ? VLTV.nuvem.criarPerfil(nome, f.estado.kids)
-      : (nome === f.estado.p.nome ? Promise.resolve(perfis) : VLTV.nuvem.renomearPerfil(f.estado.p, nome));
+    var comAv = !!f.faixa && !f.estado.kids;
+    var imagem = comAv ? f.imagemEscolhida() : undefined;   // undefined = mantém a imagem que o perfil já tem
+    var op;
+    if (f.estado.novo) {
+      op = VLTV.nuvem.criarPerfil(nome, f.estado.kids, imagem);
+    } else if (nome === f.estado.p.nome && (!comAv || imagem === f.imagemOriginal)) {
+      op = Promise.resolve(perfis);
+    } else {
+      op = VLTV.nuvem.renomearPerfil(f.estado.p, nome, imagem);
+    }
     op.then(function (lista) {
       if (form !== f) { return; }
       aposSalvar(lista);
@@ -526,16 +701,25 @@
     if (c === f.campo) {
       if (c.hasAttribute('readonly')) { liberar(c); } else { terminarCampo(); }
     } else if (c === f.btnTipo) { alternarTipo(); }
+    else if (c === f.faixa) { mudarAvatar(1); }
     else if (c === f.btnSalvar) { salvarForm(); }
     else if (c === f.btnApagar) { apagarForm(); }
     else if (c === f.btnCancelar) { fecharForm(false); }
   }
 
+  // Anda para o campo de cima (-1) ou de baixo (+1), pulando o que está escondido (avatares do perfil infantil).
+  function andarForm(passo) {
+    var f = form;
+    var j = f.i + passo;
+    while (j >= 0 && j < f.campos.length && f.campos[j].style.display === 'none') { j += passo; }
+    if (j >= 0 && j < f.campos.length) { f.i = j; }
+    marcarForm();
+  }
+
   // Terminou de digitar: volta a ser só-leitura e vai para o próximo item.
   function terminarCampo() {
     travar(form.campo);
-    form.i = Math.min(form.i + 1, form.campos.length - 1);
-    marcarForm();
+    andarForm(1);
   }
 
   // Retorna true se a tecla foi tratada aqui; false deixa a tecla passar (digitação no campo de nome).
@@ -548,15 +732,15 @@
       // CIMA/BAIXO chegando aqui significa que o teclado da TV já fechou (Voltar fecha sem avisar a página): sai do campo e anda.
       if (k === TECLA.CIMA || k === TECLA.BAIXO) {
         travar(f.campo);
-        if (k === TECLA.CIMA) { if (f.i > 0) { f.i--; } } else if (f.i < f.campos.length - 1) { f.i++; }
-        marcarForm();
+        andarForm(k === TECLA.CIMA ? -1 : 1);
         return true;
       }
       return false;
     }
-    if (k === TECLA.CIMA) { if (f.i > 0) { f.i--; marcarForm(); } return true; }
-    if (k === TECLA.BAIXO) { if (f.i < f.campos.length - 1) { f.i++; marcarForm(); } return true; }
+    if (k === TECLA.CIMA) { andarForm(-1); return true; }
+    if (k === TECLA.BAIXO) { andarForm(1); return true; }
     if ((k === TECLA.ESQ || k === TECLA.DIR) && f.campos[f.i] === f.btnTipo) { alternarTipo(); return true; }
+    if ((k === TECLA.ESQ || k === TECLA.DIR) && f.campos[f.i] === f.faixa) { mudarAvatar(k === TECLA.ESQ ? -1 : 1); return true; }
     if (k === TECLA.ENTER) { ativarCampoForm(); return true; }
     if (k === TECLA.VOLTAR || k === TECLA.ESC) { fecharForm(false); return true; }
     return true;
@@ -565,6 +749,7 @@
   // ── Teclas ────────────────────────────────────────────────────────
   // true = a tecla foi tratada aqui (o app cancela o padrão); false = deixa passar (digitar o nome do perfil).
   function tecla(k) {
+    if (menu) { return teclaMenu(k); }
     if (form) { return teclaForm(k); }
     if (foco === 'gerenciar') {
       if (k === TECLA.CIMA) { foco = 'grade'; marcar(); return true; }
@@ -577,99 +762,9 @@
     }
     if (k === TECLA.VOLTAR || k === TECLA.ESC) {
       if (gerenciando) { alternarGerenciar(); foco = 'grade'; marcar(); }
-      else if (podeFechar()) { fechar(); }
+      else if (podeFechar()) { fecharTela(); }
       return true;
     }
-    return true;
-  }
-
-  // ── Menu do botão de perfil da Home (abre embaixo do avatar, estilo Netflix) ──
-  var menu = null, menuItens = [], menuIdx = 0, menuBtn = null, menuDepois = null;
-
-  function menuAberto() { return !!menu && !menu.classList.contains('escondida'); }
-
-  function menuMarcar() {
-    menuItens.forEach(function (b, i) { b.classList.toggle('foco', i === menuIdx); });
-  }
-
-  function fecharMenu(voltarFoco) {
-    if (!menu) { return; }
-    menu.classList.add('escondida');
-    if (menuBtn) { menuBtn.classList.remove('aberto'); if (voltarFoco) { menuBtn.focus(); } }
-  }
-
-  function menuAtivar(i) {
-    var it = menuItens[i];
-    if (!it) { return; }
-    if (it.gerenciar) {
-      fecharMenu(false);
-      protegerSaida({ kids: false }, function () { abrirTroca(menuDepois); });
-      return;
-    }
-    var p = it.perfil;
-    var atual = VLTV.dados.perfilAtual();
-    fecharMenu(true);
-    if (atual && atual.id === p.id) { return; }
-    protegerSaida(p, function () {
-      if (p.kids === true) { animarInfantil(); }
-      VLTV.nuvem.escolherPerfil(p);
-      if (menuDepois) { setTimeout(menuDepois, 0); }
-    });
-  }
-
-  function desenharMenu(lista) {
-    var atual = VLTV.dados.perfilAtual();
-    while (menu.firstChild) { menu.removeChild(menu.firstChild); }
-    menuItens = [];
-    lista.forEach(function (p) {
-      var b = el('button', 'pf-item');
-      b.type = 'button';
-      b.appendChild(avatar(p, true));
-      b.appendChild(el('span', 'pf-nome', p.nome));
-      if (atual && atual.id === p.id) { b.className += ' atual'; }
-      b.perfil = p;
-      b.addEventListener('click', function () { menuIdx = menuItens.indexOf(b); menuAtivar(menuIdx); });
-      menu.appendChild(b);
-      menuItens.push(b);
-    });
-    menu.appendChild(el('div', 'pf-sep'));
-    var g = el('button', 'pf-item', 'Gerenciar perfis');
-    g.type = 'button';
-    g.gerenciar = true;
-    g.addEventListener('click', function () { menuIdx = menuItens.indexOf(g); menuAtivar(menuIdx); });
-    menu.appendChild(g);
-    menuItens.push(g);
-    menuIdx = 0;
-    for (var i = 0; i < menuItens.length; i++) { if (menuItens[i].classList.contains('atual')) { menuIdx = i; } }
-    menuMarcar();
-  }
-
-  function abrirMenu(botao, depois) {
-    if (!menu) {
-      menu = el('div', 'escondida');
-      menu.id = 'pf-menu';
-      document.body.appendChild(menu);
-    }
-    menuBtn = botao;
-    menuDepois = depois || null;
-    var guardada = VLTV.nuvem.listaGuardada();
-    function mostrar(lista) {
-      desenharMenu(lista);
-      var r = botao.getBoundingClientRect();
-      menu.style.top = Math.round(r.bottom + 12) + 'px';
-      menu.style.right = Math.max(20, Math.round(window.innerWidth - r.right)) + 'px';
-      menu.classList.remove('escondida');
-      botao.classList.add('aberto');
-    }
-    if (guardada.length > 0) { mostrar(guardada); return; }
-    VLTV.nuvem.listarPerfis().then(function (l) { mostrar(l.length > 0 ? l : VLTV.nuvem.padroes()); }).catch(function () {});
-  }
-
-  function teclaMenu(k) {
-    if (k === TECLA.CIMA) { if (menuIdx > 0) { menuIdx--; menuMarcar(); } return true; }
-    if (k === TECLA.BAIXO) { if (menuIdx < menuItens.length - 1) { menuIdx++; menuMarcar(); } return true; }
-    if (k === TECLA.ENTER) { menuAtivar(menuIdx); return true; }
-    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.ESQ || k === TECLA.DIR) { fecharMenu(true); return true; }
     return true;
   }
 
@@ -681,8 +776,7 @@
   })();
 
   VLTV.perfil = {
-    abrir: abrir, abrirTroca: abrirTroca, atualizar: atualizar, fechar: fechar,
-    aberto: aberto, tecla: tecla, avatar: avatar,
-    abrirMenu: abrirMenu, menuAberto: menuAberto, teclaMenu: teclaMenu, fecharMenu: fecharMenu
+    abrir: abrir, abrirTroca: abrirTroca, abrirMenu: abrirMenu, atualizar: atualizar, fechar: fechar,
+    aberto: aberto, tecla: tecla, avatar: avatar
   };
 })();

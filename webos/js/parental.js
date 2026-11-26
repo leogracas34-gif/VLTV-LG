@@ -196,9 +196,39 @@
     return lista.filter(function (x) { return !itemAdulto(x, tipo); });
   }
 
+  // Perfil infantil: classificação de 14 anos para cima (14, 16, 18, R, NC-17, TV-14, TV-MA) não passa, nem com o controle
+  // parental desligado. Só vale quando o painel informa a classificação (campos age, mpaa_rating...).
+  var REGEX_IDADE_KIDS = /(^|[^A-Z0-9])(14|16|18)([^A-Z0-9]|$)|NC-?17|(^|[^A-Z])R([^A-Z]|$)|TV-?(14|MA)|MA-?17|^X$|\+\s?(14|16|18)/;
+  function idadeImpropriaKids(info) {
+    if (!info || typeof info !== 'object') { return false; }
+    var txt = String(info.age || info.mpaa_rating || info.age_rating || info.certification || '').toUpperCase();
+    return txt !== '' && REGEX_IDADE_KIDS.test(txt);
+  }
+
+  // Aviso curto na tela (some sozinho).
+  function avisoKids(texto) {
+    try {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;left:50%;bottom:110px;margin-left:-460px;width:920px;padding:26px 36px;z-index:9000;text-align:center;' +
+        'font-size:32px;font-weight:700;color:#fff;background:rgba(20,28,100,.96);border:3px solid #fff;border-radius:20px;';
+      d.textContent = texto;
+      document.body.appendChild(d);
+      setTimeout(function () { if (d.parentNode) { d.parentNode.removeChild(d); } }, 3500);
+    } catch (e) { /* ignora */ }
+  }
+
   // Antes de assistir: filme/série/canal adulto ou com classificação 18+ pede a senha.
+  // No perfil infantil, conteúdo adulto ou de classificação alta é barrado de vez (não adianta senha: troque de perfil).
   // ctx: { raw, info, tipo }. Chama pronto() quando pode assistir.
   function checarReproducao(ctx, pronto) {
+    if (ehInfantil()) {
+      if (itemAdulto(ctx && ctx.raw, ctx && ctx.tipo) || idadeAdulta(ctx && ctx.info) || idadeImpropriaKids(ctx && ctx.info)) {
+        avisoKids('Este título não está disponível no perfil infantil.');
+        return;
+      }
+      pronto();
+      return;
+    }
     if (!bloqueando()) { pronto(); return; }
     if (itemAdulto(ctx && ctx.raw, ctx && ctx.tipo) || idadeAdulta(ctx && ctx.info)) {
       pedirSenha(pronto, { titulo: 'Conteúdo +18', sub: 'Digite a senha para assistir.' });
@@ -529,7 +559,6 @@
     recalcularPerfil: recalcular,
     checarReproducao: checarReproducao,
     pedirSenha: pedirSenha,
-    temSenha: function () { var e = ler(); return !!(e.ativo && e.pin); },
     criarSenha: criarSenha,
     aberto: function () { return aberto; },
     tecla: tecla

@@ -21,13 +21,16 @@ html[data-infantil] #tile-series:focus, html[data-infantil] #tile-series:not([di
 /* Texto do topo legível sobre o fundo claro */
 html[data-infantil] .logo-pequeno, html[data-infantil] .topo-direita { text-shadow: 0 2px 8px rgba(20, 20, 80, 0.55); }
 /* Textos da Home sobre o fundo claro: nome do app, data/hora, perfil, Listas e Sair ficam em "pílulas" escuras translúcidas */
-html[data-infantil] .logo-pequeno {
-  color: #fff; background: rgba(24, 28, 100, 0.55); padding: 8px 22px; border-radius: 999px; text-shadow: none;
-}
-html[data-infantil] .logo-pequeno span { color: #ffd54a; }
+/* A marca do app (V com play) já tem fundo próprio: sem a pílula de antes. Usa o laranja do infantil. */
+html[data-infantil] .logo-pequeno { background: none; padding: 0; text-shadow: none; }
+html[data-infantil] .logo-marca { -webkit-filter: drop-shadow(0 3px 8px rgba(15, 15, 70, 0.55)); filter: drop-shadow(0 3px 8px rgba(15, 15, 70, 0.55)); }
 html[data-infantil] .topo-direita { text-shadow: 0 1px 6px rgba(15, 15, 70, 0.8); }
 html[data-infantil] .topo-direita, html[data-infantil] .topo-direita * { color: #fff; }
-html[data-infantil] .btn-perfil, html[data-infantil] .btn-engrenagem { background: rgba(24, 28, 100, 0.72) !important; border-color: rgba(255, 255, 255, 0.7) !important; }
+html[data-infantil] .btn-engrenagem { background: rgba(24, 28, 100, 0.72) !important; border-color: rgba(255, 255, 255, 0.7) !important; }
+/* O avatar do perfil na Home fica solto (sem fundo), com um contorno para aparecer bem sobre o degradê */
+html[data-infantil] .topo-direita .btn-perfil .perfil-mini { border-color: rgba(255, 255, 255, 0.85); }
+/* Criança não troca de lista nem sai da conta: "Listas" e "Sair" somem no perfil infantil */
+html[data-infantil] .rodape { display: none !important; }
 html[data-infantil] .btn-discreto {
   color: #fff !important; background: rgba(24, 28, 100, 0.65) !important; border: 2px solid rgba(255, 255, 255, 0.7) !important;
   font-weight: 700;

@@ -86,7 +86,8 @@
     else { document.documentElement.removeAttribute('data-infantil'); }
   }
 
-  // Botão de perfil da Home (bolinha com a inicial + nome). Só aparece em conta do VLTV Play com perfil escolhido.
+  // Botão de perfil da Home: só o avatar (o nome aparece na tela de perfis). A seta aparece quando o controle está em cima.
+  // Só aparece em conta do VLTV Play com perfil escolhido.
   function atualizarBotaoPerfil() {
     aplicarVisualInfantil();
     var p = VLTV.dados.perfilAtual();
@@ -95,7 +96,7 @@
     var caixa = $('perfil-mini-caixa');
     while (caixa.firstChild) { caixa.removeChild(caixa.firstChild); }
     if (VLTV.perfil && VLTV.perfil.avatar) { caixa.appendChild(VLTV.perfil.avatar(p, true)); }
-    $('perfil-mini-nome').textContent = p.nome;
+    btnPerfil.setAttribute('aria-label', 'Perfil ' + p.nome + '. Trocar de perfil');
   }
 
   // ── Telas ─────────────────────────────────────────────────────────
@@ -771,9 +772,6 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
 
-    // Menu de perfis aberto embaixo do avatar da Home: fica com as teclas.
-    if (VLTV.perfil && VLTV.perfil.menuAberto()) { VLTV.perfil.teclaMenu(k); e.preventDefault(); return; }
-
     // "Quem está assistindo?" fica por cima de tudo e com as teclas enquanto está aberta.
     if (VLTV.perfil && VLTV.perfil.aberto()) { if (VLTV.perfil.tecla(k)) { e.preventDefault(); } return; }
 
@@ -890,9 +888,9 @@
     fecharApp();   // só aqui o app fecha (Samsung: tizen exit() via tizen-shim; LG: window.close)
   });
   btnListas.addEventListener('click', function () { abrirListas(); });
+  // Avatar da Home: abre o menu suspenso com os perfis (no perfil infantil pede a senha dos pais antes).
   btnPerfil.addEventListener('click', function () {
-    if (VLTV.perfil.menuAberto()) { VLTV.perfil.fecharMenu(true); return; }
-    VLTV.perfil.abrirMenu(btnPerfil, function () { atualizarBotaoPerfil(); if (telaAtual === 'home') { btnPerfil.focus(); } });
+    VLTV.perfil.abrirMenu(function () { atualizarBotaoPerfil(); if (telaAtual === 'home') { btnPerfil.focus(); } });
   });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {

@@ -231,7 +231,9 @@
   }
 
   // ── Criar / renomear / apagar (a mesma rota do celular: manda "perfis", vale o "atualizado" mais novo) ──
-  var AVATAR_NORMAL = 'av_iron_man';   // mesmos nomes de avatar do app Android
+  // Avatar de perfil comum: bichinho original do VLTV ("vltv:<id>", ver js/avatares.js). Antes era 'av_iron_man' (personagem
+  // de fora, risco de direitos autorais). O infantil continua 'av_infantil' (arte própria, igual no celular).
+  var AVATAR_NORMAL = 'vltv:raposa';
   var AVATAR_KIDS = 'av_infantil';
 
   function agora() { return new Date().getTime(); }
@@ -264,32 +266,35 @@
 
   function nomeValido(nome) { return String(nome || '').trim().slice(0, 40); }
 
-  function criarPerfil(nome, kids) {
+  // imagem (opcional): avatar escolhido ("vltv:<id>"). Perfil infantil sempre usa o avatar infantil.
+  function criarPerfil(nome, kids, imagem) {
     nome = nomeValido(nome);
     if (!nome) { return Promise.reject(new Error('nome')); }
     var id = perfilId(nome);
     return listarPerfis().then(function (lista) {
       if (lista.some(function (p) { return p.id === id; })) { throw new Error('existe'); }
       var t = agora();
-      var novo = { id: id, nome: nome, imagem: kids ? AVATAR_KIDS : AVATAR_NORMAL, kids: !!kids };
+      var novo = { id: id, nome: nome, imagem: kids ? AVATAR_KIDS : (imagem || AVATAR_NORMAL), kids: !!kids };
       return salvarPerfis(comPadroes(lista, [itemDe(novo, t)], t));
     });
   }
 
   // O id sai do nome (igual ao celular): renomear cria o id novo e apaga o antigo. O histórico desta TV vai junto.
-  function renomearPerfil(p, novoNome) {
+  // novaImagem (opcional): troca também o avatar. Sem ela, o perfil mantém o que já tinha.
+  function renomearPerfil(p, novoNome, novaImagem) {
     novoNome = nomeValido(novoNome);
     if (!novoNome) { return Promise.reject(new Error('nome')); }
     var novoId = perfilId(novoNome);
+    var imagem = (novaImagem !== undefined && p.kids !== true) ? novaImagem : p.imagem;
     return listarPerfis().then(function (lista) {
       var t = agora();
       var itens;
       if (novoId === p.id) {
-        itens = [itemDe({ id: p.id, nome: novoNome, imagem: p.imagem, kids: p.kids }, t)];
+        itens = [itemDe({ id: p.id, nome: novoNome, imagem: imagem, kids: p.kids }, t)];
       } else {
         if (lista.some(function (x) { return x.id === novoId; })) { throw new Error('existe'); }
         itens = [
-          itemDe({ id: novoId, nome: novoNome, imagem: p.imagem, kids: p.kids }, t),
+          itemDe({ id: novoId, nome: novoNome, imagem: imagem, kids: p.kids }, t),
           { id: p.id, nome: '', removido: true, atualizado: t }
         ];
       }
@@ -297,7 +302,7 @@
         var atual = perfil();
         if (novoId !== p.id) { VLTV.dados.migrarPerfil(p.id, novoId); }
         if (atual && atual.id === p.id) {
-          VLTV.dados.definirPerfil({ id: novoId, nome: novoNome, imagem: p.imagem || '', kids: p.kids === true });
+          VLTV.dados.definirPerfil({ id: novoId, nome: novoNome, imagem: imagem || '', kids: p.kids === true });
           ultimaSync = 0;
           sincronizar(true);
         }

@@ -1,16 +1,17 @@
-/* VLTV Play | Home: cabeçalho (nome do app, hora, perfil, engrenagem) mais alto e mais afastado dos banners. */
+/* VLTV Play | Home: cabeçalho (marca do app, hora, perfil, engrenagem) e banners.
+   Os banners ficaram mais altos: sobem até perto do cabeçalho (ficam 14px abaixo dele) e passam de 510 para 610 de altura. */
 #tela-home .topo { margin-top: -50px; }
 #tela-home .banner,
-#tela-home .destaque { margin-top: 86px; }
+#tela-home .destaque { margin-top: 14px; height: 610px; }
 
-/* ── Home: banners maiores (mais largos e mais altos) ──
-   A Home usa menos margem nas laterais/em cima para os banners crescerem sem empurrar Listas/Sair para fora. */
-#tela-home { top: 40px; left: 40px; right: 40px; bottom: 36px; }
-#tela-home .topo { margin-top: -30px; }
-#tela-home .logo-pequeno img { display: block; height: 84px; width: 84px; }
-#tela-home .banner { width: 1840px; height: 590px; }
-#tela-home.com-destaque .banner { width: 1140px; }
-#tela-home .destaque { width: 676px; height: 590px; margin-left: 24px; }
-#tela-home.com-banner .tile { width: 597px; height: 144px; }
-#tela-home.com-banner .tiles > * + * { margin-left: 24px; }
-#tela-home.com-banner .tiles { margin-top: 24px; }
+/* Marca do app no canto esquerdo (no lugar do nome "VLTV PLAY"). Tamanho fixo de 76px.
+   */
+#tela-home .logo-pequeno { display: block; line-height: 0; }
+#tela-home .logo-marca { display: block; width: 76px; height: 76px; }
+
+/* Com a altura nova, o pôster do banner cresce junto */
+#tela-home.com-banner .bn-poster { width: 340px; height: 490px; }
+#tela-home.com-destaque .bn-poster { width: 280px; height: 420px; }
+#tela-home.com-destaque .bn-titulo-caixa { height: 170px; }
+#tela-home.com-destaque .bn-logo { max-height: 170px; }
+#tela-home .destaque .ds-conteudo { padding-bottom: 48px; }

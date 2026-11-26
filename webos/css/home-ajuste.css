@@ -2,3 +2,15 @@
 #tela-home .topo { margin-top: -50px; }
 #tela-home .banner,
 #tela-home .destaque { margin-top: 86px; }
+
+/* ── Home: banners maiores (mais largos e mais altos) ──
+   A Home usa menos margem nas laterais/em cima para os banners crescerem sem empurrar Listas/Sair para fora. */
+#tela-home { top: 40px; left: 40px; right: 40px; bottom: 36px; }
+#tela-home .topo { margin-top: -30px; }
+#tela-home .logo-pequeno img { display: block; height: 84px; width: 84px; }
+#tela-home .banner { width: 1840px; height: 590px; }
+#tela-home.com-destaque .banner { width: 1140px; }
+#tela-home .destaque { width: 676px; height: 590px; margin-left: 24px; }
+#tela-home.com-banner .tile { width: 597px; height: 144px; }
+#tela-home.com-banner .tiles > * + * { margin-left: 24px; }
+#tela-home.com-banner .tiles { margin-top: 24px; }

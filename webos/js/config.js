@@ -116,7 +116,7 @@ VLTV.config = {
   // Medidor de travadas (só para testes): true mostra, no canto de cima da tela, as últimas vezes em que o app ficou preso.
   DIAGNOSTICO_TRAVADAS: false,
 
-  PROTETOR_SEGUNDOS: 90,
+  PROTETOR_SEGUNDOS: 120,
   PROTETOR_TAMANHO_FUNDO: 'w1280',
 
   // Trabalho em segundo plano (deixa tudo pronto antes de você pedir). Para descobrir o que pesa na TV:

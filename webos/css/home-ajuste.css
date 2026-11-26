@@ -4,10 +4,10 @@
 #tela-home .banner,
 #tela-home .destaque { margin-top: 14px; height: 610px; }
 
-/* Marca do app no canto esquerdo (no lugar do nome "VLTV PLAY"). Logo VL em vetor, 96x62.
+/* Marca do app no canto esquerdo (no lugar do nome "VLTV PLAY"). Logo VL em vetor, 72x47 (do tamanho do avatar, 60px).
    */
 #tela-home .logo-pequeno { display: block; line-height: 0; }
-#tela-home .logo-marca { display: block; width: 96px; height: 62px; -webkit-filter: saturate(1.35) brightness(1.18) drop-shadow(0 3px 6px rgba(0,0,0,.65)); filter: saturate(1.35) brightness(1.18) drop-shadow(0 3px 6px rgba(0,0,0,.65)); }
+#tela-home .logo-marca { display: block; width: 72px; height: 47px; -webkit-filter: saturate(1.35) brightness(1.18) drop-shadow(0 3px 6px rgba(0,0,0,.65)); filter: saturate(1.35) brightness(1.18) drop-shadow(0 3px 6px rgba(0,0,0,.65)); }
 
 /* Com a altura nova, o pôster do banner cresce junto */
 #tela-home.com-banner .bn-poster { width: 340px; height: 490px; }

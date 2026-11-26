@@ -275,36 +275,50 @@
   }
 
   // Entrada no perfil infantil: tela colorida com o avatar e "INFANTIL" (igual à animação do app do celular).
-  // A Home já carrega por trás; o toque do controle fica preso até a animação terminar.
-  function animarInfantil() {
+  // A tela colorida aparece NA HORA (já 100% opaca) e só depois de pintada na TV é que o perfil troca (callback "trocar"),
+  // então a Home infantil nunca aparece antes da apresentação. A Home termina de carregar por trás e a capa some no fim.
+  // Enquanto a capa está na tela, o controle remoto fica preso.
+  function animarInfantil(trocar) {
     var capa = document.createElement('div');
-    capa.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-      'background:linear-gradient(90deg,#2E7D32,#F57C00,#E91E8C,#3F51B5);opacity:0;transition:opacity .28s ease;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;';
+    capa.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'background:linear-gradient(90deg,#2E7D32,#F57C00,#E91E8C,#3F51B5);opacity:1;-webkit-transition:opacity .4s ease;transition:opacity .4s ease;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;';
     var img = document.createElement('img');
     img.alt = '';
     img.src = 'img/av_infantil.jpg';
-    img.style.cssText = 'width:300px;height:300px;border-radius:18%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.35);transform:scale(.55);transition:transform .48s cubic-bezier(.34,1.56,.64,1);';
+    img.style.cssText = 'width:300px;height:300px;border-radius:18%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.35);-webkit-transform:scale(.55);transform:scale(.55);-webkit-transition:-webkit-transform .48s cubic-bezier(.34,1.56,.64,1);transition:transform .48s cubic-bezier(.34,1.56,.64,1);';
     var txt = document.createElement('div');
     txt.textContent = 'INFANTIL';
-    txt.style.cssText = 'margin-top:44px;font-size:60px;font-weight:800;letter-spacing:6px;color:#fff;opacity:0;transition:opacity .25s ease;text-shadow:0 4px 16px rgba(0,0,0,.3);';
+    txt.style.cssText = 'margin-top:44px;font-size:60px;font-weight:800;letter-spacing:6px;color:#fff;opacity:0;-webkit-transition:opacity .25s ease;transition:opacity .25s ease;text-shadow:0 4px 16px rgba(0,0,0,.3);';
     capa.appendChild(img);
     capa.appendChild(txt);
     document.body.appendChild(capa);
     var travar = function (ev) { ev.stopPropagation(); ev.preventDefault(); };
     document.addEventListener('keydown', travar, true);
-    setTimeout(function () { capa.style.opacity = '1'; img.style.transform = 'scale(1)'; }, 30);
+    setTimeout(function () { img.style.transform = 'scale(1)'; img.style.webkitTransform = 'scale(1)'; }, 30);
     setTimeout(function () { txt.style.opacity = '1'; }, 560);
-    setTimeout(function () { capa.style.opacity = '0'; }, 1500);
+    // Só troca de perfil depois que a capa foi pintada (a TV é lenta: sem isso a Home infantil aparecia antes).
+    var trocou = false;
+    var fazerTroca = function () {
+      if (trocou) { return; }
+      trocou = true;
+      try { if (trocar) { trocar(); } } catch (e) { /* ignora */ }
+    };
+    setTimeout(fazerTroca, 220);
+    setTimeout(function () { capa.style.opacity = '0'; }, 2200);
     setTimeout(function () {
+      fazerTroca();
       document.removeEventListener('keydown', travar, true);
       if (capa.parentNode) { capa.parentNode.removeChild(capa); }
-    }, 1850);
+    }, 2650);
   }
 
   function escolher(i) {
     var p = perfis[i];
     if (!p) { return; }
-    if (p.kids === true) { animarInfantil(); }
+    if (p.kids === true) {
+      animarInfantil(function () { VLTV.nuvem.escolherPerfil(p); fecharTela(); });
+      return;
+    }
     VLTV.nuvem.escolherPerfil(p);
     fecharTela();
   }
@@ -465,7 +479,11 @@
     }
     var atual = VLTV.dados.perfilAtual();
     if (atual && atual.id === it.perfil.id) { fecharMenu(); return; }
-    if (it.perfil.kids === true) { animarInfantil(); }
+    if (it.perfil.kids === true) {
+      var pInfantil = it.perfil;
+      animarInfantil(function () { VLTV.nuvem.escolherPerfil(pInfantil); fecharMenu(); });
+      return;
+    }
     VLTV.nuvem.escolherPerfil(it.perfil);
     fecharMenu();
   }

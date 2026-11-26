@@ -109,17 +109,35 @@
 
     <section id="tela-home" class="tela tela-topo escondida">
       <header class="topo">
-        <!-- Marca do app (como o "N" da Netflix): só o V, sem caixa e sem borda, na cor principal do app (var --destaque).
-             Muda junto com o tema e no infantil. O V é feito de duas faixas (uma mais clara, uma mais escura) que se cruzam embaixo. -->
+        <!-- Marca do app: logo "VL" do Leandro (vetor SVG, nítido em qualquer tela). Cores fixas da marca, sem caixa nem borda. -->
         <div class="logo-pequeno" role="img" aria-label="VLTV Play">
-          <svg class="logo-marca" viewBox="0 0 64 64" width="76" height="76" aria-hidden="true" focusable="false">
+          <svg class="logo-marca" viewBox="270 185 1060 690" width="150" height="98" aria-hidden="true" focusable="false">
             <defs>
-              <linearGradient id="logo-e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--destaque)"/><stop offset="1" style="stop-color:var(--destaque-escuro)"/></linearGradient>
-              <linearGradient id="logo-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--destaque-claro)"/><stop offset="1" style="stop-color:var(--destaque)"/></linearGradient>
-            </defs>
-            <path d="M4 5h16.5l12.8 38.5L28.5 59z" fill="url(#logo-e)"/>
-            <path d="M44.5 5H60L37.5 59H27.5l5.8-15.5z" fill="url(#logo-d)"/>
-            <path d="M33.3 43.5L28.5 59h9z" style="fill:var(--destaque-escuro)" opacity=".85"/>
+    <linearGradient id="lg-gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6727a"/><stop offset="1" stop-color="#7a2830"/></linearGradient>
+    <linearGradient id="lg-gM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9777e"/><stop offset="1" stop-color="#a84a52"/></linearGradient>
+    <linearGradient id="lg-gS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d7757c"/><stop offset="1" stop-color="#9a3d45"/></linearGradient>
+    <linearGradient id="lg-gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9606a"/><stop offset="1" stop-color="#a8444d"/></linearGradient>
+  </defs>
+  <g stroke-linejoin="round" stroke-linecap="round">
+  <path d="M352 198L530 200L490 298Z" fill="#f2adb2"/>
+  <path d="M352 198L490 298L700 525L560 450L470 412Z" fill="#4d0f16"/>
+  <path d="M490 298L530 200L700 525L560 450Z" fill="url(#lg-gM)"/>
+  <path d="M280 413C420 418 560 455 650 525L714 570L714 862C682 766 598 612 470 496C396 444 340 425 280 413Z" fill="#5d151c"/>
+  <path d="M280 413C420 418 560 455 650 525L714 570L714 720C690 640 620 560 520 482C440 440 350 420 280 413Z" fill="url(#lg-gS)"/>
+  <path d="M900 198L1078 198L940 288Z" fill="#f2adb2"/>
+  <path d="M900 198L940 288L712 862L714 560Z" fill="url(#lg-gV)"/>
+  <path d="M940 288L1078 198L712 862Z" fill="#4b0e15"/>
+  <path d="M940 288L712 862" stroke="#e58b92" stroke-width="2" fill="none" opacity=".7"/>
+  <path d="M1000 413L1008 735L935 790L935 530Z" fill="#5a161d"/>
+  <path d="M935 530L868 650L868 790L935 790Z" fill="#7a2229"/>
+  <path d="M868 790L815 862L940 862L940 792Z" fill="#3e0b11"/>
+  <path d="M940 792L1004 727L1316 722L1235 792Z" fill="url(#lg-gB)"/>
+  <path d="M940 792L1235 792L1313 862L815 862Z" fill="#6a1b22"/>
+  <path d="M1316 722L1320 860L1235 792Z" fill="#3a0a10"/>
+  <path d="M940 288L712 862" stroke="#f3b3b8" stroke-width="2.5" fill="none" opacity=".55"/>
+  <path d="M1004 727L1316 722" stroke="#f3b3b8" stroke-width="2.5" fill="none" opacity=".6"/>
+  <path d="M935 530L935 790" stroke="#d9777e" stroke-width="2.5" fill="none" opacity=".6"/>
+  </g>
           </svg>
         </div>
         <div class="topo-direita">

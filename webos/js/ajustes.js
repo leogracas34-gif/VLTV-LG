@@ -414,6 +414,12 @@
         acao: function () { P.definirModo(P.modo() === 'ocultar' ? 'senha' : 'ocultar'); }
       },
       {
+        rotulo: 'Senha para sair do perfil infantil',
+        valor: P.travaKids() ? 'Ativado' : 'Desativado',
+        classe: P.travaKids() ? 'ok' : '',
+        acao: alternarTravaKids
+      },
+      {
         rotulo: 'Senha',
         valor: P.senhaPadrao() ? 'Padrão (0000) - alterar' : 'Personalizada - alterar',
         classe: P.senhaPadrao() ? 'erro' : 'ok',
@@ -429,9 +435,23 @@
     if (dirIdx > dirItens.length - 1) { dirIdx = dirItens.length - 1; }
     esvaziar(conteudo);
     dirItens.forEach(function (it, i) { linhaOpcao(it.rotulo, it.valor, it.classe, i === dirIdx); });
+    texto(P.travaKids()
+      ? 'Para sair do perfil infantil será pedida a senha dos pais.'
+      : 'Perfil infantil sem senha para sair (padrão). Ative para que só os pais saiam dele, digitando a senha.');
     texto(P.senhaPadrao()
       ? 'Você ainda usa a senha padrão (0000). Crie a sua para proteger de verdade.'
       : 'Com o bloqueio ativado, categorias, canais e filmes adultos pedem a senha (ou ficam ocultos). Depois de digitada, a senha libera o conteúdo até voltar para a tela inicial.');
+  }
+
+  // Liga/desliga a senha para sair do perfil infantil. Ao ligar, se a senha ainda é a de fábrica (0000), cria a nova antes.
+  function alternarTravaKids() {
+    var P = VLTV.parental;
+    if (P.travaKids()) { P.definirTravaKids(false); return; }
+    if (P.senhaPadrao()) {
+      P.criarSenha(function () { P.definirTravaKids(true); desenharParental(); }, function () { desenharParental(); });
+      return;
+    }
+    P.definirTravaKids(true);
   }
 
   function criarNovaSenha() {

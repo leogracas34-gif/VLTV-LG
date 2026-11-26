@@ -162,7 +162,7 @@
   }
 
   // ── Trava dos pais ────────────────────────────────────────────────
-  // Quem está no perfil infantil só sai dele com a senha do controle parental. Se a senha ainda é a de fábrica (0000),
+  // Se a opção "Senha para sair do perfil infantil" estiver ligada, quem está no infantil só sai com a senha do controle parental. Se a senha ainda é a de fábrica (0000),
   // pede para criar uma nova antes (senão qualquer criança que viu "0000" uma vez sairia do perfil).
   function emPerfilInfantil() {
     var p = VLTV.dados && VLTV.dados.perfilAtual ? VLTV.dados.perfilAtual() : null;
@@ -171,7 +171,8 @@
 
   function comTrava(pronto, cancelar) {
     var P = VLTV.parental;
-    if (!emPerfilInfantil() || !P) { pronto(); return; }
+    // A senha para sair do perfil infantil só vale se o cliente ligou em Configurações > Controle parental (padrão: desligada).
+    if (!emPerfilInfantil() || !P || !P.travaKids()) { pronto(); return; }
     var seguir = function () { try { P.travar(); } catch (e) { /* ignora */ } pronto(); };
     if (P.senhaPadrao()) { P.criarSenha(seguir, cancelar); return; }
     P.pedirSenha(seguir, { titulo: 'Sair do perfil infantil', sub: 'Digite a senha dos pais.', sempre: true, cancelar: cancelar });

@@ -71,7 +71,7 @@
   var estado = null;
   var liberado = false;
 
-  function padrao() { return { ativo: true, modo: 'senha', pin: null, perg: null, resp: null }; }
+  function padrao() { return { ativo: true, modo: 'senha', pin: null, perg: null, resp: null, trava: false }; }
 
   function ler() {
     if (estado) { return estado; }
@@ -86,6 +86,7 @@
           e.pin = o.pin || null;
           e.perg = typeof o.perg === 'number' ? o.perg : null;
           e.resp = o.resp || null;
+          e.trava = o.trava === true;   // senha para sair do perfil infantil: vem DESATIVADA, o cliente liga em Configurações
         }
       }
     } catch (err) { /* usa o padrão */ }
@@ -147,6 +148,8 @@
   function perguntaAtual() { var e = ler(); return e.perg !== null ? PERGUNTAS[e.perg] || '' : ''; }
 
   function definirAtivo(v) { ler().ativo = !!v; gravar(); aplicarVisual(); }
+  function travaKids() { return ler().trava === true; }
+  function definirTravaKids(v) { ler().trava = !!v; gravar(); }
   function definirModo(m) { ler().modo = m === 'ocultar' ? 'ocultar' : 'senha'; gravar(); }
 
   function bloqueando() { return ler().ativo && !liberado; }
@@ -546,6 +549,8 @@
     temPergunta: temPergunta,
     definirAtivo: definirAtivo,
     definirModo: definirModo,
+    travaKids: travaKids,
+    definirTravaKids: definirTravaKids,
     bloqueando: bloqueando,
     liberar: liberar,
     travar: travar,

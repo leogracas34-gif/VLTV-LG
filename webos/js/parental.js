@@ -529,6 +529,7 @@
     recalcularPerfil: recalcular,
     checarReproducao: checarReproducao,
     pedirSenha: pedirSenha,
+    temSenha: function () { var e = ler(); return !!(e.ativo && e.pin); },
     criarSenha: criarSenha,
     aberto: function () { return aberto; },
     tecla: tecla

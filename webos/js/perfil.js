@@ -67,7 +67,21 @@
     '.topo-direita .btn-perfil{display:inline-flex;align-items:center;height:76px;margin-right:20px;padding:0 34px 0 8px;box-sizing:border-box;border-radius:38px;' +
     'background:var(--painel);border:3px solid var(--borda);color:#e8e8ee;font-size:28px;font-weight:700;font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;outline:none;}' +
     '.topo-direita .btn-perfil:focus,.topo-direita .btn-perfil:hover{color:#fff;background:var(--destaque);border-color:#fff;box-shadow:0 0 0 8px rgba(var(--destaque-rgb),.5);}' +
-    '.btn-perfil #perfil-mini-nome{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '.btn-perfil #perfil-mini-nome{display:none;}' +
+    '.topo-direita .btn-perfil{padding:0 20px 0 8px;}' +
+    '.btn-perfil .perfil-mini{margin-right:12px;}' +
+    '.btn-perfil .pf-caret{display:inline-block;width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:13px solid currentColor;opacity:.55;transition:opacity .15s,transform .15s;}' +
+    '.btn-perfil:focus .pf-caret,.btn-perfil:hover .pf-caret,.btn-perfil.aberto .pf-caret{opacity:1;}' +
+    '.btn-perfil.aberto .pf-caret{transform:rotate(180deg);}' +
+    /* menu que abre embaixo do botão */
+    '#pf-menu{position:fixed;z-index:9000;min-width:340px;padding:14px 0;background:rgba(14,14,20,.96);border:2px solid rgba(255,255,255,.22);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.65);font-family:"Plus Jakarta Sans","LG Smart UI",Arial,sans-serif;}' +
+    '#pf-menu.escondida{display:none;}' +
+    '#pf-menu .pf-item{display:flex;align-items:center;padding:10px 26px;font-size:28px;font-weight:700;color:#d6d6de;border:0;background:transparent;width:100%;text-align:left;outline:none;box-sizing:border-box;}' +
+    '#pf-menu .pf-item .perfil-mini{margin-right:20px;width:54px;height:54px;font-size:28px;}' +
+    '#pf-menu .pf-item.atual{color:#fff;}' +
+    '#pf-menu .pf-item.foco{background:rgba(255,255,255,.16);color:#fff;}' +
+    '#pf-menu .pf-sep{height:2px;margin:10px 0;background:rgba(255,255,255,.14);}' +
+    '#pf-menu .pf-nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;}' +
     '.btn-perfil .perfil-mini{border:0;}';
 
   // Avatares próprios do VLTV (cores e formas, sem personagens): evita problema de direitos autorais nas lojas.
@@ -86,6 +100,23 @@
     { id: 'rosa',     nome: 'Rosa',     fundo: 'radial-gradient(circle at 24% 22%,rgba(255,255,255,.38),rgba(255,255,255,0) 44%),linear-gradient(140deg,#ff758c,#ff7eb3)' },
     { id: 'grafite',  nome: 'Grafite',  fundo: 'radial-gradient(circle at 28% 20%,rgba(255,255,255,.22),rgba(255,255,255,0) 45%),linear-gradient(150deg,#485563,#29323c)' }
   ];
+
+  // Avatares ilustrados originais do VLTV (mesma ordem do app do celular: o automático sai do id do perfil).
+  var ANIMAIS = ['raposa', 'gato', 'urso', 'coruja', 'robo', 'alien', 'panda', 'coelho', 'dino', 'polvo', 'astro', 'leao'];
+
+  function hashId(p) {
+    var h = 0, t = String(p.id || p.nome || '');
+    for (var j = 0; j < t.length; j++) { h = (h * 31 + t.charCodeAt(j)) % 9973; }
+    return h;
+  }
+
+  // Qual ilustração o perfil usa: a escolhida ("vltv:<animal>") ou, se não escolheu (ou escolheu um estilo antigo de cor), a que sai do id.
+  function animalDe(p) {
+    var m = /^vltv:(.+)$/.exec(String(p.imagem || ''));
+    if (m && ANIMAIS.indexOf(m[1]) >= 0) { return m[1]; }
+    if (m && estiloPorId(m[1]) >= 0) { return null; }   // escolheu um fundo de cor: mostra cor + inicial
+    return ANIMAIS[hashId(p) % ANIMAIS.length];
+  }
 
   function estiloPorId(id) {
     for (var i = 0; i < ESTILOS.length; i++) { if (ESTILOS[i].id === id) { return i; } }
@@ -118,6 +149,14 @@
       k.alt = '';
       k.src = 'img/av_infantil.jpg';
       av.appendChild(k);
+      return av;
+    }
+    var animal = animalDe(p);
+    if (animal) {
+      var ia = document.createElement('img');
+      ia.alt = '';
+      ia.src = 'img/av/' + animal + '.png';
+      av.appendChild(ia);
       return av;
     }
     av.style.backgroundImage = ESTILOS[estiloDe(p)].fundo;
@@ -249,12 +288,25 @@
     }, 1850);
   }
 
+  // Quem está no perfil infantil só sai dele para um perfil normal com a senha do controle parental (se ela existir).
+  function protegerSaida(p, seguir, antes) {
+    var at = VLTV.dados.perfilAtual();
+    if (at && at.kids === true && p.kids !== true && VLTV.parental.temSenha && VLTV.parental.temSenha()) {
+      if (antes) { antes(); }
+      VLTV.parental.pedirSenha(seguir, { sempre: true, titulo: 'Sair do perfil infantil', sub: 'Digite a senha para trocar de perfil.' });
+      return;
+    }
+    seguir();
+  }
+
   function escolher(i) {
     var p = perfis[i];
     if (!p) { return; }
-    if (p.kids === true) { animarInfantil(); }
-    VLTV.nuvem.escolherPerfil(p);
-    fechar();
+    protegerSaida(p, function () {
+      if (p.kids === true) { animarInfantil(); }
+      VLTV.nuvem.escolherPerfil(p);
+      fechar();
+    }, fechar);
   }
 
   function ativar(i) {
@@ -531,6 +583,96 @@
     return true;
   }
 
+  // ── Menu do botão de perfil da Home (abre embaixo do avatar, estilo Netflix) ──
+  var menu = null, menuItens = [], menuIdx = 0, menuBtn = null, menuDepois = null;
+
+  function menuAberto() { return !!menu && !menu.classList.contains('escondida'); }
+
+  function menuMarcar() {
+    menuItens.forEach(function (b, i) { b.classList.toggle('foco', i === menuIdx); });
+  }
+
+  function fecharMenu(voltarFoco) {
+    if (!menu) { return; }
+    menu.classList.add('escondida');
+    if (menuBtn) { menuBtn.classList.remove('aberto'); if (voltarFoco) { menuBtn.focus(); } }
+  }
+
+  function menuAtivar(i) {
+    var it = menuItens[i];
+    if (!it) { return; }
+    if (it.gerenciar) {
+      fecharMenu(false);
+      protegerSaida({ kids: false }, function () { abrirTroca(menuDepois); });
+      return;
+    }
+    var p = it.perfil;
+    var atual = VLTV.dados.perfilAtual();
+    fecharMenu(true);
+    if (atual && atual.id === p.id) { return; }
+    protegerSaida(p, function () {
+      if (p.kids === true) { animarInfantil(); }
+      VLTV.nuvem.escolherPerfil(p);
+      if (menuDepois) { setTimeout(menuDepois, 0); }
+    });
+  }
+
+  function desenharMenu(lista) {
+    var atual = VLTV.dados.perfilAtual();
+    while (menu.firstChild) { menu.removeChild(menu.firstChild); }
+    menuItens = [];
+    lista.forEach(function (p) {
+      var b = el('button', 'pf-item');
+      b.type = 'button';
+      b.appendChild(avatar(p, true));
+      b.appendChild(el('span', 'pf-nome', p.nome));
+      if (atual && atual.id === p.id) { b.className += ' atual'; }
+      b.perfil = p;
+      b.addEventListener('click', function () { menuIdx = menuItens.indexOf(b); menuAtivar(menuIdx); });
+      menu.appendChild(b);
+      menuItens.push(b);
+    });
+    menu.appendChild(el('div', 'pf-sep'));
+    var g = el('button', 'pf-item', 'Gerenciar perfis');
+    g.type = 'button';
+    g.gerenciar = true;
+    g.addEventListener('click', function () { menuIdx = menuItens.indexOf(g); menuAtivar(menuIdx); });
+    menu.appendChild(g);
+    menuItens.push(g);
+    menuIdx = 0;
+    for (var i = 0; i < menuItens.length; i++) { if (menuItens[i].classList.contains('atual')) { menuIdx = i; } }
+    menuMarcar();
+  }
+
+  function abrirMenu(botao, depois) {
+    if (!menu) {
+      menu = el('div', 'escondida');
+      menu.id = 'pf-menu';
+      document.body.appendChild(menu);
+    }
+    menuBtn = botao;
+    menuDepois = depois || null;
+    var guardada = VLTV.nuvem.listaGuardada();
+    function mostrar(lista) {
+      desenharMenu(lista);
+      var r = botao.getBoundingClientRect();
+      menu.style.top = Math.round(r.bottom + 12) + 'px';
+      menu.style.right = Math.max(20, Math.round(window.innerWidth - r.right)) + 'px';
+      menu.classList.remove('escondida');
+      botao.classList.add('aberto');
+    }
+    if (guardada.length > 0) { mostrar(guardada); return; }
+    VLTV.nuvem.listarPerfis().then(function (l) { mostrar(l.length > 0 ? l : VLTV.nuvem.padroes()); }).catch(function () {});
+  }
+
+  function teclaMenu(k) {
+    if (k === TECLA.CIMA) { if (menuIdx > 0) { menuIdx--; menuMarcar(); } return true; }
+    if (k === TECLA.BAIXO) { if (menuIdx < menuItens.length - 1) { menuIdx++; menuMarcar(); } return true; }
+    if (k === TECLA.ENTER) { menuAtivar(menuIdx); return true; }
+    if (k === TECLA.VOLTAR || k === TECLA.ESC || k === TECLA.ESQ || k === TECLA.DIR) { fecharMenu(true); return true; }
+    return true;
+  }
+
   // O CSS do botão da Home também precisa estar na página antes da tela abrir.
   (function injetarCss() {
     var st = document.createElement('style');
@@ -540,6 +682,7 @@
 
   VLTV.perfil = {
     abrir: abrir, abrirTroca: abrirTroca, atualizar: atualizar, fechar: fechar,
-    aberto: aberto, tecla: tecla, avatar: avatar
+    aberto: aberto, tecla: tecla, avatar: avatar,
+    abrirMenu: abrirMenu, menuAberto: menuAberto, teclaMenu: teclaMenu, fecharMenu: fecharMenu
   };
 })();

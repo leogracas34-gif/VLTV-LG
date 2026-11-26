@@ -771,6 +771,9 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
 
+    // Menu de perfis aberto embaixo do avatar da Home: fica com as teclas.
+    if (VLTV.perfil && VLTV.perfil.menuAberto()) { VLTV.perfil.teclaMenu(k); e.preventDefault(); return; }
+
     // "Quem está assistindo?" fica por cima de tudo e com as teclas enquanto está aberta.
     if (VLTV.perfil && VLTV.perfil.aberto()) { if (VLTV.perfil.tecla(k)) { e.preventDefault(); } return; }
 
@@ -888,7 +891,8 @@
   });
   btnListas.addEventListener('click', function () { abrirListas(); });
   btnPerfil.addEventListener('click', function () {
-    VLTV.perfil.abrirTroca(function () { atualizarBotaoPerfil(); if (telaAtual === 'home') { btnPerfil.focus(); } });
+    if (VLTV.perfil.menuAberto()) { VLTV.perfil.fecharMenu(true); return; }
+    VLTV.perfil.abrirMenu(btnPerfil, function () { atualizarBotaoPerfil(); if (telaAtual === 'home') { btnPerfil.focus(); } });
   });
   btnConfig.addEventListener('click', abrirConfig);
   [tileLive, tileFilmes, tileSeries].forEach(function (t) {
